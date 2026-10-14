@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!--
+      This page is neutral: no product name, no logo (Phase 12). A company's staff and visitors get
+      their company's name, colours, icon and manifest from the app once it runs (src/identity); the
+      platform owner's area gets the product's. What stands here is what a link preview and a
+      browser without JavaScript see, whoever the page is for.
+    -->
+    <meta name="description" content="تسجيل الزوار ودعواتهم واستقبالهم. Visitor registration, invitations and reception check-in." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#188086" />
+    <meta name="color-scheme" content="light dark" />
+    <!--
+      The colour scheme before anything is drawn (Phase 13): the device's appearance (Light, Dark, or
+      System: the device's own) on the root element and in the colour-scheme meta above, so a dark
+      page is dark from its first frame. A file of its own (the policy allows no inline script), here
+      before the stylesheet and the app.
+    -->
+    <script src="/appearance.js"></script>
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/neutral-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/neutral-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/neutral-48.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/neutral-192.png" />
+    <link rel="apple-touch-icon" href="/icons/neutral-apple-touch-icon.png" />
+    <title>الزوار | Visitors</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>يتطلب هذا التطبيق تفعيل JavaScript. This application requires JavaScript to be enabled.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

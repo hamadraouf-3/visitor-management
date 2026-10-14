@@ -1,0 +1,8 @@
+{
+  "title": "Visitor pass",
+  "qrLabel": "Visitor pass QR code",
+  "print": "Print pass",
+  "invalidTitle": "This pass link is incomplete or invalid",
+  "invalidDescription": "Open the link from your invitation email again.",
+  "host": "Host: {{name}}"
+}

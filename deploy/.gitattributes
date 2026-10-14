@@ -1,0 +1,4 @@
+# Everything here is read inside Linux containers (shell scripts, nginx and PostgreSQL configuration):
+# LF line endings whatever core.autocrlf says, or /bin/sh fails on the carriage returns.
+* text=auto eol=lf
+*.sh text eol=lf

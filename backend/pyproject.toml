@@ -1,0 +1,138 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "visitor-management-backend"
+version = "0.1.0"
+description = "Mawdoo3 Visitors API (FastAPI + PostgreSQL)"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.142,<0.143",
+    "uvicorn[standard]>=0.54",
+    "sqlalchemy>=2.1,<2.2",
+    "psycopg[binary]>=3.3,<3.4",
+    "alembic>=1.20,<1.21",
+    "pydantic[email]>=2.13,<2.14",
+    "pydantic-settings>=2.15,<2.16",
+    "argon2-cffi>=25.1",
+    "segno>=1.6",
+    "jinja2>=3.1",
+    "httpx>=0.28",
+    # IDNA 2008 for e-mail domains the SMTP provider sends in ASCII form (already locked: httpx and
+    # email-validator depend on it).
+    "idna>=3.7",
+    # zoneinfo needs an IANA database; Windows and slim containers have none.
+    "tzdata>=2026.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.1",
+    "pytest-cov>=7.1",
+    "ruff>=0.16",
+    "mypy>=2.4",
+    # starlette.testclient (Starlette 1.x) uses httpx2; plain httpx triggers a deprecation warning.
+    "httpx2>=2.13",
+    # A real SMTP server in the SMTP provider's tests, and the throwaway TLS certificate they trust.
+    "aiosmtpd>=1.4.6",
+    "cryptography>=46",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+"app" = ["seed_assets/*.png"]
+"app.email" = ["templates/*.html", "templates/*.txt", "assets/*.png"]
+"app.security" = ["common_passwords.txt", "common_words.txt"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+extend-exclude = [".venv", "var"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "N",        # pep8-naming
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "S",        # bandit (security)
+    "A",        # builtins shadowing
+    "C4",       # comprehensions
+    "DTZ",      # naive datetimes
+    "T20",      # print statements
+    "PIE",
+    "RET",
+    "SIM",
+    "PT",       # pytest style
+    "PTH",      # pathlib
+    "LOG",      # logging misuse
+    "G",        # logging format
+    "TID",      # tidy imports
+    "RUF",
+]
+ignore = [
+    "RUF012",   # mutable class attributes are fine for SQLAlchemy/Pydantic declarations
+    "N818",     # API error classes are named after their error codes (NotFound, Forbidden, ...)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Enum/action names such as PASSWORD_RESET are identifiers, not credentials.
+"app/models/enums.py" = ["S105"]
+"app/services/audit.py" = ["S105"]
+"app/core/rate_limit.py" = ["S105"]
+"app/services/scan.py" = ["S105"]
+"app/core/field_errors.py" = ["S105"]
+"tests/**" = ["S101", "S105", "S106", "S108", "S311", "DTZ001", "PT011", "PT018"]
+# The opt-in performance checks report their measurements on stdout (`pytest --performance -s`).
+"tests/performance/**" = ["S101", "S311", "T201"]
+# DDL/GRANT statements are built from constants and a validated role identifier.
+"alembic/versions/**" = ["E501", "S608"]
+# Command-line entry points report on stdout.
+"app/cli.py" = ["T201"]
+"app/contract.py" = ["T201"]
+
+[tool.ruff.lint.isort]
+# backend/alembic (the migrations directory) would otherwise shadow the alembic package.
+known-third-party = ["alembic"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+# Backend gate (every change, and CI): ruff check . ; ruff format --check . ; mypy ; pytest ;
+# pytest --committed-first (the same suite with the committed tests first: a test-isolation check).
+[tool.mypy]
+python_version = "3.14"
+files = ["app"]
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
+# SQLAlchemy 2.x types `Mapped[...]` natively; its mypy plugin was removed in 2.1.
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+xfail_strict = true
+filterwarnings = ["error"]
+markers = [
+    "committed: uses real commits on separate connections instead of the rolled-back test transaction",
+    "performance: seeded-volume and latency checks; skipped unless pytest runs with --performance",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true

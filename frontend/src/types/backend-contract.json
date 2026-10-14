@@ -1,0 +1,5839 @@
+{
+  "$defs": {
+    "AdminDashboard": {
+      "properties": {
+        "counts": {
+          "$ref": "#/$defs/AdminDashboardCounts"
+        },
+        "recent_audit": {
+          "items": {
+            "$ref": "#/$defs/AuditLog"
+          },
+          "title": "Recent Audit",
+          "type": "array"
+        }
+      },
+      "required": [
+        "counts",
+        "recent_audit"
+      ],
+      "title": "AdminDashboard",
+      "type": "object"
+    },
+    "AdminDashboardCounts": {
+      "properties": {
+        "admins": {
+          "title": "Admins",
+          "type": "integer"
+        },
+        "employees": {
+          "title": "Employees",
+          "type": "integer"
+        },
+        "inside_now": {
+          "title": "Inside Now",
+          "type": "integer"
+        },
+        "management": {
+          "title": "Management",
+          "type": "integer"
+        },
+        "receptionists": {
+          "title": "Receptionists",
+          "type": "integer"
+        },
+        "visitors_total": {
+          "title": "Visitors Total",
+          "type": "integer"
+        },
+        "visits_today": {
+          "title": "Visits Today",
+          "type": "integer"
+        },
+        "visits_total": {
+          "title": "Visits Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "visitors_total",
+        "visits_total",
+        "inside_now",
+        "visits_today",
+        "employees",
+        "receptionists",
+        "management",
+        "admins"
+      ],
+      "title": "AdminDashboardCounts",
+      "type": "object"
+    },
+    "AdminPasswordResetSent": {
+      "description": "POST /platform/companies/{id}/admins/{user_id}/password-reset: the reset link went to this address.",
+      "properties": {
+        "sent_to": {
+          "title": "Sent To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sent_to"
+      ],
+      "title": "AdminPasswordResetSent",
+      "type": "object"
+    },
+    "AuditLog": {
+      "description": "Build with `from_row`, not `model_validate(row)`: the ORM attribute is `meta` (`metadata` is\nSQLAlchemy's MetaData on declarative classes), `ip_address` is an `ipaddress` object, and `actor`\ncomes from a join the caller performs.",
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "actor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "entity_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Entity Id"
+        },
+        "entity_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Entity Type"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "ip_address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ip Address"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Request Id"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "user_agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "User Agent"
+        }
+      },
+      "required": [
+        "id",
+        "seq",
+        "created_at",
+        "action",
+        "actor",
+        "entity_type",
+        "entity_id",
+        "metadata",
+        "ip_address",
+        "user_agent",
+        "request_id"
+      ],
+      "title": "AuditLog",
+      "type": "object"
+    },
+    "AuditLogQuery": {
+      "additionalProperties": false,
+      "description": "GET /audit-logs (administrators): newest first by `seq`; dates are company-local.",
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "actor_user_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actor User Id"
+        },
+        "date_from": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date From"
+        },
+        "date_to": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date To"
+        },
+        "entity_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Id"
+        },
+        "entity_type": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{0,31}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Type"
+        },
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        }
+      },
+      "title": "AuditLogQuery",
+      "type": "object"
+    },
+    "BrandImageQuery": {
+      "additionalProperties": false,
+      "description": "GET /public/companies/{slug}/brand/{kind}.png: `v` is the image's version, as the addresses of a\n`CompanyBrand` carry it. It selects nothing (the image is always the current one): it only decides\nhow long the answer may be kept.",
+      "properties": {
+        "v": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "V"
+        }
+      },
+      "title": "BrandImageQuery",
+      "type": "object"
+    },
+    "BrandPalette": {
+      "description": "The shades derived from a company's colour (`app.core.palette`), each `#rrggbb`. Text and its\nbackground are always one of these pairs: `on_surface` on `surface` or `surface_hover`; white\n(`on_strong`) on `strong`, `strong_hover` or `deep`; `on_bright` on `bright`; `bright` on `deep`;\n`strong` on white or on `tint`.\n\n`surface` is what the brand's surfaces are painted with (the application's shell, primary buttons):\nthe chosen colour itself wherever white or the dark ink reads on it, otherwise `strong`. `strong`\nis the colour of text, links and icons on white (B12-21).",
+      "properties": {
+        "bright": {
+          "title": "Bright",
+          "type": "string"
+        },
+        "deep": {
+          "title": "Deep",
+          "type": "string"
+        },
+        "on_bright": {
+          "title": "On Bright",
+          "type": "string"
+        },
+        "on_strong": {
+          "title": "On Strong",
+          "type": "string"
+        },
+        "on_surface": {
+          "title": "On Surface",
+          "type": "string"
+        },
+        "strong": {
+          "title": "Strong",
+          "type": "string"
+        },
+        "strong_hover": {
+          "title": "Strong Hover",
+          "type": "string"
+        },
+        "surface": {
+          "title": "Surface",
+          "type": "string"
+        },
+        "surface_hover": {
+          "title": "Surface Hover",
+          "type": "string"
+        },
+        "tint": {
+          "title": "Tint",
+          "type": "string"
+        },
+        "tint_border": {
+          "title": "Tint Border",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strong",
+        "strong_hover",
+        "deep",
+        "bright",
+        "tint",
+        "tint_border",
+        "on_strong",
+        "on_bright",
+        "surface",
+        "on_surface",
+        "surface_hover"
+      ],
+      "title": "BrandPalette",
+      "type": "object"
+    },
+    "BrandPaletteRequest": {
+      "additionalProperties": false,
+      "description": "POST /platform/brand/palette: the palette a colour would give (nothing is saved).",
+      "properties": {
+        "color": {
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "color"
+      ],
+      "title": "BrandPaletteRequest",
+      "type": "object"
+    },
+    "ChangePasswordRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "current_password": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Current Password",
+          "type": "string"
+        },
+        "new_password": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "New Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "current_password",
+        "new_password"
+      ],
+      "title": "ChangePasswordRequest",
+      "type": "object"
+    },
+    "CheckInMethod": {
+      "enum": [
+        "QR",
+        "MANUAL",
+        "OVERRIDE",
+        "WALK_IN"
+      ],
+      "title": "CheckInMethod",
+      "type": "string"
+    },
+    "CheckOutMethod": {
+      "enum": [
+        "QR",
+        "MANUAL",
+        "CORRECTED",
+        "BULK"
+      ],
+      "title": "CheckOutMethod",
+      "type": "string"
+    },
+    "CompanyAdminCreate": {
+      "additionalProperties": false,
+      "description": "A company administrator created by the platform owner: a SYSTEM_ADMIN who must change the\ntemporary password at the first sign-in (72 hours, D-11), like POST /users.",
+      "properties": {
+        "email": {
+          "maxLength": 320,
+          "title": "Email",
+          "type": "string"
+        },
+        "full_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Full Name",
+          "type": "string"
+        },
+        "temporary_password": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Temporary Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "full_name",
+        "email",
+        "temporary_password"
+      ],
+      "title": "CompanyAdminCreate",
+      "type": "object"
+    },
+    "CompanyBrand": {
+      "description": "A company's identity. The three addresses are same-origin paths of the public image endpoint,\neach carrying the version of its image (use them as they are); null where the company has no such\nimage. `palette` is null exactly when `color` is. `version` changes whenever an image or the colour\nchanges.",
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Color"
+        },
+        "icon_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Icon Url"
+        },
+        "logo_dark_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Logo Dark Url"
+        },
+        "logo_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Logo Url"
+        },
+        "palette": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BrandPalette"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "logo_url",
+        "logo_dark_url",
+        "icon_url",
+        "color",
+        "palette",
+        "version"
+      ],
+      "title": "CompanyBrand",
+      "type": "object"
+    },
+    "CompanyBrandUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH /platform/companies/{id}/brand: the company's colour, or null for the product's palette.",
+      "properties": {
+        "color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Color"
+        }
+      },
+      "required": [
+        "color"
+      ],
+      "title": "CompanyBrandUpdate",
+      "type": "object"
+    },
+    "CompanyCounts": {
+      "description": "What the platform owner may know about a company's use (B11-2).",
+      "properties": {
+        "active_users": {
+          "title": "Active Users",
+          "type": "integer"
+        },
+        "visits_last_30_days": {
+          "title": "Visits Last 30 Days",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "active_users",
+        "visits_last_30_days"
+      ],
+      "title": "CompanyCounts",
+      "type": "object"
+    },
+    "CompanyRef": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar"
+      ],
+      "title": "CompanyRef",
+      "type": "object"
+    },
+    "CompanySettings": {
+      "properties": {
+        "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Address"
+        },
+        "address_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Address Ar"
+        },
+        "allow_walk_ins": {
+          "title": "Allow Walk Ins",
+          "type": "boolean"
+        },
+        "default_language": {
+          "$ref": "#/$defs/Language"
+        },
+        "email_domain": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Email Domain"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "notify_host_on_check_in": {
+          "title": "Notify Host On Check In",
+          "type": "boolean"
+        },
+        "pass_grace_after_minutes": {
+          "title": "Pass Grace After Minutes",
+          "type": "integer"
+        },
+        "pass_grace_before_minutes": {
+          "title": "Pass Grace Before Minutes",
+          "type": "integer"
+        },
+        "timezone": {
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "default_language",
+        "timezone",
+        "address",
+        "address_ar",
+        "email_domain",
+        "pass_grace_before_minutes",
+        "pass_grace_after_minutes",
+        "notify_host_on_check_in",
+        "allow_walk_ins"
+      ],
+      "title": "CompanySettings",
+      "type": "object"
+    },
+    "CompanySettingsUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH: omitted fields are unchanged; `name_ar`, `address`, `address_ar` and `email_domain` may be\nnull (or blank) to clear them. `name_ar` follows the rules of `name` (trimmed, 1-200 characters, one\nline, no control or text-direction characters), `address_ar` those of `address`.",
+      "properties": {
+        "address": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "address_ar": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address Ar"
+        },
+        "allow_walk_ins": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allow Walk Ins"
+        },
+        "default_language": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Language"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "email_domain": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email Domain"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        },
+        "notify_host_on_check_in": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notify Host On Check In"
+        },
+        "pass_grace_after_minutes": {
+          "anyOf": [
+            {
+              "maximum": 1440,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pass Grace After Minutes"
+        },
+        "pass_grace_before_minutes": {
+          "anyOf": [
+            {
+              "maximum": 1440,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pass Grace Before Minutes"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timezone"
+        }
+      },
+      "title": "CompanySettingsUpdate",
+      "type": "object"
+    },
+    "CorrectedCheckOut": {
+      "additionalProperties": false,
+      "properties": {
+        "check_out_at": {
+          "format": "date-time",
+          "title": "Check Out At",
+          "type": "string"
+        },
+        "method": {
+          "const": "CORRECTED",
+          "title": "Method",
+          "type": "string"
+        },
+        "note": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "check_out_at",
+        "note"
+      ],
+      "title": "CorrectedCheckOut",
+      "type": "object"
+    },
+    "Department": {
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Department",
+      "type": "object"
+    },
+    "DepartmentCount": {
+      "description": "`name` and `name_ar` are the department's current names (B10-25); a visit without a department\ncounts under `department_id` null, \"No department\" and no Arabic name.",
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "department_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Department Id"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "department_id",
+        "name",
+        "name_ar",
+        "count"
+      ],
+      "title": "DepartmentCount",
+      "type": "object"
+    },
+    "DepartmentCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "DepartmentCreate",
+      "type": "object"
+    },
+    "DepartmentListQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "include_inactive": {
+          "default": false,
+          "title": "Include Inactive",
+          "type": "boolean"
+        }
+      },
+      "title": "DepartmentListQuery",
+      "type": "object"
+    },
+    "DepartmentRef": {
+      "description": "A department as other resources embed it. `name` is the default (English, or only) name and\n`name_ar` the Arabic one, null when it has none: an Arabic interface shows `name_ar` when it is set,\nelse `name` (B10-25). In a visit both are the snapshots recorded on the visit (D-17).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar"
+      ],
+      "title": "DepartmentRef",
+      "type": "object"
+    },
+    "DepartmentUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH: omitted fields are unchanged; `name_ar` may be null (or blank) to clear it.",
+      "properties": {
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        }
+      },
+      "title": "DepartmentUpdate",
+      "type": "object"
+    },
+    "EditableEmailKind": {
+      "description": "The e-mails whose texts a company may change (B11-20); the security e-mails may not (B11-21).",
+      "enum": [
+        "VISITOR_INVITATION",
+        "VISIT_RESCHEDULED",
+        "VISIT_CANCELLED",
+        "HOST_ARRIVAL"
+      ],
+      "title": "EditableEmailKind",
+      "type": "string"
+    },
+    "EmailPreview": {
+      "description": "The e-mail rendered with sample data (B11-28): the subject, the HTML document with its images as\n`data:` URIs (show it in a sandboxed frame) and the plain-text part.",
+      "properties": {
+        "html": {
+          "title": "Html",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EditableEmailKind"
+        },
+        "language": {
+          "$ref": "#/$defs/Language"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "language",
+        "subject",
+        "html",
+        "text"
+      ],
+      "title": "EmailPreview",
+      "type": "object"
+    },
+    "EmailPreviewDocumentQuery": {
+      "additionalProperties": false,
+      "description": "GET /email-templates/{kind}/preview: the language that leads the previewed e-mail, and the design\nthe document shows (B13-5).",
+      "properties": {
+        "language": {
+          "$ref": "#/$defs/Language"
+        },
+        "scheme": {
+          "$ref": "#/$defs/EmailScheme",
+          "default": "light"
+        }
+      },
+      "required": [
+        "language"
+      ],
+      "title": "EmailPreviewDocumentQuery",
+      "type": "object"
+    },
+    "EmailScheme": {
+      "description": "Which design of an e-mail a preview shows (Phase 13, B13-5): `light` or `dark`, alone, as a mail\nclient in that scheme shows it, whatever the colour scheme of the device the preview is seen on.",
+      "enum": [
+        "light",
+        "dark"
+      ],
+      "title": "EmailScheme",
+      "type": "string"
+    },
+    "EmailTemplate": {
+      "properties": {
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/EmailTemplateField"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/EditableEmailKind"
+        },
+        "max_variable_uses": {
+          "title": "Max Variable Uses",
+          "type": "integer"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Updated At"
+        },
+        "variables": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Variables",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "variables",
+        "max_variable_uses",
+        "fields",
+        "updated_at"
+      ],
+      "title": "EmailTemplate",
+      "type": "object"
+    },
+    "EmailTemplateField": {
+      "description": "One editable text: its limits, the product's text and the company's (null: the product's).",
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/LanguageTexts"
+        },
+        "forbidden_variables": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Forbidden Variables",
+          "type": "array"
+        },
+        "max_length": {
+          "title": "Max Length",
+          "type": "integer"
+        },
+        "multiline": {
+          "title": "Multiline",
+          "type": "boolean"
+        },
+        "name": {
+          "$ref": "#/$defs/TemplateField"
+        },
+        "override": {
+          "$ref": "#/$defs/OptionalLanguageTexts"
+        },
+        "required_variables": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Variables",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "multiline",
+        "max_length",
+        "required_variables",
+        "forbidden_variables",
+        "default",
+        "override"
+      ],
+      "title": "EmailTemplateField",
+      "type": "object"
+    },
+    "EmailTemplatePreviewRequest": {
+      "additionalProperties": false,
+      "description": "POST /email-templates/{kind}/preview and /test: `language` leads the e-mail; `ar` / `en` are unsaved\ntexts (a draft) applied over the saved ones, with the rules of PATCH. `scheme` is the design a preview\nshows (B13-5); a test e-mail is the e-mail as it is sent, with both designs, whatever it says.",
+      "properties": {
+        "ar": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EmailTemplateTexts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "en": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EmailTemplateTexts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "language": {
+          "$ref": "#/$defs/Language"
+        },
+        "scheme": {
+          "$ref": "#/$defs/EmailScheme",
+          "default": "light"
+        }
+      },
+      "required": [
+        "language"
+      ],
+      "title": "EmailTemplatePreviewRequest",
+      "type": "object"
+    },
+    "EmailTemplateReset": {
+      "additionalProperties": false,
+      "description": "POST /email-templates/{kind}/reset: one language, or both when `language` is omitted or null.",
+      "properties": {
+        "language": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Language"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "EmailTemplateReset",
+      "type": "object"
+    },
+    "EmailTemplateTexts": {
+      "additionalProperties": false,
+      "description": "Texts of one language. A field that is left out is unchanged; null or blank text returns it to the\nproduct's text. Plain text only (B11-24): `{variable}` placeholders, and line breaks in multi-line\nfields.",
+      "properties": {
+        "button": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Button"
+        },
+        "closing": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Closing"
+        },
+        "footer_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Footer Note"
+        },
+        "greeting": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Greeting"
+        },
+        "heading": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Heading"
+        },
+        "intro": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Intro"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject"
+        }
+      },
+      "title": "EmailTemplateTexts",
+      "type": "object"
+    },
+    "EmailTemplateUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH /email-templates/{kind}: field errors are reported at `ar.<field>` / `en.<field>`.",
+      "properties": {
+        "ar": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EmailTemplateTexts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "en": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EmailTemplateTexts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "EmailTemplateUpdate",
+      "type": "object"
+    },
+    "EmailTestSent": {
+      "description": "POST /email-templates/{kind}/test: the test e-mail went to the caller's own address.",
+      "properties": {
+        "sent_to": {
+          "title": "Sent To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sent_to"
+      ],
+      "title": "EmailTestSent",
+      "type": "object"
+    },
+    "EmployeeDashboard": {
+      "properties": {
+        "counts": {
+          "$ref": "#/$defs/EmployeeDashboardCounts"
+        },
+        "today": {
+          "items": {
+            "$ref": "#/$defs/Visit"
+          },
+          "title": "Today",
+          "type": "array"
+        }
+      },
+      "required": [
+        "counts",
+        "today"
+      ],
+      "title": "EmployeeDashboard",
+      "type": "object"
+    },
+    "EmployeeDashboardCounts": {
+      "properties": {
+        "cancelled_30d": {
+          "title": "Cancelled 30D",
+          "type": "integer"
+        },
+        "completed_30d": {
+          "title": "Completed 30D",
+          "type": "integer"
+        },
+        "inside": {
+          "title": "Inside",
+          "type": "integer"
+        },
+        "needs_attention": {
+          "title": "Needs Attention",
+          "type": "integer"
+        },
+        "today": {
+          "title": "Today",
+          "type": "integer"
+        },
+        "upcoming": {
+          "title": "Upcoming",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "today",
+        "upcoming",
+        "inside",
+        "completed_30d",
+        "cancelled_30d",
+        "needs_attention"
+      ],
+      "title": "EmployeeDashboardCounts",
+      "type": "object"
+    },
+    "ErrorBody": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": true,
+          "title": "Details",
+          "type": "object"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details"
+      ],
+      "title": "ErrorBody",
+      "type": "object"
+    },
+    "ErrorEnvelope": {
+      "description": "Body of every non-2xx response.",
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorBody"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Request Id"
+        }
+      },
+      "required": [
+        "error",
+        "request_id"
+      ],
+      "title": "ErrorEnvelope",
+      "type": "object"
+    },
+    "ForgotPasswordRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "maxLength": 320,
+          "minLength": 1,
+          "title": "Email",
+          "type": "string"
+        }
+      },
+      "required": [
+        "email"
+      ],
+      "title": "ForgotPasswordRequest",
+      "type": "object"
+    },
+    "Health": {
+      "properties": {
+        "database": {
+          "const": "ok",
+          "title": "Database",
+          "type": "string"
+        },
+        "status": {
+          "const": "ok",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "database"
+      ],
+      "title": "Health",
+      "type": "object"
+    },
+    "Host": {
+      "properties": {
+        "department": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DepartmentRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "phone",
+        "department"
+      ],
+      "title": "Host",
+      "type": "object"
+    },
+    "HostCount": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "host_id": {
+          "format": "uuid",
+          "title": "Host Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "host_id",
+        "full_name",
+        "count"
+      ],
+      "title": "HostCount",
+      "type": "object"
+    },
+    "HostSearchQuery": {
+      "additionalProperties": false,
+      "description": "GET /users/hosts: matches the host's name only (B1-38).",
+      "properties": {
+        "q": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Q"
+        }
+      },
+      "title": "HostSearchQuery",
+      "type": "object"
+    },
+    "HourCount": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "hour": {
+          "maximum": 23,
+          "minimum": 0,
+          "title": "Hour",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "hour",
+        "count"
+      ],
+      "title": "HourCount",
+      "type": "object"
+    },
+    "InsideList": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/InsideVisit"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "count",
+        "items"
+      ],
+      "title": "InsideList",
+      "type": "object"
+    },
+    "InsideVisit": {
+      "description": "`Visit` on the evacuation list (B57-72); only `visitor` differs.",
+      "properties": {
+        "cancellation_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cancellation Reason"
+        },
+        "cancelled_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cancelled At"
+        },
+        "cancelled_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_in_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check In At"
+        },
+        "check_in_method": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckInMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_in_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check In Note"
+        },
+        "check_out_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check Out At"
+        },
+        "check_out_method": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckOutMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_out_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check Out Note"
+        },
+        "checked_in_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checked_out_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_by": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "department": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DepartmentRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Seconds"
+        },
+        "host": {
+          "$ref": "#/$defs/VisitHost"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "invitation": {
+          "$ref": "#/$defs/VisitInvitation"
+        },
+        "is_overdue": {
+          "title": "Is Overdue",
+          "type": "boolean"
+        },
+        "is_stale": {
+          "title": "Is Stale",
+          "type": "boolean"
+        },
+        "is_walk_in": {
+          "title": "Is Walk In",
+          "type": "boolean"
+        },
+        "last_notice": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisitNotice"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "no_show_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "No Show At"
+        },
+        "pass": {
+          "$ref": "#/$defs/VisitPass"
+        },
+        "permissions": {
+          "$ref": "#/$defs/VisitPermissions"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "scheduled_end": {
+          "title": "Scheduled End",
+          "type": "string"
+        },
+        "scheduled_start": {
+          "title": "Scheduled Start",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/VisitStatus"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        },
+        "visitor": {
+          "$ref": "#/$defs/InsideVisitor"
+        },
+        "walk_in_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Walk In Reason"
+        },
+        "window_end": {
+          "title": "Window End",
+          "type": "string"
+        },
+        "window_start": {
+          "title": "Window Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "visitor",
+        "host",
+        "department",
+        "purpose",
+        "scheduled_start",
+        "scheduled_end",
+        "window_start",
+        "window_end",
+        "is_walk_in",
+        "walk_in_reason",
+        "check_in_at",
+        "check_in_method",
+        "check_in_note",
+        "checked_in_by",
+        "check_out_at",
+        "check_out_method",
+        "check_out_note",
+        "checked_out_by",
+        "cancelled_at",
+        "cancellation_reason",
+        "cancelled_by",
+        "no_show_at",
+        "duration_seconds",
+        "is_overdue",
+        "is_stale",
+        "created_by",
+        "created_at",
+        "updated_at",
+        "invitation",
+        "last_notice",
+        "pass",
+        "permissions"
+      ],
+      "title": "InsideVisit",
+      "type": "object"
+    },
+    "InsideVisitor": {
+      "description": "The visitor of an evacuation-list entry: the visit's snapshot (D-17) plus the visitor record's\ncurrent phone, like `host.phone` (B57-72), so staff at the assembly point can call a missing\nvisitor.",
+      "properties": {
+        "company_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Company Name"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "company_name",
+        "phone"
+      ],
+      "title": "InsideVisitor",
+      "type": "object"
+    },
+    "Language": {
+      "description": "A user's interface and e-mail language (Phase 10, B10-1). Arabic is the product's default.",
+      "enum": [
+        "ar",
+        "en"
+      ],
+      "title": "Language",
+      "type": "string"
+    },
+    "LanguageTexts": {
+      "properties": {
+        "ar": {
+          "title": "Ar",
+          "type": "string"
+        },
+        "en": {
+          "title": "En",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ar",
+        "en"
+      ],
+      "title": "LanguageTexts",
+      "type": "object"
+    },
+    "LoginRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "maxLength": 320,
+          "minLength": 1,
+          "title": "Email",
+          "type": "string"
+        },
+        "password": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "title": "LoginRequest",
+      "type": "object"
+    },
+    "ManualCheckIn": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "MANUAL",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "ManualCheckIn",
+      "type": "object"
+    },
+    "ManualCheckOut": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "MANUAL",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "ManualCheckOut",
+      "type": "object"
+    },
+    "Me": {
+      "properties": {
+        "company": {
+          "$ref": "#/$defs/MeCompany"
+        },
+        "user": {
+          "$ref": "#/$defs/MeUser"
+        }
+      },
+      "required": [
+        "user",
+        "company"
+      ],
+      "title": "Me",
+      "type": "object"
+    },
+    "MeCompany": {
+      "properties": {
+        "brand": {
+          "$ref": "#/$defs/CompanyBrand"
+        },
+        "default_language": {
+          "$ref": "#/$defs/Language"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        },
+        "timezone": {
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "slug",
+        "timezone",
+        "default_language",
+        "brand"
+      ],
+      "title": "MeCompany",
+      "type": "object"
+    },
+    "MeUser": {
+      "properties": {
+        "department": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DepartmentRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "must_change_password": {
+          "title": "Must Change Password",
+          "type": "boolean"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Phone"
+        },
+        "preferred_language": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Language"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/Role"
+          },
+          "title": "Roles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "email",
+        "phone",
+        "roles",
+        "department",
+        "must_change_password",
+        "preferred_language"
+      ],
+      "title": "MeUser",
+      "type": "object"
+    },
+    "Message": {
+      "properties": {
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "title": "Message",
+      "type": "object"
+    },
+    "OptionalLanguageTexts": {
+      "properties": {
+        "ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ar"
+        },
+        "en": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "En"
+        }
+      },
+      "required": [
+        "ar",
+        "en"
+      ],
+      "title": "OptionalLanguageTexts",
+      "type": "object"
+    },
+    "OverrideCheckIn": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "OVERRIDE",
+          "title": "Method",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "reason"
+      ],
+      "title": "OverrideCheckIn",
+      "type": "object"
+    },
+    "PageQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        }
+      },
+      "title": "PageQuery",
+      "type": "object"
+    },
+    "Paginated_AuditLog_": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/AuditLog"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "page_size",
+        "total"
+      ],
+      "title": "Paginated[AuditLog]",
+      "type": "object"
+    },
+    "Paginated_PlatformAuditLog_": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PlatformAuditLog"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "page_size",
+        "total"
+      ],
+      "title": "Paginated[PlatformAuditLog]",
+      "type": "object"
+    },
+    "Paginated_PlatformCompany_": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/PlatformCompany"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "page_size",
+        "total"
+      ],
+      "title": "Paginated[PlatformCompany]",
+      "type": "object"
+    },
+    "Paginated_User_": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/User"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "page_size",
+        "total"
+      ],
+      "title": "Paginated[User]",
+      "type": "object"
+    },
+    "Paginated_Visit_": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Visit"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "page_size",
+        "total"
+      ],
+      "title": "Paginated[Visit]",
+      "type": "object"
+    },
+    "Paginated_VisitorSearchItem_": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/VisitorSearchItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "page_size",
+        "total"
+      ],
+      "title": "Paginated[VisitorSearchItem]",
+      "type": "object"
+    },
+    "PassRevokeReason": {
+      "enum": [
+        "ROTATED",
+        "VISIT_CANCELLED",
+        "VISIT_COMPLETED",
+        "VISITOR_EMAIL_CHANGED"
+      ],
+      "title": "PassRevokeReason",
+      "type": "string"
+    },
+    "PlatformActorRef": {
+      "properties": {
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "PlatformActorRef",
+      "type": "object"
+    },
+    "PlatformAdminProfile": {
+      "properties": {
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "must_change_password": {
+          "title": "Must Change Password",
+          "type": "boolean"
+        },
+        "preferred_language": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Language"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "email",
+        "must_change_password",
+        "preferred_language"
+      ],
+      "title": "PlatformAdminProfile",
+      "type": "object"
+    },
+    "PlatformAuditLog": {
+      "properties": {
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "actor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlatformActorRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "company": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompanyRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "entity_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Entity Id"
+        },
+        "entity_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Entity Type"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "ip_address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ip Address"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Request Id"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "user_agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "User Agent"
+        }
+      },
+      "required": [
+        "id",
+        "seq",
+        "created_at",
+        "action",
+        "actor",
+        "company",
+        "entity_type",
+        "entity_id",
+        "metadata",
+        "ip_address",
+        "user_agent",
+        "request_id"
+      ],
+      "title": "PlatformAuditLog",
+      "type": "object"
+    },
+    "PlatformAuditLogQuery": {
+      "additionalProperties": false,
+      "description": "GET /platform/audit-logs: newest first; `company_id` keeps the rows about that company.",
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action"
+        },
+        "company_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Company Id"
+        },
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        }
+      },
+      "title": "PlatformAuditLogQuery",
+      "type": "object"
+    },
+    "PlatformCompany": {
+      "properties": {
+        "brand": {
+          "$ref": "#/$defs/CompanyBrand"
+        },
+        "counts": {
+          "$ref": "#/$defs/CompanyCounts"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "deactivated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Deactivated At"
+        },
+        "default_language": {
+          "$ref": "#/$defs/Language"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        },
+        "timezone": {
+          "title": "Timezone",
+          "type": "string"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "slug",
+        "timezone",
+        "default_language",
+        "is_active",
+        "deactivated_at",
+        "created_at",
+        "updated_at",
+        "counts",
+        "brand"
+      ],
+      "title": "PlatformCompany",
+      "type": "object"
+    },
+    "PlatformCompanyAdmin": {
+      "description": "One of a company's administrators (SYSTEM_ADMIN), the only users the platform owner sees.",
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "last_login_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Login At"
+        },
+        "must_change_password": {
+          "title": "Must Change Password",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "email",
+        "is_active",
+        "must_change_password",
+        "last_login_at",
+        "created_at"
+      ],
+      "title": "PlatformCompanyAdmin",
+      "type": "object"
+    },
+    "PlatformCompanyCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "admin": {
+          "$ref": "#/$defs/CompanyAdminCreate"
+        },
+        "default_language": {
+          "$ref": "#/$defs/Language"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        },
+        "slug": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Slug",
+          "type": "string"
+        },
+        "timezone": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "slug",
+        "timezone",
+        "default_language",
+        "admin"
+      ],
+      "title": "PlatformCompanyCreate",
+      "type": "object"
+    },
+    "PlatformCompanyCreated": {
+      "description": "POST /platform/companies: the company and its first administrator.",
+      "properties": {
+        "admin": {
+          "$ref": "#/$defs/PlatformCompanyAdmin"
+        },
+        "company": {
+          "$ref": "#/$defs/PlatformCompany"
+        }
+      },
+      "required": [
+        "company",
+        "admin"
+      ],
+      "title": "PlatformCompanyCreated",
+      "type": "object"
+    },
+    "PlatformCompanyListQuery": {
+      "additionalProperties": false,
+      "description": "GET /platform/companies: `q` matches the name, the Arabic name or the slug.",
+      "properties": {
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "q": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Q"
+        }
+      },
+      "title": "PlatformCompanyListQuery",
+      "type": "object"
+    },
+    "PlatformCompanyUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH: the company's identity. Omitted fields are unchanged; `name_ar` may be null (or blank) to\nclear it. The slug never changes (B11-12).",
+      "properties": {
+        "default_language": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Language"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timezone"
+        }
+      },
+      "title": "PlatformCompanyUpdate",
+      "type": "object"
+    },
+    "PlatformMe": {
+      "description": "GET /platform/auth/me: who is signed in to the platform (401 when nobody is).",
+      "properties": {
+        "admin": {
+          "$ref": "#/$defs/PlatformAdminProfile"
+        }
+      },
+      "required": [
+        "admin"
+      ],
+      "title": "PlatformMe",
+      "type": "object"
+    },
+    "PreferencesUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH /auth/preferences: the caller's interface and e-mail language (B10-3).",
+      "properties": {
+        "language": {
+          "$ref": "#/$defs/Language"
+        }
+      },
+      "required": [
+        "language"
+      ],
+      "title": "PreferencesUpdate",
+      "type": "object"
+    },
+    "PublicCompanyBrand": {
+      "description": "GET /public/companies/{slug}/brand: what a sign-in page and a visitor's pass page may know of an\nactive company before anyone signs in: how it is named, its language and its identity.",
+      "properties": {
+        "brand": {
+          "$ref": "#/$defs/CompanyBrand"
+        },
+        "default_language": {
+          "$ref": "#/$defs/Language"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "slug": {
+          "title": "Slug",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "name",
+        "name_ar",
+        "default_language",
+        "brand"
+      ],
+      "title": "PublicCompanyBrand",
+      "type": "object"
+    },
+    "QrCheckIn": {
+      "additionalProperties": false,
+      "description": "`pass_token` as scanned or pasted, like `ScanRequest.token`: an invalid pass is 404 PASS_INVALID.",
+      "properties": {
+        "method": {
+          "const": "QR",
+          "title": "Method",
+          "type": "string"
+        },
+        "pass_token": {
+          "maxLength": 4096,
+          "title": "Pass Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "pass_token"
+      ],
+      "title": "QrCheckIn",
+      "type": "object"
+    },
+    "QrCheckOut": {
+      "additionalProperties": false,
+      "description": "`pass_token` as scanned or pasted, like `ScanRequest.token`: an invalid pass is 404 PASS_INVALID.",
+      "properties": {
+        "method": {
+          "const": "QR",
+          "title": "Method",
+          "type": "string"
+        },
+        "pass_token": {
+          "maxLength": 4096,
+          "title": "Pass Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "pass_token"
+      ],
+      "title": "QrCheckOut",
+      "type": "object"
+    },
+    "ReceptionCounts": {
+      "properties": {
+        "cancelled": {
+          "title": "Cancelled",
+          "type": "integer"
+        },
+        "checked_out": {
+          "title": "Checked Out",
+          "type": "integer"
+        },
+        "expected": {
+          "title": "Expected",
+          "type": "integer"
+        },
+        "inside": {
+          "title": "Inside",
+          "type": "integer"
+        },
+        "no_show": {
+          "title": "No Show",
+          "type": "integer"
+        },
+        "walk_ins": {
+          "title": "Walk Ins",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "expected",
+        "inside",
+        "checked_out",
+        "no_show",
+        "cancelled",
+        "walk_ins"
+      ],
+      "title": "ReceptionCounts",
+      "type": "object"
+    },
+    "ReceptionToday": {
+      "properties": {
+        "checked_out": {
+          "items": {
+            "$ref": "#/$defs/Visit"
+          },
+          "title": "Checked Out",
+          "type": "array"
+        },
+        "counts": {
+          "$ref": "#/$defs/ReceptionCounts"
+        },
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "expected": {
+          "items": {
+            "$ref": "#/$defs/Visit"
+          },
+          "title": "Expected",
+          "type": "array"
+        },
+        "inside": {
+          "items": {
+            "$ref": "#/$defs/Visit"
+          },
+          "title": "Inside",
+          "type": "array"
+        },
+        "no_show": {
+          "items": {
+            "$ref": "#/$defs/Visit"
+          },
+          "title": "No Show",
+          "type": "array"
+        }
+      },
+      "required": [
+        "date",
+        "counts",
+        "expected",
+        "inside",
+        "checked_out",
+        "no_show"
+      ],
+      "title": "ReceptionToday",
+      "type": "object"
+    },
+    "ReportSummary": {
+      "properties": {
+        "avg_duration_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Avg Duration Seconds"
+        },
+        "by_department": {
+          "items": {
+            "$ref": "#/$defs/DepartmentCount"
+          },
+          "title": "By Department",
+          "type": "array"
+        },
+        "check_ins_by_hour": {
+          "items": {
+            "$ref": "#/$defs/HourCount"
+          },
+          "title": "Check Ins By Hour",
+          "type": "array"
+        },
+        "date_from": {
+          "format": "date",
+          "title": "Date From",
+          "type": "string"
+        },
+        "date_to": {
+          "format": "date",
+          "title": "Date To",
+          "type": "string"
+        },
+        "no_show_rate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "No Show Rate"
+        },
+        "timezone": {
+          "title": "Timezone",
+          "type": "string"
+        },
+        "top_hosts": {
+          "items": {
+            "$ref": "#/$defs/HostCount"
+          },
+          "title": "Top Hosts",
+          "type": "array"
+        },
+        "totals": {
+          "$ref": "#/$defs/ReportTotals"
+        },
+        "visits_per_day": {
+          "items": {
+            "$ref": "#/$defs/VisitsPerDay"
+          },
+          "title": "Visits Per Day",
+          "type": "array"
+        }
+      },
+      "required": [
+        "date_from",
+        "date_to",
+        "timezone",
+        "totals",
+        "no_show_rate",
+        "avg_duration_seconds",
+        "visits_per_day",
+        "by_department",
+        "top_hosts",
+        "check_ins_by_hour"
+      ],
+      "title": "ReportSummary",
+      "type": "object"
+    },
+    "ReportSummaryQuery": {
+      "additionalProperties": false,
+      "description": "GET /reports/summary: company-local dates, inclusive. The service fills an open end (default: the\nlast REPORT_DEFAULT_DAYS days) and applies the same REPORT_MAX_DAYS limit to the result.",
+      "properties": {
+        "date_from": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date From"
+        },
+        "date_to": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date To"
+        }
+      },
+      "title": "ReportSummaryQuery",
+      "type": "object"
+    },
+    "ReportTotals": {
+      "properties": {
+        "cancelled": {
+          "title": "Cancelled",
+          "type": "integer"
+        },
+        "checked_in": {
+          "title": "Checked In",
+          "type": "integer"
+        },
+        "checked_out": {
+          "title": "Checked Out",
+          "type": "integer"
+        },
+        "no_show": {
+          "title": "No Show",
+          "type": "integer"
+        },
+        "unique_visitors": {
+          "title": "Unique Visitors",
+          "type": "integer"
+        },
+        "visits": {
+          "title": "Visits",
+          "type": "integer"
+        },
+        "walk_ins": {
+          "title": "Walk Ins",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "visits",
+        "unique_visitors",
+        "checked_in",
+        "checked_out",
+        "no_show",
+        "cancelled",
+        "walk_ins"
+      ],
+      "title": "ReportTotals",
+      "type": "object"
+    },
+    "ResetPasswordRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "new_password": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "New Password",
+          "type": "string"
+        },
+        "token": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token",
+        "new_password"
+      ],
+      "title": "ResetPasswordRequest",
+      "type": "object"
+    },
+    "Role": {
+      "enum": [
+        "SYSTEM_ADMIN",
+        "EMPLOYEE",
+        "RECEPTIONIST",
+        "MANAGEMENT"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "ScanActions": {
+      "properties": {
+        "check_in": {
+          "title": "Check In",
+          "type": "boolean"
+        },
+        "check_out": {
+          "title": "Check Out",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "check_in",
+        "check_out"
+      ],
+      "title": "ScanActions",
+      "type": "object"
+    },
+    "ScanErrorDetails": {
+      "description": "`error.details` of the scan error responses in contract §6 rows 2-8.",
+      "properties": {
+        "check_in_options": {
+          "anyOf": [
+            {
+              "items": {
+                "enum": [
+                  "MANUAL",
+                  "OVERRIDE"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Check In Options"
+        },
+        "visit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Visit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ScanErrorDetails",
+      "type": "object"
+    },
+    "ScanRequest": {
+      "additionalProperties": false,
+      "description": "A pass URL or a bare token exactly as scanned or pasted; input that is not a valid pass is\nanswered 404 PASS_INVALID (contract §6), not 422.",
+      "properties": {
+        "token": {
+          "maxLength": 4096,
+          "title": "Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token"
+      ],
+      "title": "ScanRequest",
+      "type": "object"
+    },
+    "ScanResult": {
+      "properties": {
+        "actions": {
+          "$ref": "#/$defs/ScanActions"
+        },
+        "result": {
+          "enum": [
+            "READY",
+            "ALREADY_CHECKED_IN"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "visit": {
+          "$ref": "#/$defs/Visit"
+        },
+        "warnings": {
+          "items": {
+            "$ref": "#/$defs/ScanWarning"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result",
+        "visit",
+        "warnings",
+        "actions"
+      ],
+      "title": "ScanResult",
+      "type": "object"
+    },
+    "ScanWarning": {
+      "properties": {
+        "code": {
+          "enum": [
+            "OUTSIDE_SCHEDULED_TIME",
+            "OVERSTAYED"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ScanWarning",
+      "type": "object"
+    },
+    "StaleCheckOutRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "StaleCheckOutRequest",
+      "type": "object"
+    },
+    "StaleCheckOutResult": {
+      "properties": {
+        "checked_out": {
+          "title": "Checked Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "checked_out"
+      ],
+      "title": "StaleCheckOutResult",
+      "type": "object"
+    },
+    "TemplateField": {
+      "description": "An editable text of an e-mail (B11-20). Which kind has which is `app.email.editable.EDITABLE`.",
+      "enum": [
+        "subject",
+        "heading",
+        "greeting",
+        "intro",
+        "button",
+        "closing",
+        "footer_note"
+      ],
+      "title": "TemplateField",
+      "type": "string"
+    },
+    "User": {
+      "properties": {
+        "cancelled_visits": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cancelled Visits"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "department": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DepartmentRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "last_login_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Login At"
+        },
+        "must_change_password": {
+          "title": "Must Change Password",
+          "type": "boolean"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Phone"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/Role"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "email",
+        "phone",
+        "roles",
+        "department",
+        "is_active",
+        "must_change_password",
+        "last_login_at",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "User",
+      "type": "object"
+    },
+    "UserCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "department_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department Id"
+        },
+        "email": {
+          "maxLength": 320,
+          "title": "Email",
+          "type": "string"
+        },
+        "full_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Full Name",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/Role"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "title": "Roles",
+          "type": "array"
+        },
+        "temporary_password": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Temporary Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "full_name",
+        "email",
+        "roles",
+        "temporary_password"
+      ],
+      "title": "UserCreate",
+      "type": "object"
+    },
+    "UserListQuery": {
+      "additionalProperties": false,
+      "description": "GET /users (administrators): `q` matches name or e-mail; `role` keeps users holding any of the\ngiven roles.",
+      "properties": {
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "q": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Q"
+        },
+        "role": {
+          "items": {
+            "$ref": "#/$defs/Role"
+          },
+          "title": "Role",
+          "type": "array"
+        }
+      },
+      "title": "UserListQuery",
+      "type": "object"
+    },
+    "UserRef": {
+      "properties": {
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "UserRef",
+      "type": "object"
+    },
+    "UserUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH: omitted fields are unchanged; `phone`/`department_id` may be set to null to clear them.",
+      "properties": {
+        "department_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department Id"
+        },
+        "full_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Full Name"
+        },
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        },
+        "roles": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Role"
+              },
+              "maxItems": 4,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Roles"
+        }
+      },
+      "title": "UserUpdate",
+      "type": "object"
+    },
+    "Visit": {
+      "properties": {
+        "cancellation_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cancellation Reason"
+        },
+        "cancelled_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cancelled At"
+        },
+        "cancelled_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_in_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check In At"
+        },
+        "check_in_method": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckInMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_in_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check In Note"
+        },
+        "check_out_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check Out At"
+        },
+        "check_out_method": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckOutMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_out_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check Out Note"
+        },
+        "checked_in_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checked_out_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_by": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "department": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DepartmentRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Seconds"
+        },
+        "host": {
+          "$ref": "#/$defs/VisitHost"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "invitation": {
+          "$ref": "#/$defs/VisitInvitation"
+        },
+        "is_overdue": {
+          "title": "Is Overdue",
+          "type": "boolean"
+        },
+        "is_stale": {
+          "title": "Is Stale",
+          "type": "boolean"
+        },
+        "is_walk_in": {
+          "title": "Is Walk In",
+          "type": "boolean"
+        },
+        "last_notice": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisitNotice"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "no_show_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "No Show At"
+        },
+        "pass": {
+          "$ref": "#/$defs/VisitPass"
+        },
+        "permissions": {
+          "$ref": "#/$defs/VisitPermissions"
+        },
+        "purpose": {
+          "title": "Purpose",
+          "type": "string"
+        },
+        "scheduled_end": {
+          "title": "Scheduled End",
+          "type": "string"
+        },
+        "scheduled_start": {
+          "title": "Scheduled Start",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/VisitStatus"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        },
+        "visitor": {
+          "$ref": "#/$defs/VisitVisitor"
+        },
+        "walk_in_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Walk In Reason"
+        },
+        "window_end": {
+          "title": "Window End",
+          "type": "string"
+        },
+        "window_start": {
+          "title": "Window Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "visitor",
+        "host",
+        "department",
+        "purpose",
+        "scheduled_start",
+        "scheduled_end",
+        "window_start",
+        "window_end",
+        "is_walk_in",
+        "walk_in_reason",
+        "check_in_at",
+        "check_in_method",
+        "check_in_note",
+        "checked_in_by",
+        "check_out_at",
+        "check_out_method",
+        "check_out_note",
+        "checked_out_by",
+        "cancelled_at",
+        "cancellation_reason",
+        "cancelled_by",
+        "no_show_at",
+        "duration_seconds",
+        "is_overdue",
+        "is_stale",
+        "created_by",
+        "created_at",
+        "updated_at",
+        "invitation",
+        "last_notice",
+        "pass",
+        "permissions"
+      ],
+      "title": "Visit",
+      "type": "object"
+    },
+    "VisitCancel": {
+      "additionalProperties": false,
+      "properties": {
+        "notify_visitor": {
+          "default": true,
+          "title": "Notify Visitor",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "title": "VisitCancel",
+      "type": "object"
+    },
+    "VisitCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "department_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department Id"
+        },
+        "host_id": {
+          "format": "uuid",
+          "title": "Host Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "scheduled_end": {
+          "format": "date-time",
+          "title": "Scheduled End",
+          "type": "string"
+        },
+        "scheduled_start": {
+          "format": "date-time",
+          "title": "Scheduled Start",
+          "type": "string"
+        },
+        "send_invitation": {
+          "title": "Send Invitation",
+          "type": "boolean"
+        },
+        "visitor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisitorInput"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "visitor_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visitor Id"
+        }
+      },
+      "required": [
+        "host_id",
+        "purpose",
+        "scheduled_start",
+        "scheduled_end",
+        "send_invitation"
+      ],
+      "title": "VisitCreate",
+      "type": "object"
+    },
+    "VisitCreateResult": {
+      "properties": {
+        "pass_url": {
+          "title": "Pass Url",
+          "type": "string"
+        },
+        "visit": {
+          "$ref": "#/$defs/Visit"
+        },
+        "visitor_match": {
+          "$ref": "#/$defs/VisitorMatch"
+        }
+      },
+      "required": [
+        "visit",
+        "pass_url",
+        "visitor_match"
+      ],
+      "title": "VisitCreateResult",
+      "type": "object"
+    },
+    "VisitHost": {
+      "description": "`full_name` is the snapshot; `phone` is the host's current phone (D-26).",
+      "properties": {
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "phone"
+      ],
+      "title": "VisitHost",
+      "type": "object"
+    },
+    "VisitInvitation": {
+      "description": "Latest VISITOR_INVITATION e-mail of the visit.",
+      "properties": {
+        "attempts": {
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "last_attempt_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Attempt At"
+        },
+        "sent_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sent At"
+        },
+        "status": {
+          "enum": [
+            "NOT_SENT",
+            "PENDING",
+            "SENT",
+            "FAILED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "to_email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "To Email"
+        }
+      },
+      "required": [
+        "status",
+        "to_email",
+        "attempts",
+        "last_attempt_at",
+        "sent_at",
+        "error"
+      ],
+      "title": "VisitInvitation",
+      "type": "object"
+    },
+    "VisitListQuery": {
+      "additionalProperties": false,
+      "description": "GET /visits. Filters narrow the caller's scope and never widen it: for EMPLOYEE-only callers\n`scope` is always `mine` and `host_id` is intersected with their own visits (§7.5). `date_from` /\n`date_to` are company-local dates of `scheduled_start`; `scope` and `order` default per view in the\nservice.",
+      "properties": {
+        "date_from": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date From"
+        },
+        "date_to": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date To"
+        },
+        "department_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department Id"
+        },
+        "host_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Host Id"
+        },
+        "needs_attention": {
+          "default": false,
+          "title": "Needs Attention",
+          "type": "boolean"
+        },
+        "order": {
+          "anyOf": [
+            {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Order"
+        },
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "q": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Q"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "enum": [
+                "mine",
+                "all"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scope"
+        },
+        "status": {
+          "items": {
+            "$ref": "#/$defs/VisitStatus"
+          },
+          "title": "Status",
+          "type": "array"
+        },
+        "visitor_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visitor Id"
+        }
+      },
+      "title": "VisitListQuery",
+      "type": "object"
+    },
+    "VisitNotice": {
+      "description": "Latest VISIT_CANCELLED / VISIT_RESCHEDULED e-mail to the visitor (B57-03): whether the visitor was\ntold about the change, and if not, why. `error` is set while the notice is not SENT.",
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error"
+        },
+        "kind": {
+          "enum": [
+            "VISIT_CANCELLED",
+            "VISIT_RESCHEDULED"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "sent_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sent At"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "SENT",
+            "FAILED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "to_email": {
+          "title": "To Email",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "status",
+        "to_email",
+        "sent_at",
+        "error"
+      ],
+      "title": "VisitNotice",
+      "type": "object"
+    },
+    "VisitPass": {
+      "properties": {
+        "issued_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issued At"
+        },
+        "revoke_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PassRevokeReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "ACTIVE",
+            "REVOKED",
+            "EXPIRED",
+            "NONE"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "issued_at",
+        "revoke_reason"
+      ],
+      "title": "VisitPass",
+      "type": "object"
+    },
+    "VisitPassResult": {
+      "description": "POST /visits/{id}/pass (B57-04): a new pass for the host to share; the previous one stops working.",
+      "properties": {
+        "pass_url": {
+          "title": "Pass Url",
+          "type": "string"
+        },
+        "visit": {
+          "$ref": "#/$defs/Visit"
+        }
+      },
+      "required": [
+        "visit",
+        "pass_url"
+      ],
+      "title": "VisitPassResult",
+      "type": "object"
+    },
+    "VisitPermissions": {
+      "properties": {
+        "can_cancel": {
+          "title": "Can Cancel",
+          "type": "boolean"
+        },
+        "can_check_in": {
+          "title": "Can Check In",
+          "type": "boolean"
+        },
+        "can_check_out": {
+          "title": "Can Check Out",
+          "type": "boolean"
+        },
+        "can_edit": {
+          "title": "Can Edit",
+          "type": "boolean"
+        },
+        "can_resend": {
+          "title": "Can Resend",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "can_edit",
+        "can_cancel",
+        "can_resend",
+        "can_check_in",
+        "can_check_out"
+      ],
+      "title": "VisitPermissions",
+      "type": "object"
+    },
+    "VisitStatus": {
+      "enum": [
+        "SCHEDULED",
+        "CHECKED_IN",
+        "CHECKED_OUT",
+        "CANCELLED",
+        "NO_SHOW"
+      ],
+      "title": "VisitStatus",
+      "type": "string"
+    },
+    "VisitUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH while SCHEDULED: omitted fields are unchanged; `department_id` may be null to clear it.",
+      "properties": {
+        "department_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department Id"
+        },
+        "purpose": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Purpose"
+        },
+        "scheduled_end": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scheduled End"
+        },
+        "scheduled_start": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scheduled Start"
+        }
+      },
+      "title": "VisitUpdate",
+      "type": "object"
+    },
+    "VisitVisitor": {
+      "description": "Snapshot of the visitor at creation/check-in (D-17).",
+      "properties": {
+        "company_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Company Name"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "company_name"
+      ],
+      "title": "VisitVisitor",
+      "type": "object"
+    },
+    "Visitor": {
+      "properties": {
+        "company_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Company Name"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Email"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "permissions": {
+          "$ref": "#/$defs/VisitorPermissions"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Phone"
+        },
+        "stats": {
+          "$ref": "#/$defs/VisitorStats"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "email",
+        "phone",
+        "company_name",
+        "created_at",
+        "updated_at",
+        "stats",
+        "permissions"
+      ],
+      "title": "Visitor",
+      "type": "object"
+    },
+    "VisitorCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "company_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Company Name"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "maxLength": 320,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "full_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Full Name",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "full_name"
+      ],
+      "title": "VisitorCreate",
+      "type": "object"
+    },
+    "VisitorInput": {
+      "additionalProperties": false,
+      "description": "Inline visitor for visit creation / walk-ins (deduplicated by e-mail within the company).",
+      "properties": {
+        "company_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Company Name"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "maxLength": 320,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "full_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Full Name",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        }
+      },
+      "required": [
+        "full_name"
+      ],
+      "title": "VisitorInput",
+      "type": "object"
+    },
+    "VisitorMatch": {
+      "properties": {
+        "reused": {
+          "title": "Reused",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reused"
+      ],
+      "title": "VisitorMatch",
+      "type": "object"
+    },
+    "VisitorPermissions": {
+      "properties": {
+        "can_edit": {
+          "title": "Can Edit",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "can_edit"
+      ],
+      "title": "VisitorPermissions",
+      "type": "object"
+    },
+    "VisitorSearchItem": {
+      "properties": {
+        "company_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Company Name"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Email"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "permissions": {
+          "$ref": "#/$defs/VisitorPermissions"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Phone"
+        },
+        "stats": {
+          "$ref": "#/$defs/VisitorStats"
+        },
+        "today_visits": {
+          "items": {
+            "$ref": "#/$defs/Visit"
+          },
+          "title": "Today Visits",
+          "type": "array"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "email",
+        "phone",
+        "company_name",
+        "created_at",
+        "updated_at",
+        "stats",
+        "permissions",
+        "today_visits"
+      ],
+      "title": "VisitorSearchItem",
+      "type": "object"
+    },
+    "VisitorSearchQuery": {
+      "additionalProperties": false,
+      "description": "GET /visitors: normalised search over name, e-mail and company, plus phone digits (§4).",
+      "properties": {
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "q": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Q"
+        }
+      },
+      "title": "VisitorSearchQuery",
+      "type": "object"
+    },
+    "VisitorStats": {
+      "description": "Computed within the caller's visibility scope.",
+      "properties": {
+        "last_visit_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Visit At"
+        },
+        "total_visits": {
+          "title": "Total Visits",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total_visits",
+        "last_visit_at"
+      ],
+      "title": "VisitorStats",
+      "type": "object"
+    },
+    "VisitorUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH: omitted fields are unchanged; email/phone/company_name may be null to clear them.",
+      "properties": {
+        "company_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Company Name"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "maxLength": 320,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "full_name": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Full Name"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        }
+      },
+      "title": "VisitorUpdate",
+      "type": "object"
+    },
+    "VisitsPerDay": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "count"
+      ],
+      "title": "VisitsPerDay",
+      "type": "object"
+    },
+    "WalkInCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "department_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Department Id"
+        },
+        "expected_end": {
+          "format": "date-time",
+          "title": "Expected End",
+          "type": "string"
+        },
+        "host_id": {
+          "format": "uuid",
+          "title": "Host Id",
+          "type": "string"
+        },
+        "purpose": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Purpose",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "NO_INVITATION",
+            "EARLY_ARRIVAL",
+            "LATE_ARRIVAL",
+            "LOST_PASS",
+            "DELIVERY",
+            "OTHER"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "reason_note": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason Note"
+        },
+        "visitor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisitorInput"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "visitor_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visitor Id"
+        }
+      },
+      "required": [
+        "host_id",
+        "purpose",
+        "expected_end",
+        "reason"
+      ],
+      "title": "WalkInCreate",
+      "type": "object"
+    }
+  },
+  "description": "Generated by backend/app/contract.py (npm run contract:snapshot). Do not edit. Compare `requests` and `queries` in request mode, `responses` and `envelopes` in response mode.",
+  "envelopes": {
+    "ApiErrorEnvelope": {
+      "$ref": "#/$defs/ErrorEnvelope"
+    },
+    "AuditLogPage": {
+      "$ref": "#/$defs/Paginated_AuditLog_"
+    },
+    "PlatformAuditLogPage": {
+      "$ref": "#/$defs/Paginated_PlatformAuditLog_"
+    },
+    "PlatformCompanyPage": {
+      "$ref": "#/$defs/Paginated_PlatformCompany_"
+    },
+    "UserPage": {
+      "$ref": "#/$defs/Paginated_User_"
+    },
+    "VisitPage": {
+      "$ref": "#/$defs/Paginated_Visit_"
+    },
+    "VisitorSearchPage": {
+      "$ref": "#/$defs/Paginated_VisitorSearchItem_"
+    }
+  },
+  "error_codes": [
+    "ACCOUNT_INACTIVE",
+    "BAD_REQUEST",
+    "COMPANY_INACTIVE",
+    "CONFLICT",
+    "CSRF_FAILED",
+    "FORBIDDEN",
+    "HOST_INACTIVE",
+    "INTERNAL_ERROR",
+    "INVALID_CREDENTIALS",
+    "INVALID_CURRENT_PASSWORD",
+    "INVALID_RESET_TOKEN",
+    "INVALID_STATE_TRANSITION",
+    "INVITATION_LIMIT",
+    "LAST_ADMIN",
+    "METHOD_NOT_ALLOWED",
+    "NOT_AUTHENTICATED",
+    "NOT_FOUND",
+    "OVERRIDE_NOT_ALLOWED",
+    "PASSWORD_CHANGE_REQUIRED",
+    "PASS_EXPIRED",
+    "PASS_INVALID",
+    "PASS_NOT_YET_VALID",
+    "PASS_REVOKED",
+    "PAYLOAD_TOO_LARGE",
+    "RATE_LIMITED",
+    "SELF_MODIFICATION",
+    "SERVICE_BUSY",
+    "UNSUPPORTED_MEDIA_TYPE",
+    "USER_EMAIL_UNAVAILABLE",
+    "VALIDATION_ERROR",
+    "VISITOR_ALREADY_INSIDE",
+    "VISITOR_EMAIL_REQUIRED",
+    "VISITOR_EXISTS",
+    "VISIT_ALREADY_CHECKED_IN",
+    "VISIT_CANCELLED",
+    "VISIT_COMPLETED",
+    "VISIT_NOT_CHECKED_IN",
+    "VISIT_NOT_EDITABLE",
+    "WALK_INS_DISABLED"
+  ],
+  "field_error_codes": {
+    "bidi_controls": [],
+    "check_out_before_check_in": [],
+    "check_out_in_future": [],
+    "control_characters": [],
+    "date_out_of_range": [
+      "max",
+      "min"
+    ],
+    "datetime_out_of_range": [
+      "max",
+      "min"
+    ],
+    "department_inactive": [],
+    "duplicates": [],
+    "end_before_start": [],
+    "end_in_past": [],
+    "end_not_after_start": [],
+    "expected_end_in_past": [],
+    "host_must_be_self": [],
+    "host_unavailable": [],
+    "image_not_square": [],
+    "image_too_large": [
+      "max_height",
+      "max_width"
+    ],
+    "image_too_small": [
+      "min_height",
+      "min_width"
+    ],
+    "invalid": [],
+    "invalid_boolean": [],
+    "invalid_choice": [
+      "choices"
+    ],
+    "invalid_color": [],
+    "invalid_date": [],
+    "invalid_datetime": [],
+    "invalid_domain": [],
+    "invalid_email": [],
+    "invalid_format": [],
+    "invalid_id": [],
+    "invalid_image": [],
+    "invalid_integer": [],
+    "invalid_json": [],
+    "invalid_list": [],
+    "invalid_number": [],
+    "invalid_object": [],
+    "invalid_phone": [],
+    "invalid_placeholder": [],
+    "invalid_text": [],
+    "invalid_timezone": [],
+    "line_breaks": [],
+    "markup_not_allowed": [],
+    "not_allowed": [],
+    "not_found": [],
+    "offset_not_allowed": [],
+    "offset_required": [],
+    "out_of_range": [],
+    "password_common": [],
+    "password_guessable": [],
+    "password_is_email": [],
+    "password_personal": [],
+    "password_unchanged": [],
+    "placeholder_not_allowed": [
+      "name"
+    ],
+    "placeholder_repeated": [
+      "max",
+      "name"
+    ],
+    "placeholder_required": [
+      "name"
+    ],
+    "range_too_long": [
+      "max_days"
+    ],
+    "required": [],
+    "start_in_past": [],
+    "too_far_ahead": [
+      "max_days"
+    ],
+    "too_few_items": [
+      "min"
+    ],
+    "too_large": [
+      "max"
+    ],
+    "too_long": [
+      "max"
+    ],
+    "too_many_items": [
+      "max"
+    ],
+    "too_many_reinvitations": [
+      "count",
+      "limit"
+    ],
+    "too_short": [
+      "min"
+    ],
+    "too_small": [
+      "min"
+    ],
+    "unknown_placeholder": [
+      "allowed",
+      "name"
+    ],
+    "unstorable_value": [],
+    "visit_too_long": [
+      "max_hours"
+    ],
+    "visitor_both": [],
+    "visitor_required": [],
+    "walk_in_before_window": [
+      "time"
+    ],
+    "walk_in_during_window": [],
+    "walk_in_expected_visit": [],
+    "walk_in_needs_record": []
+  },
+  "queries": {
+    "AuditLogListParams": {
+      "$ref": "#/$defs/AuditLogQuery"
+    },
+    "BrandImageParams": {
+      "$ref": "#/$defs/BrandImageQuery"
+    },
+    "DepartmentListParams": {
+      "$ref": "#/$defs/DepartmentListQuery"
+    },
+    "EmailPreviewDocumentParams": {
+      "$ref": "#/$defs/EmailPreviewDocumentQuery"
+    },
+    "HostSearchParams": {
+      "$ref": "#/$defs/HostSearchQuery"
+    },
+    "PageParams": {
+      "$ref": "#/$defs/PageQuery"
+    },
+    "PlatformAuditLogListParams": {
+      "$ref": "#/$defs/PlatformAuditLogQuery"
+    },
+    "PlatformCompanyListParams": {
+      "$ref": "#/$defs/PlatformCompanyListQuery"
+    },
+    "ReportSummaryParams": {
+      "$ref": "#/$defs/ReportSummaryQuery"
+    },
+    "UserListParams": {
+      "$ref": "#/$defs/UserListQuery"
+    },
+    "VisitListParams": {
+      "$ref": "#/$defs/VisitListQuery"
+    },
+    "VisitorSearchParams": {
+      "$ref": "#/$defs/VisitorSearchQuery"
+    }
+  },
+  "requests": {
+    "BrandPaletteRequest": {
+      "$ref": "#/$defs/BrandPaletteRequest"
+    },
+    "ChangePasswordRequest": {
+      "$ref": "#/$defs/ChangePasswordRequest"
+    },
+    "CheckInRequest": {
+      "discriminator": {
+        "mapping": {
+          "MANUAL": "#/$defs/ManualCheckIn",
+          "OVERRIDE": "#/$defs/OverrideCheckIn",
+          "QR": "#/$defs/QrCheckIn"
+        },
+        "propertyName": "method"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/QrCheckIn"
+        },
+        {
+          "$ref": "#/$defs/ManualCheckIn"
+        },
+        {
+          "$ref": "#/$defs/OverrideCheckIn"
+        }
+      ]
+    },
+    "CheckOutRequest": {
+      "discriminator": {
+        "mapping": {
+          "CORRECTED": "#/$defs/CorrectedCheckOut",
+          "MANUAL": "#/$defs/ManualCheckOut",
+          "QR": "#/$defs/QrCheckOut"
+        },
+        "propertyName": "method"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/QrCheckOut"
+        },
+        {
+          "$ref": "#/$defs/ManualCheckOut"
+        },
+        {
+          "$ref": "#/$defs/CorrectedCheckOut"
+        }
+      ]
+    },
+    "CheckOutStaleRequest": {
+      "$ref": "#/$defs/StaleCheckOutRequest"
+    },
+    "CompanyAdminCreate": {
+      "$ref": "#/$defs/CompanyAdminCreate"
+    },
+    "CompanyBrandUpdate": {
+      "$ref": "#/$defs/CompanyBrandUpdate"
+    },
+    "CompanySettingsUpdate": {
+      "$ref": "#/$defs/CompanySettingsUpdate"
+    },
+    "DepartmentCreate": {
+      "$ref": "#/$defs/DepartmentCreate"
+    },
+    "DepartmentUpdate": {
+      "$ref": "#/$defs/DepartmentUpdate"
+    },
+    "EmailTemplatePreviewRequest": {
+      "$ref": "#/$defs/EmailTemplatePreviewRequest"
+    },
+    "EmailTemplateReset": {
+      "$ref": "#/$defs/EmailTemplateReset"
+    },
+    "EmailTemplateUpdate": {
+      "$ref": "#/$defs/EmailTemplateUpdate"
+    },
+    "ForgotPasswordRequest": {
+      "$ref": "#/$defs/ForgotPasswordRequest"
+    },
+    "LoginRequest": {
+      "$ref": "#/$defs/LoginRequest"
+    },
+    "PlatformCompanyCreate": {
+      "$ref": "#/$defs/PlatformCompanyCreate"
+    },
+    "PlatformCompanyUpdate": {
+      "$ref": "#/$defs/PlatformCompanyUpdate"
+    },
+    "PreferencesUpdate": {
+      "$ref": "#/$defs/PreferencesUpdate"
+    },
+    "ResetPasswordRequest": {
+      "$ref": "#/$defs/ResetPasswordRequest"
+    },
+    "ScanRequest": {
+      "$ref": "#/$defs/ScanRequest"
+    },
+    "UserCreate": {
+      "$ref": "#/$defs/UserCreate"
+    },
+    "UserUpdate": {
+      "$ref": "#/$defs/UserUpdate"
+    },
+    "VisitCancelRequest": {
+      "$ref": "#/$defs/VisitCancel"
+    },
+    "VisitCreate": {
+      "$ref": "#/$defs/VisitCreate"
+    },
+    "VisitUpdate": {
+      "$ref": "#/$defs/VisitUpdate"
+    },
+    "VisitorCreate": {
+      "$ref": "#/$defs/VisitorCreate"
+    },
+    "VisitorUpdate": {
+      "$ref": "#/$defs/VisitorUpdate"
+    },
+    "WalkInCreate": {
+      "$ref": "#/$defs/WalkInCreate"
+    }
+  },
+  "responses": {
+    "AdminDashboard": {
+      "$ref": "#/$defs/AdminDashboard"
+    },
+    "AdminPasswordResetSent": {
+      "$ref": "#/$defs/AdminPasswordResetSent"
+    },
+    "AuditLog": {
+      "$ref": "#/$defs/AuditLog"
+    },
+    "BrandPalette": {
+      "$ref": "#/$defs/BrandPalette"
+    },
+    "CheckOutStaleResult": {
+      "$ref": "#/$defs/StaleCheckOutResult"
+    },
+    "CompanyBrand": {
+      "$ref": "#/$defs/CompanyBrand"
+    },
+    "CompanySettings": {
+      "$ref": "#/$defs/CompanySettings"
+    },
+    "Department": {
+      "$ref": "#/$defs/Department"
+    },
+    "DepartmentRef": {
+      "$ref": "#/$defs/DepartmentRef"
+    },
+    "EmailPreview": {
+      "$ref": "#/$defs/EmailPreview"
+    },
+    "EmailTemplate": {
+      "$ref": "#/$defs/EmailTemplate"
+    },
+    "EmailTestSent": {
+      "$ref": "#/$defs/EmailTestSent"
+    },
+    "EmployeeDashboard": {
+      "$ref": "#/$defs/EmployeeDashboard"
+    },
+    "ForgotPasswordResponse": {
+      "$ref": "#/$defs/Message"
+    },
+    "HealthResponse": {
+      "$ref": "#/$defs/Health"
+    },
+    "Host": {
+      "$ref": "#/$defs/Host"
+    },
+    "InsideList": {
+      "$ref": "#/$defs/InsideList"
+    },
+    "InsideVisit": {
+      "$ref": "#/$defs/InsideVisit"
+    },
+    "Me": {
+      "$ref": "#/$defs/Me"
+    },
+    "PlatformAuditLog": {
+      "$ref": "#/$defs/PlatformAuditLog"
+    },
+    "PlatformCompany": {
+      "$ref": "#/$defs/PlatformCompany"
+    },
+    "PlatformCompanyAdmin": {
+      "$ref": "#/$defs/PlatformCompanyAdmin"
+    },
+    "PlatformCompanyCreated": {
+      "$ref": "#/$defs/PlatformCompanyCreated"
+    },
+    "PlatformMe": {
+      "$ref": "#/$defs/PlatformMe"
+    },
+    "PublicCompanyBrand": {
+      "$ref": "#/$defs/PublicCompanyBrand"
+    },
+    "ReceptionToday": {
+      "$ref": "#/$defs/ReceptionToday"
+    },
+    "ReportSummary": {
+      "$ref": "#/$defs/ReportSummary"
+    },
+    "ScanErrorDetails": {
+      "$ref": "#/$defs/ScanErrorDetails"
+    },
+    "ScanResult": {
+      "$ref": "#/$defs/ScanResult"
+    },
+    "ScanWarning": {
+      "$ref": "#/$defs/ScanWarning"
+    },
+    "User": {
+      "$ref": "#/$defs/User"
+    },
+    "UserRef": {
+      "$ref": "#/$defs/UserRef"
+    },
+    "Visit": {
+      "$ref": "#/$defs/Visit"
+    },
+    "VisitCreateResult": {
+      "$ref": "#/$defs/VisitCreateResult"
+    },
+    "VisitPassResult": {
+      "$ref": "#/$defs/VisitPassResult"
+    },
+    "Visitor": {
+      "$ref": "#/$defs/Visitor"
+    },
+    "VisitorSearchItem": {
+      "$ref": "#/$defs/VisitorSearchItem"
+    }
+  }
+}

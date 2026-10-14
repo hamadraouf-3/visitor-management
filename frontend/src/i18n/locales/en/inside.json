@@ -1,0 +1,52 @@
+{
+  "title": "Inside now",
+  "updatedAt": "Updated {{time}}",
+  "refresh": "Refresh",
+  "print": {
+    "title": "Evacuation list: visitors on site",
+    "headcount": "Headcount: {{count}}",
+    "empty": "No visitors are checked in.",
+    "checkInDate": "{{date}},",
+    "tick": "Tick when accounted for",
+    "footer": "Printed by {{name}}.",
+    "columns": {
+      "number": "#",
+      "visitor": "Visitor",
+      "visitorPhone": "Visitor phone",
+      "company": "Company",
+      "host": "Host",
+      "hostPhone": "Host phone",
+      "department": "Department",
+      "checkedIn": "Checked in",
+      "notes": "Notes",
+      "present": "Present"
+    }
+  },
+  "loadError": "The list of visitors inside could not be loaded",
+  "refreshFailed": {
+    "title": "The list could not be refreshed",
+    "description": "It shows who was inside at {{time}}."
+  },
+  "summary": {
+    "label": "Summary",
+    "headcount": "Headcount",
+    "overdue": "Overdue"
+  },
+  "list": {
+    "caption": "Visitors inside now",
+    "visitor": "Visitor",
+    "flags": "Flags",
+    "host": "Host",
+    "department": "Department",
+    "checkedIn": "Checked in",
+    "none": "None",
+    "call": "Call {{name}}",
+    "backLabel": "Back to Inside now",
+    "emptyTitle": "Nobody is checked in"
+  },
+  "printStale": {
+    "title": "Printing the last list",
+    "description": "The list could not be refreshed. The printout shows who was inside at {{time}}."
+  },
+  "printList": "Print list"
+}

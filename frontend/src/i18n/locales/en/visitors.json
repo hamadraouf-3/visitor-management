@@ -1,0 +1,95 @@
+{
+  "stats": {
+    "total": "All visits",
+    "lastCheckIn": "Last check-in"
+  },
+  "search": {
+    "title": "Visitors",
+    "todayVisitWith": "{{time}} with {{host}}",
+    "columns": {
+      "visitor": "Visitor",
+      "contact": "Contact",
+      "today": "Today"
+    },
+    "noMatchesTitle": "No visitors match “{{q}}”",
+    "clear": "Clear search",
+    "inviteNew": "Invite a new visitor",
+    "emptyTitle": "No visitors yet",
+    "invite": "Invite visitor",
+    "label": "Search visitors",
+    "placeholder": "Name, email, phone or company",
+    "loadError": "Visitors could not be loaded",
+    "captionMatching": "Visitors matching “{{q}}”",
+    "pagesLabel": "Visitor pages"
+  },
+  "validation": {
+    "fullNameRequired": "Enter the visitor’s full name."
+  },
+  "edit": {
+    "savedNewEmail": "Any scheduled visits of {{name}} get a new invitation and QR code at {{email}}.",
+    "savedEmailCleared": "QR codes of scheduled visits sent to the previous address no longer work.",
+    "intents": {
+      "edit": {
+        "title": "Edit visitor"
+      },
+      "correctEmail": {
+        "title": "Correct the email address"
+      }
+    },
+    "savedTitle": "Visitor updated",
+    "discard": "Discard changes",
+    "saveAndSend": "Save and send invitation",
+    "save": "Save changes",
+    "newInvitationsTitle": "The visitor gets new invitations",
+    "previousQrStops": "QR codes sent to the previous address stop working."
+  },
+  "fields": {
+    "returningPlaceholder": "Name, email, phone or company",
+    "returning": "Returning visitor",
+    "orNew": "or enter a new visitor",
+    "fullName": "Full name",
+    "company": "Company",
+    "phone": "Phone",
+    "email": "Email",
+    "addContact": "Add contact details (optional)",
+    "enterNewInstead": "Enter a new visitor instead",
+    "selectRegistered": "Select the registered visitor"
+  },
+  "backToVisitors": "Back to Visitors",
+  "profile": {
+    "notFound": {
+      "title": "Visitor not found",
+      "heading": "This visitor does not exist or is not available to you"
+    },
+    "noAccess": {
+      "title": "No access to this visitor",
+      "heading": "You cannot open this visitor"
+    },
+    "title": "Visitor",
+    "loadError": "The visitor could not be loaded",
+    "contact": {
+      "title": "Contact details",
+      "added": "Added"
+    },
+    "call": "Call {{name}}",
+    "backToProfile": "Back to visitor profile",
+    "loading": "Loading the visitor…",
+    "documentTitle": "Visitor profile",
+    "inviteAgain": "Invite again",
+    "edit": "Edit visitor",
+    "history": {
+      "title": "Visit history",
+      "loadError": "The visit history could not be loaded",
+      "emptyTitle": "No visits yet",
+      "pagesLabel": "Visit history pages",
+      "columns": {
+        "date": "Date",
+        "status": "Status",
+        "host": "Host",
+        "department": "Department",
+        "purpose": "Purpose",
+        "attendance": "Attendance"
+      }
+    }
+  }
+}

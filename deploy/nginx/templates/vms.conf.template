@@ -1,0 +1,272 @@
+# Mawdoo3 Visitors - virtual servers (contract §10, §15; docs/decisions/phase-9-deploy.md).
+#
+# Rendered at container start by the nginx image's entrypoint (20-envsubst-on-templates.sh) into
+# /etc/nginx/conf.d/vms.conf. Only these variables are substituted (NGINX_ENVSUBST_FILTER in
+# frontend/Dockerfile); every other $name below is an nginx variable:
+#   VMS_SERVER_NAME             the public host name(s) of the application, space-separated (required)
+#   VMS_API_UPSTREAM            host:port of the main API instance (default backend:8000)
+#   VMS_API_RECEPTION_UPSTREAM  host:port of the reception-list replicas, a name with one address per
+#                               replica (default backend-reception:8000)
+#   VMS_API_REPORTS_UPSTREAM    host:port of the reporting instance (default backend-reports:8000)
+#   NGINX_LOCAL_RESOLVERS       the container's DNS servers (from /etc/resolv.conf, by 15-local-resolvers.envsh)
+# The entrypoint script 25-vms-check-config.sh refuses to start when a variable is missing or malformed.
+#
+# Listeners: 8080 (HTTP: redirect to HTTPS, plus the container health check) and 8443 (HTTPS).
+# docker-compose.yml publishes them as 80 and 443.
+
+# TLS protocols and ciphers for every TLS listener (the default server below included).
+include /etc/nginx/snippets/tls.conf;
+
+# Re-resolve the API's name while running: a recreated backend container gets a new address.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+resolver_timeout 5s;
+
+# --- API instances (deploy/README.md §4, docs/decisions/phase-9-deploy.md D9-34, D9-35) -------------------
+# Every API process runs one worker (its rate limiter lives in its memory), and one Python process
+# time-slices all its requests. So the requests are shared out by method and raw path (D9-36): the
+# reception page's list polls and the analysts' heavy reads each have processes of their own, and the
+# desk's scans and check-ins no longer queue behind them. Only the GET requests listed in $vms_api_pool leave the main instance.
+# Every sign-in, every write and every other budget (lockouts, e-mail, scans) stays on the main
+# instance, where all the rate limits are counted. The routed reads pass only the per-user API budget
+# (RATE_LIMIT_API_PER_MINUTE), which each process counts for the requests it receives.
+# `resolve` re-resolves the name while running, and every address it returns becomes a server of the
+# group: the main and the reports instance resolve to one container each, the reception lists to one
+# per replica (docker-compose.yml runs two).
+# keepalive_timeout below uvicorn's keep-alive timeout (5 s): nginx never reuses a connection the API
+# just closed.
+upstream vms_api {
+    zone vms_api 64k;
+    server ${VMS_API_UPSTREAM} resolve;
+    keepalive 16;
+    keepalive_timeout 4s;
+}
+upstream vms_api_reception {
+    zone vms_api_reception 64k;
+    # Each list request goes to the replica with the fewest requests in progress (counted across nginx's
+    # workers in the zone). The polls of the open reception pages and the desk's reload arrive in bursts,
+    # and one list costs about 40 ms of one interpreter (D9-35). nginx's documentation asks for the
+    # balancing method before `keepalive`.
+    least_conn;
+    server ${VMS_API_RECEPTION_UPSTREAM} resolve;
+    keepalive 16;
+    keepalive_timeout 4s;
+}
+upstream vms_api_reports {
+    zone vms_api_reports 64k;
+    server ${VMS_API_REPORTS_UPSTREAM} resolve;
+    keepalive 16;
+    keepalive_timeout 4s;
+}
+
+# Whole-string matches on the method and the path exactly as the client sent it ($vms_request_path,
+# nginx.conf: $request_uri up to the query string, neither decoded nor normalised). snippets/api-proxy.conf
+# forwards those same bytes and the API dispatches on them, so a read process runs only the route its
+# key names. The normalised $uri must not be used here: nginx resolves dot segments, percent-encoding
+# and duplicate slashes in it but forwards the raw path, so `GET /api/v1/visitors/../visits` matched
+# "GET /api/v1/visits" and ran /visitors/{visitor_id}/visits on the reports instance (D9-36). Every
+# other spelling of these paths (percent-encoded, dot segments, doubled or trailing slashes) goes to
+# the main instance. nginx compares map strings without regard to case, so /api/v1/Reception/today
+# reaches a list replica; the API's routes are case-sensitive, so it matches no route there and gets
+# the API's 404 before any authentication (deploy/verify/test_api_instances.py checks that no other
+# route matches a routed path in any letter case). Anything else, including HEAD and every other
+# method on these paths, goes to the main instance.
+# snippets/api-proxy.conf passes requests to http://$vms_api_pool; the access log records the instance
+# as `api_pool`.
+map "$request_method $vms_request_path" $vms_api_pool {
+    default                           vms_api;
+    # Every open reception page polls this list every 15 s; the desk reloads it after each check-in.
+    "GET /api/v1/reception/today"     vms_api_reception;
+    # The evacuation list.
+    "GET /api/v1/reception/inside"    vms_api_reception;
+    # Reports, the audit trail, the admin dashboard and the visit history search.
+    "GET /api/v1/reports/summary"     vms_api_reports;
+    "GET /api/v1/audit-logs"          vms_api_reports;
+    "GET /api/v1/dashboard/admin"     vms_api_reports;
+    "GET /api/v1/visits"              vms_api_reports;
+}
+
+# Uploads of a company's brand image in progress (the upload location below), counted twice: for the
+# whole site, and per client address, so that no single address has all the site's places. Only a PUT
+# is counted: the keys are empty for every other method, and nginx counts nothing under an empty key.
+# The location matches the path whatever the method, and DELETE on it removes an image: a removal is
+# never refused because uploads are in progress (docs/decisions/phase-12-backend.md B12-18).
+map $request_method $vms_brand_upload_site {
+    default "";
+    PUT     $server_name;
+}
+map $request_method $vms_brand_upload_client {
+    default "";
+    PUT     $binary_remote_addr;
+}
+limit_conn_zone $vms_brand_upload_site zone=vms_brand_upload:1m;
+limit_conn_zone $vms_brand_upload_client zone=vms_brand_upload_client:1m;
+
+# --- Requests for any other host name are not answered -------------------------------------------------
+# An explicit server_name with default servers that reject unknown hosts (security audit, hand-over to
+# Phase 9): a request naming another host (a scanner using the IP address, DNS rebinding, a forged Host)
+# never reaches the application.
+
+server {
+    listen 8080 default_server;
+    server_name "";
+
+    # Container health check (docker-compose.yml), from inside the container only. (`allow`/`deny`
+    # cannot guard it: `return` runs in the rewrite phase, before the access phase.)
+    location = /healthz {
+        access_log off;
+        if ($remote_addr != "127.0.0.1") {
+            return 444;
+        }
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        return 444;
+    }
+}
+
+server {
+    listen 8443 ssl default_server;
+    server_name "";
+    # TLS handshakes for unknown names (or without SNI, e.g. an IP address) are refused; no certificate
+    # is presented. Requests that arrive with a known name but another Host header end here too.
+    ssl_reject_handshake on;
+    return 444;
+}
+
+# --- Plain HTTP: redirect to HTTPS ------------------------------------------------------------------------
+server {
+    listen 8080;
+    server_name ${VMS_SERVER_NAME};
+
+    # Assumes the public HTTPS port is 443 (docker-compose.yml publishes 443 -> 8443).
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# --- HTTPS: the application ------------------------------------------------------------------------------
+server {
+    listen 8443 ssl;
+    http2 on;
+    server_name ${VMS_SERVER_NAME};
+
+    # The operator's certificate chain and key (mounted read-only; deploy/README.md).
+    ssl_certificate /etc/nginx/tls/tls.crt;
+    ssl_certificate_key /etc/nginx/tls/tls.key;
+
+    root /usr/share/nginx/html;
+
+    # The API (same origin; the SPA calls /api/v1/...). Request bodies: at most the API's
+    # MAX_REQUEST_BODY_BYTES (65536 bytes by default), refused here first.
+    # The whole body is read before the API sees the request, so a slow client never ties up an API
+    # worker (proxy_request_buffering on, stated in each location: the upload below is the exception).
+    location ^~ /api/ {
+        include /etc/nginx/snippets/api-proxy.conf;
+        client_max_body_size 64k;
+        proxy_request_buffering on;
+
+        # The one larger body (docs/decisions/phase-12-backend.md B12-6, B12-18): the platform owner's
+        # upload of a company's logo or icon, a PNG of at most 512 KiB (PUT; the API's own limit for
+        # exactly this route, BRAND_ASSET_MAX_BYTES). nginx matches locations on the normalised path and
+        # cannot tell the method, so this is only the outer bound: the API decides on the path it
+        # receives and on the method, and still refuses anything above 64 KiB that is not this upload.
+        #
+        # At most 8 uploads are in progress at a time on the site and 4 from one address; one more gets
+        # 503 in the API's envelope. A place is taken before anyone is asked who they are, so a request
+        # must not be able to keep one without being signed in (with the body read here first, eight
+        # connections that sent a byte every few seconds kept the platform owner out for as long as
+        # they liked):
+        # - proxy_request_buffering off: the request goes to the API as soon as its header is read, and
+        #   the body follows as it arrives. The API answers 401, 403 or 415 without reading a byte of the
+        #   body, so a request that is not the platform owner's ends there, in milliseconds. nginx holds
+        #   no body in memory or in /tmp: at most 64 KiB of one are on their way (client_body_buffer_size).
+        #   A body that does arrive slowly is the API's to bound: all of it within 30 s, else 408
+        #   (app.api.deps.PNG_UPLOAD_SECONDS); client_body_timeout here is only the time between two reads.
+        # - lingering_close off: with it on (nginx's default), nginx keeps a request whose body it did not
+        #   read to the end, and the request's place, for up to 30 s after the answer for as long as the
+        #   client keeps sending. Here the connection is closed with the answer. Over HTTP/1.1 a client
+        #   refused before its body was read may therefore see the connection reset instead of the 401
+        #   (deploy/README.md §4); over HTTP/2, which browsers use here, only the stream ends.
+        location ~ ^/api/v1/platform/companies/[^/]+/brand/assets/[^/]+$ {
+            include /etc/nginx/snippets/api-proxy.conf;
+            client_max_body_size 512k;
+            proxy_request_buffering off;
+            lingering_close off;
+            limit_conn vms_brand_upload 8;
+            limit_conn vms_brand_upload_client 4;
+        }
+    }
+    location = /api {
+        include /etc/nginx/snippets/api-proxy.conf;
+        client_max_body_size 64k;
+        proxy_request_buffering on;
+    }
+
+    # The application shell is never stored by the browser or any cache (SEC-51: no copy of a signed-in
+    # page outlives the session; a new deployment is picked up on the next navigation).
+    location = /index.html {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-store" always;
+    }
+
+    # The service worker and its precache list are revalidated on every check, so a deployment is
+    # detected at once (the list carries the build's content hash).
+    location = /sw.js {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+    }
+    location = /sw-precache-manifest.js {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+    }
+
+    # Content-hashed build output (JS, CSS, the zxing .wasm as application/wasm): a new build never
+    # reuses a name, so these are cached for a year. A missing file is a 404, never the HTML shell.
+    # (No `always`: a 404 must not be cached as immutable.)
+    location ^~ /assets/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Hidden files are never served.
+    location ~ /\. {
+        include /etc/nginx/snippets/security-headers.conf;
+        return 404;
+    }
+
+    # The other files of the build (favicon, icons, web app manifest) keep their names across builds:
+    # revalidated on every use. Everything else is a route of the single-page application.
+    location / {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri @spa;
+    }
+
+    # SPA fallback: deep links (/reception, /visits/<id>, /pass, /reset-password, ...) get the
+    # application shell (served by the /index.html location above, so with no-store). A path whose last
+    # segment has a file extension is a missing file and answers 404 (no route of the SPA has a dot).
+    location @spa {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-store" always;
+        if ($uri ~ "\.[^/]*$") {
+            return 404;
+        }
+        rewrite ^ /index.html last;
+    }
+
+    # Errors nginx answers itself on the API, in the API's envelope (snippets/api-proxy.conf).
+    location @api_payload_too_large {
+        default_type application/json;
+        include /etc/nginx/snippets/api-error-headers.conf;
+        return 413 '{"error":{"code":"PAYLOAD_TOO_LARGE","message":"The request is too large.","details":{}},"request_id":"$request_id"}';
+    }
+    location @api_unavailable {
+        default_type application/json;
+        include /etc/nginx/snippets/api-error-headers.conf;
+        add_header Retry-After "5" always;
+        return 503 '{"error":{"code":"SERVICE_BUSY","message":"The service is busy. Please try again.","details":{}},"request_id":"$request_id"}';
+    }
+}

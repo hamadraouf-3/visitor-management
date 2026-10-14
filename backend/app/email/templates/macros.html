@@ -1,0 +1,255 @@
+{# Shared building blocks for the HTML e-mails: direction C "Bold Modern" (docs/decisions/phase-10-backend.md,
+   B10-6 and B10-17), in the colours of whoever the e-mail is from (Phase 12, B12-12).
+
+   Imported `with context`: the brand colours below come from `colors` (`app.email.identity.EmailColors`),
+   which the e-mail service passes with every message. They are a company's own, derived from its colour
+   (`app.core.palette`), or the product's (mawdoo3.com's palette) for a company without a colour and for
+   the CLI's test e-mail. Everything else here is the same in every e-mail.
+
+   Client-safe by construction: tables for layout, inline styles only (many clients strip <style>), explicit
+   background colours, no web fonts and no remote resources (the logo and the QR code are inline `cid:`
+   parts). Colours and their WCAG contrast on the background they are used on; the first figure is the
+   product's palette, and a company's palette guarantees the pair at 4.5:1 or better (app.core.palette,
+   tests/unit/test_email_identity.py):
+     SURFACE, the header's bar or band and the primary button, with ON_SURFACE as the button's text:
+       teal #188086 with white on it 4.70:1. A company's SURFACE is its colour as it was chosen wherever
+       white or the dark ink reads on it (B12-21): a yellow company's button is yellow with dark text;
+     STRONG, the edge of every button: teal #188086. A company's STRONG reads on white (4.5:1 at least),
+       so a button shows on the white card even where the surface is white or nearly so;
+     LINK, brand-coloured text on white and on TINT (the pill, a company's word mark, outline buttons):
+       teal #146E73, 5.99:1 on white;
+     ACCENT, the light vivid step: turquoise #27B5BB, a fill behind ON_ACCENT text (#1E2A32 on it 5.87:1)
+       and text on CARD (5.87:1), never under white text (2.50:1);
+     CARD, the pass card and the steps' squares: #1E2A32 (a deep slate of #33444E): white 14.66:1,
+       #B8C4CB 8.24:1 (at least 5.5:1 on any company's card), ACCENT 5.87:1;
+     TINT, a notice: light turquoise #E5F6F7, slate on it 9.08:1, muted 5.16:1 (at least 4.6:1 on any
+       company's tint);
+     ink #1E2A32 on white 14.66:1; body slate #33444E 10.11:1; muted #5A6872 5.74:1 (5.41:1 on the footer
+       #F8F8F8); what no longer holds: slate on light yellow #FEF5DC 9.29:1; the attention pill: ink on
+       yellow #F7B916 8.31:1.
+   Each language section carries `dir` and `lang` and aligns to its own start, so Arabic reads right to left.
+
+   `default(...)` below and beside `times[...]` in the visit e-mails (B12-26): a running API process
+   reads these files again whenever they change, with the code it started with. One that started before
+   a value existed (`colors.surface`, a window's `dated` and its two phrases) draws what it knows instead
+   of failing to send. The code beside these files always passes the values: there the defaults never
+   apply.
+
+   The dark design (Phase 13, B13-1). Every coloured element carries a class, and `dark_rules` gives each
+   its dark value with `!important`, over the inline light one: base.html puts the rules in a
+   `prefers-color-scheme: dark` media query (Apple Mail, the Outlook apps), again under Outlook.com's
+   `[data-ogsc]` / `[data-ogsb]` (its own dark mode), and unconditionally in a preview of the dark design.
+   A client that does neither shows the light design; one that darkens it by itself (the Gmail apps) does
+   so with the light design, where the logo stands on its own white plate. DARK is
+   `app.email.identity.DarkColors`: the web application's dark neutrals and the company's brand colours on
+   them (tests/unit/test_email_dark.py holds every pair: text 4.5:1, the bar and the buttons' edges 3:1).
+   What stays as it is in both designs: the pass card (already dark), its button, the QR code on its
+   white tile, the yellow attention pill, and the product's teal band.
+
+   The class names are short, and the style sheets and inline styles carry no spaces they do not need
+   (B13-8): every byte of markup is repeated in each message, and Gmail clips a message past about 102 KB.
+   Colours: vcv the canvas, vcd the card, vsf the header's surface, vsk the footer, vbr the bar, vdv a
+   divider, vgd / vgc the details grid and its cells, vpl the pill, vbn / vbnt the primary button and its
+   text, vbo / vbot the outline button and its text, vst a step's square, vnt / vna a notice (information,
+   attention), vps the pass card, vik ink, vbd running text, vmt muted text, vlk brand-coloured text; vlo
+   and vdo what only the light design and only the dark design show. The phone's layout (base.html): vpx
+   the content's side padding, vpp the header's beside a plated logo, vcl / vcs a details cell and the
+   first of two, vhd / vhk the header's two cells. #}
+
+{# Written as they are (not escaped: `'` is plain text in a double-quoted attribute), B13-8. #}
+{% set FONT = "'Readex Pro',Tahoma,'Segoe UI',Arial,sans-serif" | safe %}
+{% set FIGURES = "'Space Grotesk','Readex Pro',Tahoma,'Segoe UI',Arial,sans-serif" | safe %}
+{% set SURFACE = colors.surface | default(colors.strong) %}
+{% set ON_SURFACE = colors.on_surface | default("#FFFFFF") %}
+{% set STRONG = colors.strong %}
+{% set LINK = colors.link %}
+{% set ACCENT = colors.accent %}
+{% set ON_ACCENT = colors.on_accent %}
+{% set CARD = colors.card %}
+{% set CARD_LINE = colors.card_line %}
+{% set TINT = colors.tint %}
+{% set TINT_EDGE = colors.tint_edge %}
+{% set CARD_MUTED = "#B8C4CB" %}
+{% set INK = "#1E2A32" %}
+{% set BODY = "#33444E" %}
+{% set MUTED = "#5A6872" %}
+{% set LINE = "#E2E6E8" %}
+{% set RULE = "#EDF0F1" %}
+{# Phase 13 (B13-1): the dark design's colours; none from a process that started before them (B12-26). #}
+{% set DARK = identity.dark | default(none) %}
+{# Messages about a change the reader should notice: their pill is yellow. #}
+{% set ATTENTION_KINDS = ("rescheduled", "cancelled", "changed", "platform") %}
+
+{# One language's part of the card: a full-width row whose cell sets the direction, language and alignment. #}
+{% macro section(lang, padding="0 32px") %}
+<tr>
+  <td dir="{{ DIRECTION[lang] }}" lang="{{ lang }}" align="{{ START[lang] }}" class="vpx vbd" style="padding:{{ padding }};direction:{{ DIRECTION[lang] }};text-align:{{ START[lang] }};font-family:{{ FONT }};font-size:15px;line-height:24px;color:{{ BODY }};">
+{{ caller() }}
+  </td>
+</tr>
+{% endmacro %}
+
+{# The eyebrow over the second language's section: its name in its own script. #}
+{% macro language_label(lang) %}
+<p class="vlk" style="margin:0 0 8px 0;font-family:{{ FIGURES }};font-size:12px;line-height:16px;font-weight:700;letter-spacing:0.08em;color:{{ LINK }};text-transform:uppercase;">{{ LANGUAGE_NAMES[lang] }}</p>
+{% endmacro %}
+
+{% macro heading(text, primary=True) %}
+{% if primary %}
+<h1 class="vik" style="margin:0 0 10px 0;font-family:{{ FONT }};font-size:26px;line-height:36px;font-weight:700;color:{{ INK }};">{{ text }}</h1>
+{% else %}
+<h2 class="vik" style="margin:0 0 8px 0;font-family:{{ FONT }};font-size:19px;line-height:28px;font-weight:700;color:{{ INK }};">{{ text }}</h2>
+{% endif %}
+{% endmacro %}
+
+{% macro subheading(text) %}
+<h3 class="vik" style="margin:0 0 10px 0;font-family:{{ FONT }};font-size:16px;line-height:24px;font-weight:700;color:{{ INK }};">{{ text }}</h3>
+{% endmacro %}
+
+{% macro paragraph(muted=False, spacing=16, top=0) %}
+<p{% if muted %} class="vmt"{% endif %} style="margin:{{ top }}px 0 {{ spacing }}px 0;{% if muted %}font-size:13px;line-height:20px;color:{{ MUTED }};{% endif %}">{{ caller() }}</p>
+{% endmacro %}
+
+{# The kind of message, at the end of the header: brand-coloured text on white (on the product's teal
+   band) or on the tint (on a company's white header), or yellow with ink text for a change the reader
+   should notice (`attention`: rescheduled, cancelled, a security notice).
+
+   `wraps`: the pill stands beside something that cannot give way (a company's logo), so its own text
+   may take a second line rather than push the e-mail wider than the screen (B12-23). The corners are
+   half of one line's height: round ends on one line, as before, and a rounded box on two. #}
+{% macro pill(text, lang, attention=False, on_band=True, wraps=False) %}
+<span lang="{{ lang }}"{% if not attention and not on_band %} class="vpl"{% endif %} style="display:inline-block;padding:5px 12px;border-radius:13px;background-color:{{ '#F7B916' if attention else ('#FFFFFF' if on_band else TINT) }};font-family:{{ FONT }};font-size:12px;line-height:16px;font-weight:700;color:{{ INK if attention else LINK }};white-space:{{ 'normal' if wraps else 'nowrap' }};">{{ text }}</span>
+{% endmacro %}
+
+{# A table-cell button: the coloured cell shows as a button even where a client ignores the link's padding
+   (Outlook for Windows, which `mso-padding-alt` pads instead). Variants: `primary` (ON_SURFACE on SURFACE,
+   the company's own colour, B12-21), `on_dark` (ON_ACCENT on ACCENT, for the pass card), `outline` (LINK
+   text on white). The edge of `primary` and of `outline` is STRONG, which shows on white whatever the
+   colour: a white company's button is still a button. #}
+{% macro button(url, label, variant="primary", center=False) %}
+{% if variant == "on_dark" %}
+{% set background, color, border, kind = ACCENT, ON_ACCENT, ACCENT, "" %}
+{% elif variant == "outline" %}
+{% set background, color, border, kind = "#FFFFFF", LINK, STRONG, "vbo" %}
+{% else %}
+{% set background, color, border, kind = SURFACE, ON_SURFACE, STRONG, "vbn" %}
+{% endif %}
+<table role="presentation"{% if center %} align="center"{% endif %} cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;{% if center %}margin:0 auto;{% endif %}">
+  <tr>
+    <td align="center" bgcolor="{{ background }}"{% if kind %} class="{{ kind }}"{% endif %} style="border-radius:10px;background-color:{{ background }};border:2px solid {{ border }};mso-padding-alt:12px 24px;">
+      <a href="{{ url }}" target="_blank" rel="noopener"{% if kind %} class="{{ kind }}t"{% endif %} style="display:inline-block;padding:12px 24px;font-family:{{ FONT }};font-size:16px;line-height:22px;font-weight:700;color:{{ color }};text-decoration:none;border-radius:10px;">{{ label }}</a>
+    </td>
+  </tr>
+</table>
+{% endmacro %}
+
+{# The address behind a button, in small muted text for copying by hand; the button is the link. Always
+   left to right (a URL), aligned to the start of the section's language. #}
+{% macro fallback_link(url, lang) %}
+<p dir="ltr" class="vmt" style="margin:0 0 20px 0;direction:ltr;text-align:{{ START[lang] }};font-size:12px;line-height:18px;color:{{ MUTED }};word-break:break-all;">{{ url }}</p>
+{% endmacro %}
+
+{# Visit details as a bordered grid. `rows` is a list of rows; each row a list of one or two cells
+   `(label, value)` or `(label, value, note)`. Cells without a value are left out, and a row left with one
+   cell spans the width. Values keep their line breaks (addresses, purposes). Each value and note carries
+   its own direction (B10-14): an English purpose in an Arabic grid keeps its full stop at its end. #}
+{% macro details(rows, lang) %}
+{% set kept = [] %}
+{% for row in rows %}
+{% set cells = row | selectattr(1) | list %}
+{% if cells %}{% set _ = kept.append(cells) %}{% endif %}
+{% endfor %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="{{ DIRECTION[lang] }}" class="vgd" style="border-collapse:separate;border-spacing:0;border:1px solid {{ LINE }};border-radius:14px;margin:0 0 24px 0;">
+{% for cells in kept %}
+{% set last_row = loop.last %}
+  <tr>
+{% for cell in cells %}
+    <td{% if cells | length == 1 %} colspan="2"{% else %} width="50%"{% endif %} class="vcl vgc{% if cells | length == 2 and loop.first %} vcs{% endif %}" valign="top" style="padding:12px 18px;{% if cells | length == 2 %}width:50%;{% endif %}{% if not last_row %}border-bottom:1px solid {{ RULE }};{% endif %}{% if cells | length == 2 and loop.first %}border-{{ END[lang] }}:1px solid {{ RULE }};{% endif %}text-align:{{ START[lang] }};vertical-align:top;">
+      <span class="vmt" style="display:block;font-size:12px;line-height:18px;color:{{ MUTED }};">{{ cell[0] }}{% if cell | length > 2 %} (<span dir="{{ cell[2] | direction }}">{{ cell[2] }}</span>){% endif %}</span>
+      <span dir="{{ cell[1] | direction }}" class="vik" style="display:block;margin-top:3px;font-size:15px;line-height:22px;font-weight:600;color:{{ INK }};white-space:pre-line;word-break:break-word;">{{ cell[1] }}</span>
+    </td>
+{% endfor %}
+  </tr>
+{% endfor %}
+</table>
+{% endmacro %}
+
+{# A numbered list: squares in the card's dark colour with figures in the accent, as in the design's
+   arrival steps. #}
+{% macro steps(items, lang) %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="{{ DIRECTION[lang] }}" style="border-collapse:collapse;margin:0 0 20px 0;">
+{% for item in items %}
+  <tr>
+    <td width="34" valign="top" style="width:34px;padding:1px 0 10px 0;vertical-align:top;">
+      <span class="vst" style="display:inline-block;width:24px;height:24px;border-radius:7px;background-color:{{ CARD }};color:{{ ACCENT }};font-family:{{ FIGURES }};font-size:13px;font-weight:700;line-height:24px;text-align:center;">{{ loop.index }}</span>
+    </td>
+    <td valign="top" class="vbd" style="padding:0 0 10px 0;font-size:14px;line-height:24px;color:{{ BODY }};text-align:{{ START[lang] }};">{{ item }}</td>
+  </tr>
+{% endfor %}
+</table>
+{% endmacro %}
+
+{# A notice panel with a coloured edge at the start of the line: `info` (the tint) or `attention`
+   (light yellow, for what no longer holds: a cancelled visit, a password change). #}
+{% macro notice(lang, attention=False) %}
+{% set background, edge = ("#FEF5DC", "#F7B916") if attention else (TINT, TINT_EDGE) %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="{{ DIRECTION[lang] }}" style="border-collapse:separate;margin:0 0 20px 0;">
+  <tr>
+    <td bgcolor="{{ background }}" class="{{ 'vna' if attention else 'vnt' }}" style="padding:14px 18px;background-color:{{ background }};border-{{ START[lang] }}:4px solid {{ edge }};border-radius:10px;font-size:14px;line-height:22px;color:{{ BODY }};text-align:{{ START[lang] }};">
+      {{ caller() }}
+    </td>
+  </tr>
+</table>
+{% endmacro %}
+
+{# The dark card of the design (the visitor pass, the test e-mail's sample): opened and closed around
+   its rows. #}
+{% macro dark_card(lang) %}
+        <tr>
+          <td class="vpx" style="padding:0 32px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="{{ CARD }}" dir="{{ DIRECTION[lang] }}" lang="{{ lang }}" class="vps" style="border-collapse:separate;border-spacing:0;background-color:{{ CARD }};border-radius:16px;font-family:{{ FONT }};">
+{{ caller() }}
+            </table>
+          </td>
+        </tr>
+{% endmacro %}
+
+{# An inline image of the QR code on a white tile (scanners need the quiet zone light). #}
+{% macro qr_tile(cid, alt, size=200) %}
+<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;margin:0 auto;">
+  <tr>
+    <td bgcolor="#FFFFFF" style="padding:10px;background-color:#FFFFFF;border-radius:14px;">
+      <img src="cid:{{ cid }}" width="{{ size }}" height="{{ size }}" alt="{{ alt }}" style="display:block;width:{{ size }}px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
+    </td>
+  </tr>
+</table>
+{% endmacro %}
+
+{# The dark design's rules (B13-1), one per colour with the classes that take it (B13-8). `outlook`: the
+   same values for Outlook.com's own dark mode, which marks what it recoloured with `data-ogsc` (a text
+   colour) and `data-ogsb` (a background): every selector of that sheet starts with one of them, and the
+   logo is not swapped there (the light rendition's white tile reads on any background). #}
+{% macro dark_rules(outlook=False) %}
+{% set b = "[data-ogsb] ." if outlook else "." %}
+{% set c = "[data-ogsc] ." if outlook else "." %}
+{{ b }}vcv{background-color:{{ DARK.canvas }}!important}
+{{ b }}vcd,{{ b }}vsf,{{ b }}vbo{background-color:{{ DARK.surface }}!important}
+{{ b }}vsk{background-color:{{ DARK.sunken }}!important}
+{{ b }}vbr,{{ b }}vbn,{{ b }}vst{background-color:{{ DARK.accent }}!important}
+{{ b }}vdv{background-color:{{ DARK.line }}!important}
+{{ b }}vpl,{{ b }}vnt{background-color:{{ DARK.accent_surface }}!important}
+{{ b }}vna{background-color:{{ DARK.attention_surface }}!important;border-color:{{ DARK.attention_edge }}!important}
+{{ b }}vcd,{{ b }}vsk,{{ b }}vgd{border-color:{{ DARK.line }}!important}
+{{ b }}vgc{border-color:{{ DARK.rule }}!important}
+{{ b }}vbn,{{ b }}vbo,{{ b }}vnt{border-color:{{ DARK.accent }}!important}
+{{ b }}vps{border:1px solid {{ DARK.accent_border }}!important}
+{{ c }}vik{color:{{ DARK.ink }}!important}
+{{ c }}vbd,{{ c }}vnt,{{ c }}vna{color:{{ DARK.body }}!important}
+{{ c }}vmt{color:{{ DARK.muted }}!important}
+{{ c }}vlk,{{ c }}vpl,{{ c }}vbot{color:{{ DARK.accent_text }}!important}
+{{ c }}vbnt,{{ c }}vst{color:{{ DARK.on_accent }}!important}
+{% if not outlook %}
+.vlo{display:none!important}
+.vdo{display:block!important;max-height:none!important;overflow:visible!important}
+{% endif %}
+{% endmacro %}

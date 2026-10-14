@@ -1,0 +1,189 @@
+{
+  "app": {
+    "skipToContent": "Skip to main content",
+    "loading": "Loading…",
+    "checkingSession": "Checking your session…",
+    "sessionLoadFailed": "We could not load your session"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "open": "Open navigation",
+    "close": "Close menu",
+    "sections": {
+      "insights": "Insights",
+      "admin": "Administration"
+    },
+    "items": {
+      "reception": "Reception",
+      "myVisits": "My visits",
+      "inviteVisitor": "Invite visitor",
+      "visitors": "Visitors",
+      "inside": "Inside now",
+      "history": "Visit history",
+      "reports": "Reports",
+      "adminDashboard": "Dashboard",
+      "adminUsers": "Users",
+      "adminDepartments": "Departments",
+      "adminSettings": "Company settings",
+      "adminAudit": "Audit log",
+      "adminEmailTemplates": "Email texts",
+      "platformCompanies": "Companies",
+      "platformAudit": "Audit log"
+    }
+  },
+  "account": {
+    "menuFor": "Account menu for {{name}}",
+    "changePassword": "Change password",
+    "signOut": "Sign out",
+    "signOutFailed": "Could not sign out"
+  },
+  "appearance": {
+    "label": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "roles": {
+    "person": {
+      "SYSTEM_ADMIN": "Administrator",
+      "EMPLOYEE": "Employee",
+      "RECEPTIONIST": "Reception",
+      "MANAGEMENT": "Management"
+    },
+    "group": {
+      "SYSTEM_ADMIN": "Administrator",
+      "EMPLOYEE": "Employee",
+      "RECEPTIONIST": "Reception",
+      "MANAGEMENT": "Management"
+    }
+  },
+  "language": {
+    "changeFailed": "Could not save your language"
+  },
+  "actions": {
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "dismissNotification": "Dismiss notification",
+    "tryAgain": "Try again",
+    "reloadPage": "Reload page",
+    "previous": "Previous",
+    "next": "Next",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Could not copy automatically. Select the text and copy it manually.",
+    "showPassword": "Show password",
+    "clearSearch": "Clear search",
+    "goHome": "Go to your home page"
+  },
+  "field": {
+    "optional": "(optional)",
+    "date": "date",
+    "time": "time",
+    "from": "From",
+    "to": "To"
+  },
+  "combobox": {
+    "options": "Options",
+    "showOptions": "Show options",
+    "hideOptions": "Hide options",
+    "noMatches": "No matches found.",
+    "results_one": "{{count}} result available.",
+    "results_other": "{{count}} results available.",
+    "typeAtLeast_one": "Type at least {{count}} character to search.",
+    "typeAtLeast_other": "Type at least {{count}} characters to search."
+  },
+  "pagination": {
+    "label": "Pagination",
+    "noResults": "No results",
+    "showing": "Showing {{from}}–{{to}} of {{total}}",
+    "page": "Page {{page}} of {{pageCount}}"
+  },
+  "filters": {
+    "label": "Filters",
+    "toggle": "Filters",
+    "toggleWithCount": "Filters ({{count}})",
+    "status": "Status"
+  },
+  "status": {
+    "visit": {
+      "SCHEDULED": "Scheduled",
+      "CHECKED_IN": "Checked in",
+      "CHECKED_OUT": "Checked out",
+      "CANCELLED": "Cancelled",
+      "NO_SHOW": "No-show"
+    },
+    "invitation": {
+      "NOT_SENT": "Not sent",
+      "PENDING": "Sending",
+      "SENT": "Sent",
+      "FAILED": "Failed"
+    },
+    "invitationLong": {
+      "NOT_SENT": "Invitation not sent",
+      "PENDING": "Sending invitation",
+      "SENT": "Invitation sent",
+      "FAILED": "Invitation failed"
+    },
+    "pass": {
+      "ACTIVE": "Active",
+      "REVOKED": "Revoked",
+      "EXPIRED": "Expired",
+      "NONE": "No pass"
+    }
+  },
+  "table": {
+    "loading": "Loading {{caption}}…"
+  },
+  "dates": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "yesterday": "Yesterday",
+    "dateTime": "{{date}}, {{time}}",
+    "atTime": "{{date}} at {{time}}",
+    "timeZone": "{{place}} time ({{offset}})",
+    "dstShifted": "That time does not exist in {{zone}} because of a daylight-saving change; it will be saved as {{time}}.",
+    "rangeOn": "On {{date}}.",
+    "rangeFromTo": "From {{from}} to {{to}}.",
+    "rangeFrom": "From {{date}}.",
+    "rangeUpTo": "Up to {{date}}.",
+    "rangeEndBeforeStart": "Choose an end date on or after the start date."
+  },
+  "duration": {
+    "unknown": "—",
+    "lessThanMinute": "< 1m",
+    "lessThanMinuteInText": "< 1m",
+    "minutes": "{{minutes}}m",
+    "hours": "{{hours}}h",
+    "hoursMinutes": "{{hours}}h {{minutes}}m",
+    "ago": "{{duration}} ago",
+    "in": "in {{duration}}",
+    "waitMinutes_one": "{{count}}\u00a0minute",
+    "waitMinutes_other": "{{count}}\u00a0minutes",
+    "waitHours_one": "{{count}}\u00a0hour",
+    "waitHours_other": "{{count}}\u00a0hours",
+    "waitHoursMinutes": "{{hours}} {{minutes}}"
+  },
+  "text": {
+    "characterCount_one": "{{length}} of {{count}} character",
+    "characterCount_other": "{{length}} of {{count}} characters",
+    "maxLength_one": "Enter at most {{count}} character.",
+    "maxLength_other": "Enter at most {{count}} characters.",
+    "listSeparator": ", "
+  },
+  "print": {
+    "generated": "Generated {{when}}, {{zone}}.",
+    "printedBy": "Printed by {{name}}."
+  },
+  "errorPage": {
+    "title": "Error",
+    "newVersionTitle": "A new version is available",
+    "unexpectedTitle": "Something went wrong"
+  },
+  "accessDenied": {
+    "title": "You do not have access to this page"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "goHome": "Go to the home page"
+  }
+}

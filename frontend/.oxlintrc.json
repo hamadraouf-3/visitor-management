@@ -1,0 +1,44 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc", "unicorn", "import", "jsx-a11y", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "browser": true,
+    "es2024": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    // Automatic JSX runtime: React does not need to be in scope.
+    "react/react-in-jsx-scope": "off",
+    // The UI kit implements WAI-ARIA APG widgets (dialog, listbox/option, status, svg img)
+    // on purpose instead of native <dialog>/<select>/<output>, which cannot meet the
+    // focus, styling and async-option requirements; the remaining jsx-a11y rules stay on.
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "import/no-cycle": "error",
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "@testing-library/jest-dom/vitest"] }],
+    "no-console": ["warn", { "allow": ["warn", "error"] }]
+  },
+  "overrides": [
+    {
+      "files": ["src/features/*/routes.tsx", "src/router.tsx", "src/test/**", "src/**/*.test.tsx"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
+    },
+    {
+      "files": ["public/sw.js"],
+      "env": { "serviceworker": true }
+    },
+    {
+      "files": ["scripts/**", "config/**", "*.config.ts"],
+      "env": { "node": true },
+      "rules": { "no-console": "off" }
+    }
+  ],
+  "ignorePatterns": ["dist/**", "coverage/**", "playwright-report/**", "test-results/**"]
+}

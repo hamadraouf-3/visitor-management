@@ -1,0 +1,44 @@
+{
+  "title": "Visit history",
+  "count_one": "{{formatted}} visit",
+  "count_other": "{{formatted}} visits",
+  "filters": {
+    "hostLoading": "Loading host…",
+    "hostSelected": "Selected host",
+    "search": "Search",
+    "searchPlaceholder": "Visitor, company, host",
+    "searchMinLength_one": "Type at least {{count}} character to search.",
+    "searchMinLength_other": "Type at least {{count}} characters to search.",
+    "dates": "Scheduled date",
+    "host": "Host",
+    "hostAll": "All hosts",
+    "department": "Department",
+    "clear": "Clear filters"
+  },
+  "backLabel": "Back to Visit history",
+  "found_one": "{{count}} visit found.",
+  "found_other": "{{count}} visits found.",
+  "checkDates": "Check the dates",
+  "loadError": "The visit history could not be loaded",
+  "empty": {
+    "pageTitle": "This page is empty",
+    "firstPage": "Go to the first page",
+    "filteredTitle": "No visits match these filters",
+    "title": "No visits yet"
+  },
+  "pagesLabel": "Visit history pages",
+  "columns": {
+    "visitor": "Visitor",
+    "status": "Status",
+    "date": "Date",
+    "host": "Host",
+    "purpose": "Purpose",
+    "attendance": "Attendance"
+  },
+  "departmentFilter": {
+    "notListed": "Department not listed",
+    "inactive": "Inactive",
+    "empty": "No department with that name.",
+    "all": "All departments"
+  }
+}

@@ -1,0 +1,208 @@
+{% import "macros.html" as ui with context %}
+{# Phase 13 (B13-1, B13-2, B13-5). `scheme`: none for the e-mail as it is sent, which carries both designs
+   (the dark one for the clients that ask for it); "light" or "dark" for a preview of that design alone,
+   whatever the scheme of the device it is seen on (a document in a frame follows the device). DARK: the
+   dark design's colours, when the e-mail has a dark design (not in a light preview; not from an older
+   process, which draws the light design alone, B12-26). DARK_PREVIEW: the dark rules apply
+   unconditionally. PLATE: the CSS pixels of white baked around a company's logo (its light rendition),
+   which the header's padding gives back, so that the logo's own edge stays where the text starts.
+   LOGO_DARK: the rendition of the company's logo for dark surfaces, which only the dark design shows.
+   The class names are short on purpose (B13-8): macros.html lists them. #}
+{% set SCHEME = scheme | default(none) %}
+{% set DARK = ui.DARK if SCHEME != "light" else none %}
+{% set DARK_PREVIEW = DARK and SCHEME == "dark" %}
+{% set SCHEMES = "dark" if DARK_PREVIEW else ("light dark" if DARK else "light") %}
+{% set PLATE = identity.plate | default(0) %}
+{% set LOGO_DARK = (identity.logo_dark | default(none)) if identity.logo and DARK else none %}
+<!DOCTYPE html>
+<html lang="{{ lead }}" dir="{{ DIRECTION[lead] }}" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="{{ SCHEMES }}">
+<meta name="supported-color-schemes" content="{{ SCHEMES }}">
+<title>{{ subject }}</title>
+{# The schemes the document has, said to the client twice (Apple Mail reads the meta, browsers the
+   property); in a style sheet of its own, so that a client refusing it loses nothing else. #}
+<style>
+:root{color-scheme:{{ SCHEMES }};supported-color-schemes:{{ SCHEMES }}}
+</style>
+{# Progressive enhancement for phones. On a phone the header stacks (B12-23): the kind of message goes
+   under the logo or the name, both at the start of the line, so a wide logo and a long pill never have
+   to share 258 pixels; with these rules no e-mail is wider than a 320-pixel screen. A client that drops
+   <style> keeps the inline (desktop) layout, in which a pill beside a logo may wrap and every long value
+   may: that fits from 375 pixels up. Beside a plated logo the pill's cell gives the plate back. #}
+<style>
+@media only screen and (max-width: 480px) {
+.vpx{padding-left:18px!important;padding-right:18px!important}
+{% if PLATE %}
+.vpp{padding-{{ START[lead] }}:{{ 18 - PLATE }}px!important;padding-{{ END[lead] }}:18px!important}
+{% endif %}
+.vcl{display:block!important;width:auto!important;border-left:0!important;border-right:0!important}
+.vcs{border-bottom:1px solid {{ ui.RULE }}!important}
+.vhd{display:block!important;width:auto!important;text-align:{{ START[lead] }}!important}
+{% if PLATE %}
+.vhk{padding:{{ 10 - PLATE }}px 0 {{ PLATE }}px 0!important;padding-{{ START[lead] }}:{{ PLATE }}px!important}
+{% else %}
+.vhk{padding:10px 0 0 0!important}
+{% endif %}
+}
+</style>
+{% if DARK %}
+{# The dark design (B13-1), in a style sheet of its own: a client that refuses one of these rules (a media
+   feature, an attribute selector) and drops its style sheet keeps the others. It comes after the phone's
+   rules, so that its colours win where both set one (the line under a stacked cell). #}
+<style>
+{% if DARK_PREVIEW %}
+{{ ui.dark_rules() }}
+{% else %}
+@media (prefers-color-scheme: dark) {
+{{ ui.dark_rules() }}
+}
+{% endif %}
+</style>
+{% if not DARK_PREVIEW %}
+<style>
+{{ ui.dark_rules(outlook=True) }}
+</style>
+{% endif %}
+{% endif %}
+</head>
+<body dir="{{ DIRECTION[lead] }}" class="vcv" style="margin:0;padding:0;background-color:#F1F1F1;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#F1F1F1;opacity:0;">{% block preheader %}{% endblock %}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F1F1F1" class="vcv" style="background-color:#F1F1F1;border-collapse:collapse;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" class="vcd" style="width:100%;max-width:600px;border-collapse:separate;border-spacing:0;background-color:#FFFFFF;border:1px solid {{ ui.LINE }};border-radius:16px;">
+{% if identity.product %}
+        {# The product's own header (the CLI's test e-mail, B12-22): the white logo on mawdoo3.com's teal,
+           a turquoise rule, and what kind of message this is. The same in the dark design: the logo is
+           baked onto the band (B10-17). #}
+        <tr>
+          <td dir="{{ DIRECTION[lead] }}" bgcolor="{{ ui.SURFACE }}" class="vpx" style="padding:20px 32px 20px 32px;background-color:{{ ui.SURFACE }};border-radius:15px 15px 0 0;font-family:{{ ui.FONT }};">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="{{ DIRECTION[lead] }}" style="border-collapse:collapse;">
+              <tr>
+                <td align="{{ START[lead] }}" valign="middle" style="vertical-align:middle;text-align:{{ START[lead] }};">
+                  <img src="cid:{{ identity.logo.content_id }}" width="{{ identity.logo_width }}" height="{{ identity.logo_height }}" alt="{{ identity.names[lead] }}" style="display:block;width:{{ identity.logo_width }}px;height:{{ identity.logo_height }}px;border:0;outline:none;text-decoration:none;color:#FFFFFF;font-family:{{ ui.FONT }};font-size:18px;font-weight:700;">
+                </td>
+                <td align="{{ END[lead] }}" valign="middle" style="vertical-align:middle;text-align:{{ END[lead] }};">
+                  {{ ui.pill(t(lead, kind ~ ".kind"), lead, attention=kind in ui.ATTENTION_KINDS) }}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td height="4" bgcolor="{{ ui.ACCENT }}" style="height:4px;line-height:4px;font-size:4px;background-color:{{ ui.ACCENT }};">&nbsp;</td>
+        </tr>
+{% else %}
+        {# A company's header (B12-12): a bar in its own colour (B12-21), then on white, where a logo for
+           light surfaces belongs, its logo or its name as a word mark, and what kind of message this is:
+           beside it where there is room, under it on a phone (`vhd`).
+
+           The logo is its light rendition (B13-2): opaque, on PLATE pixels of white, so a client that
+           darkens the message shows a white tile with rounded corners where the logo reads. The dark
+           design shows the rendition of the logo for dark surfaces instead, seamless on its header; it is
+           hidden from every other client (`display:none`, and Outlook for Windows never reads it).
+           Without a logo for dark surfaces the dark design keeps the white tile.
+
+           An emblem does not say whose it is (B13-12): beside whichever logo a design shows that is one
+           (LIGHT_MARK, DARK_MARK), the company's name, in the ink of that design. Where both are emblems
+           the one name serves both designs; beside a light emblem only, the dark design hides it; beside
+           a dark emblem only, it is the dark design's alone, inside the hidden block. #}
+        <tr>
+          <td height="6" bgcolor="{{ ui.SURFACE }}" class="vbr" style="height:6px;line-height:6px;font-size:6px;background-color:{{ ui.SURFACE }};border-radius:15px 15px 0 0;">&nbsp;</td>
+        </tr>
+        <tr>
+          <td dir="{{ DIRECTION[lead] }}" bgcolor="#FFFFFF" class="{{ 'vpp' if PLATE else 'vpx' }} vsf" style="{% if PLATE %}padding-top:{{ 18 - PLATE }}px;padding-bottom:{{ 16 - PLATE }}px;padding-{{ START[lead] }}:{{ 32 - PLATE }}px;padding-{{ END[lead] }}:32px;{% else %}padding:18px 32px 16px 32px;{% endif %}background-color:#FFFFFF;font-family:{{ ui.FONT }};">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="{{ DIRECTION[lead] }}" style="border-collapse:collapse;">
+              <tr>
+                <td align="{{ START[lead] }}" valign="middle" class="vhd" style="vertical-align:middle;text-align:{{ START[lead] }};">
+{% if identity.logo %}
+{% set NAME = identity.names[lead] %}
+{% set LIGHT_MARK = identity.logo_mark | default(false) %}
+{% set DARK_MARK = LOGO_DARK and identity.logo_dark_mark %}
+{% set NAME_CELL %}
+                        <td valign="middle" style="vertical-align:middle;padding-{{ START[lead] }}:{{ 12 - PLATE }}px;">
+                          <span dir="{{ NAME | direction }}" class="vik{{ ' vlo' if LOGO_DARK and not DARK_MARK else '' }}" style="display:block;font-family:{{ ui.FONT }};font-size:{{ '15px;line-height:20px' if NAME | length > 28 else '18px;line-height:24px' }};font-weight:700;color:{{ ui.INK }};word-break:break-word;">{{ NAME }}</span>
+                        </td>
+{% endset %}
+{% if LIGHT_MARK %}
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" dir="{{ DIRECTION[lead] }}" style="border-collapse:collapse;">
+                    <tr>
+                      <td valign="middle" style="vertical-align:middle;">
+{% endif %}
+                  <img src="cid:{{ identity.logo.content_id }}" width="{{ identity.logo_width }}" height="{{ identity.logo_height }}" alt="{{ '' if LIGHT_MARK else NAME }}"{% if LOGO_DARK %} class="vlo"{% endif %} style="display:block;width:{{ identity.logo_width }}px;height:{{ identity.logo_height }}px;{% if PLATE %}border-radius:{{ LOGO_PLATE_RADIUS | default(10) }}px;{% endif %}border:0;outline:none;text-decoration:none;color:{{ ui.LINK }};font-family:{{ ui.FONT }};font-size:18px;font-weight:700;">
+{% if LOGO_DARK %}
+                  <!--[if !mso]><!-->
+                  <div class="vdo" style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
+{% if DARK_MARK and not LIGHT_MARK %}
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" dir="{{ DIRECTION[lead] }}" style="border-collapse:collapse;mso-hide:all;">
+                      <tr>
+                        <td valign="middle" style="vertical-align:middle;">
+{% endif %}
+{% if DARK_MARK %}
+                          <img src="cid:{{ LOGO_DARK.content_id }}" width="{{ identity.logo_dark_width }}" height="{{ identity.logo_dark_height }}" alt="" style="display:block;width:{{ identity.logo_dark_width }}px;height:{{ identity.logo_dark_height }}px;border:0;outline:none;text-decoration:none;">
+{% else %}
+                    <img src="cid:{{ LOGO_DARK.content_id }}" width="{{ identity.logo_dark_width }}" height="{{ identity.logo_dark_height }}" alt="{{ NAME }}" style="display:block;width:{{ identity.logo_dark_width }}px;height:{{ identity.logo_dark_height }}px;border:0;outline:none;text-decoration:none;color:{{ DARK.accent_text }};font-family:{{ ui.FONT }};font-size:18px;font-weight:700;">
+{% endif %}
+{% if DARK_MARK and not LIGHT_MARK %}
+                        </td>
+{{ NAME_CELL }}
+                      </tr>
+                    </table>
+{% endif %}
+                  </div>
+                  <!--<![endif]-->
+{% endif %}
+{% if LIGHT_MARK %}
+                      </td>
+{{ NAME_CELL }}
+                    </tr>
+                  </table>
+{% endif %}
+{% else %}
+                  {# A long name is set smaller, so it takes two lines beside the pill rather than four. #}
+                  <span dir="{{ identity.names[lead] | direction }}" class="vlk" style="display:block;font-family:{{ ui.FONT }};font-size:{{ '16px;line-height:22px' if identity.names[lead] | length > 28 else '20px;line-height:28px' }};font-weight:700;color:{{ ui.LINK }};word-break:break-word;">{{ identity.names[lead] }}</span>
+{% endif %}
+                </td>
+                <td align="{{ END[lead] }}" valign="middle" class="vhd vhk" style="vertical-align:middle;text-align:{{ END[lead] }};padding-{{ START[lead] }}:{{ 12 - PLATE }}px;">
+                  {{ ui.pill(t(lead, kind ~ ".kind"), lead, attention=kind in ui.ATTENTION_KINDS, on_band=False, wraps=identity.logo is not none) }}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td class="vpx" style="padding:0 32px;"><div class="vdv" style="height:1px;line-height:1px;font-size:1px;background-color:{{ ui.LINE }};">&nbsp;</div></td>
+        </tr>
+{% endif %}
+        {# The leading language, in full. #}
+        {% block lead_section %}{% endblock %}
+        {# The other language, complete as well, under its name. #}
+        <tr>
+          <td class="vpx" style="padding:0 32px;"><div class="vdv" style="height:1px;line-height:1px;font-size:1px;background-color:{{ ui.LINE }};">&nbsp;</div></td>
+        </tr>
+        {% call ui.section(other, padding="24px 32px 8px 32px") %}
+{{ ui.language_label(other) }}
+{% endcall %}
+        {% block other_section %}{% endblock %}
+        {# Footer: who sent the message, in both languages, the leading one first. #}
+        <tr>
+          <td bgcolor="#F8F8F8" align="center" class="vpx vsk" style="padding:18px 32px 20px 32px;background-color:#F8F8F8;border-top:1px solid {{ ui.LINE }};border-radius:0 0 15px 15px;font-family:{{ ui.FONT }};text-align:center;">
+{% for lang in (lead, other) %}
+            <p dir="{{ DIRECTION[lang] }}" lang="{{ lang }}" class="vmt" style="margin:{{ '6px' if loop.last else '0' }} 0 0 0;direction:{{ DIRECTION[lang] }};font-size:12px;line-height:18px;color:{{ ui.MUTED }};">{% for part in footer[lang] %}{% if not loop.first %} {% endif %}{{ t(lang, part.key, **part.values) }}{% endfor %}</p>
+{% set note = edited(lang, "footer_note") %}
+{% if note %}
+            <p dir="{{ DIRECTION[lang] }}" lang="{{ lang }}" class="vmt" style="margin:4px 0 0 0;direction:{{ DIRECTION[lang] }};font-size:12px;line-height:18px;color:{{ ui.MUTED }};">{{ note }}</p>
+{% endif %}
+{% endfor %}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

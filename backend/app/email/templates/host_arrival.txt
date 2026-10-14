@@ -1,0 +1,23 @@
+{% extends "base.txt" %}
+{% set kind = "arrival" %}
+{# The company's closing paragraph: a paragraph of its own, with a blank line before it (B11-48). #}
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{{ "\n\n" }}{{ text }}{% endif %}{% endmacro %}
+{% macro body(lang) %}
+{{ edited(lang, "heading") or t(lang, "arrival.heading") }}
+
+{{ edited(lang, "greeting") or t(lang, "common.hello", name=host_full_name) }}
+
+{{ edited(lang, "intro") or t(lang, "arrival.body", visitor=visitor_name, time=arrived_at, zone=times[lang].zone) }}
+
+{{ t(lang, "label.visitor") }}: {{ visitor_name | isolate(lang) }}
+{% if visitor_company_name %}
+{{ t(lang, "label.company") }}: {{ visitor_company_name | isolate(lang) }}
+{% endif %}
+{{ t(lang, "label.scheduled") }}: {{ times[lang].date }}{{ COMMA[lang] }}{{ times[lang].time }}
+{{ t(lang, "label.purpose") }}: {{ purpose | isolate(lang) }}
+
+{{ t(lang, "arrival.meet") }}{{ closing(lang) }}
+
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.txt" %}
+{% set kind = "test" %}
+{% macro body(lang) %}
+{{ t(lang, "test.heading") }}
+
+{{ t(lang, "test.intro", product=product[lang], sent_at=sent_at[lang]) }}
+
+{{ t(lang, "test.sample_text") }}
+
+{{ sample_url }}
+
+{{ t(lang, "test.reachable", url=qr_base_url) }}
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

@@ -1,0 +1,22 @@
+# Build context of frontend/Dockerfile: an allowlist of what `npm ci` and `npm run build` read.
+# Everything else (node_modules, dist, test reports, E2E artefacts, local .env files, editor folders)
+# stays out of the context and the image.
+*
+!package.json
+!package-lock.json
+!index.html
+!tsconfig.json
+!tsconfig.app.json
+!tsconfig.node.json
+!vite.config.ts
+!playwright.config.ts
+!config/
+!public/
+!src/
+
+# Never, even inside the allowed folders.
+**/.env
+**/.env.*
+**/*.local
+**/node_modules
+**/.DS_Store

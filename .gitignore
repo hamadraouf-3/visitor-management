@@ -1,0 +1,45 @@
+# Local tooling (portable PostgreSQL binaries + data cluster)
+.local/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Runtime artifacts (dev email outbox, logs, database archives of scripts/backup.*)
+backend/var/
+*.log
+*.dump
+*.dump.partial
+
+# Stray output of a mistyped path setting (security audit recommendation 15). A POSIX shell strips the
+# backslashes of an unquoted Windows path ("C:\Users\You\AppData\Local\Temp\...\outbox" becomes
+# "C:UsersYouAppDataLocalTemp...outbox"). That path is drive-relative, so the API resolved
+# EMAIL_OUTBOX_DIR under backend/ and wrote raw pass links there. The dev outbox belongs in backend/var/.
+# deploy/verify/check_release_tree.py catches what these patterns miss.
+/backend/*outbox*/
+*AppDataLocal*
+*AppDataRoaming*
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/.artifacts/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

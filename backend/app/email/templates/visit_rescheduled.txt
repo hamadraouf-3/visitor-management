@@ -1,0 +1,27 @@
+{% extends "base.txt" %}
+{% set kind = "rescheduled" %}
+{# The company's closing paragraph: a paragraph of its own, with a blank line before it (B11-48). #}
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{{ "\n\n" }}{{ text }}{% endif %}{% endmacro %}
+{% macro body(lang) %}
+{{ edited(lang, "heading") or t(lang, "rescheduled.heading") }}
+
+{{ edited(lang, "greeting") or t(lang, "common.hello", name=visitor_name) }}
+
+{{ edited(lang, "intro") or t(lang, "rescheduled.intro", company=company_name[lang], host=host_name) }}
+
+{{ t(lang, "label.date") }}: {{ times[lang].date }}
+{{ t(lang, "label.time") }}: {{ times[lang].time }} ({{ times[lang].timezone }})
+{{ t(lang, "label.host") }}: {{ host_name | isolate(lang) }}
+{% if department_name[lang] %}
+{{ t(lang, "label.department") }}: {{ department_name[lang] | isolate(lang) }}
+{% endif %}
+{% if company_address[lang] %}
+{{ t(lang, "label.address") }}: {{ company_address[lang] | isolate(lang) }}
+{% endif %}
+
+{{ t(lang, "rescheduled.still_valid") }} {{ t(lang, "rescheduled.window", start=times[lang].from_phrase | default(times[lang].check_in_from), end=times[lang].until_phrase | default(times[lang].expires_at), zone=times[lang].zone) }}
+
+{% if replies_reach_host %}{{ t(lang, "rescheduled.questions_host", host=host_name) }}{% elif has_reply_to %}{{ t(lang, "rescheduled.questions_reply") }}{% else %}{{ t(lang, "rescheduled.questions_contact", host=host_name) }}{% endif %}{{ closing(lang) }}
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

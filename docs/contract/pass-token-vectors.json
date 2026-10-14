@@ -1,0 +1,327 @@
+{
+  "description": "Shared test vectors for pass-token parsing of scanner and handheld/paste input (contract §6). The frontend parser (frontend/src/scanner/parsePassToken.ts) and the backend parser (app.security.tokens.extract_pass_token) must both return `expected` for every `input` (a token string, or null for invalid input).",
+  "rules": [
+    "Remove leading and trailing characters of the ECMAScript String.prototype.trim() set (WhiteSpace and LineTerminator: tab, vertical tab, form feed, space, U+00A0, U+FEFF, every Unicode Zs space separator, LF, CR, U+2028, U+2029). Nothing else is removed: the GS separator (U+001D) some handheld scanners append and U+0085 stay and make the input invalid.",
+    "Bare token: the whole value matches [A-Za-z0-9_-]{32,128}.",
+    "Otherwise a pass URL: it must contain no space or ASCII control character (U+0000-U+0020, U+007F) and fully match [Hh][Tt][Tt][Pp][Ss]?://[^/?#@\\\\]+/pass/?(\\?[^#]*)?#([A-Za-z0-9_-]{32,128}) - http or https (scheme case-insensitive), any host and port, no user info, path exactly /pass or /pass/ (case-sensitive), optional query, token as the whole fragment.",
+    "Anything else is invalid. QR_BASE_URL and APP_BASE_URL are origins without a path, so every pass URL has the path /pass.",
+    "Since Phase 12 a pass URL names its company in the query: {QR_BASE_URL}/pass?c=<slug>#<token>. The grammar is unchanged: the query is optional and is never read (the token is the whole fragment, and only the token decides), so the links of every release parse: with ?c=<slug> and without a query."
+  ],
+  "cases": [
+    {
+      "name": "bare token (token_urlsafe(32), 43 characters)",
+      "input": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "bare token of minimum length 32",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "name": "bare token of maximum length 128",
+      "input": "Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-",
+      "expected": "Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-Z9_-"
+    },
+    {
+      "name": "bare token with surrounding spaces and a scanner CR LF",
+      "input": "  Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A\r\n",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "https pass URL",
+      "input": "https://visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "http pass URL with port (local development)",
+      "input": "http://localhost:5173/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL on a LAN IP with port",
+      "input": "https://192.168.1.20:5173/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL on an IPv6 host",
+      "input": "http://[::1]:5173/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL from another origin",
+      "input": "https://other-origin.example.org/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL with a trailing slash",
+      "input": "https://visitors.example.com/pass/#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL with a query string",
+      "input": "https://visitors.example.com/pass?utm_source=email#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL with an upper-case scheme and host",
+      "input": "HTTPS://Visitors.Example.COM/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL with surrounding tab and newline",
+      "input": "\thttps://visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A\n",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "empty input",
+      "input": "",
+      "expected": null
+    },
+    {
+      "name": "whitespace only",
+      "input": " \t\r\n",
+      "expected": null
+    },
+    {
+      "name": "bare token of 31 characters",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": null
+    },
+    {
+      "name": "bare token of 129 characters",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": null
+    },
+    {
+      "name": "standard base64 characters",
+      "input": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uI+/=",
+      "expected": null
+    },
+    {
+      "name": "space inside the token",
+      "input": "Xo3_vK9-aQ2rT7mN4bL8 cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "non-ASCII letter in the token",
+      "input": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2Aé",
+      "expected": null
+    },
+    {
+      "name": "non-ASCII letter that case-folds to ASCII",
+      "input": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2ſ",
+      "expected": null
+    },
+    {
+      "name": "another app path",
+      "input": "https://visitors.example.com/reset-password#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "path that only starts with /pass",
+      "input": "https://visitors.example.com/passes#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "nested path below /pass",
+      "input": "https://visitors.example.com/pass/extra#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "path prefix before /pass",
+      "input": "https://visitors.example.com/vms/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "upper-case path",
+      "input": "https://visitors.example.com/PASS#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "dot segment in the path",
+      "input": "https://visitors.example.com/./pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "double slash in the path",
+      "input": "https://visitors.example.com//pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "root path",
+      "input": "https://visitors.example.com/#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "token in the query instead of the fragment",
+      "input": "https://visitors.example.com/pass?token=Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "named fragment parameter",
+      "input": "https://visitors.example.com/pass#token=Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "second fragment marker",
+      "input": "https://visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A#x",
+      "expected": null
+    },
+    {
+      "name": "missing fragment",
+      "input": "https://visitors.example.com/pass",
+      "expected": null
+    },
+    {
+      "name": "empty fragment",
+      "input": "https://visitors.example.com/pass#",
+      "expected": null
+    },
+    {
+      "name": "invalid token in the URL",
+      "input": "https://visitors.example.com/pass#short",
+      "expected": null
+    },
+    {
+      "name": "scheme-less URL",
+      "input": "visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "protocol-relative URL",
+      "input": "//visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "path-only URL",
+      "input": "/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "single slash after the scheme",
+      "input": "https:/visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "backslash instead of slash",
+      "input": "https://visitors.example.com\\pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "javascript scheme",
+      "input": "javascript:alert(1)//pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "ftp scheme",
+      "input": "ftp://visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "user info in the URL",
+      "input": "https://user:secret@visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "space inside the URL",
+      "input": "https://visitors.example.com/pass?a b#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "tab inside the URL",
+      "input": "https://visitors.example.com/pa\tss#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "leading byte order mark (U+FEFF) is trimmed",
+      "input": "\ufeffXo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "trailing GS separator (U+001D) from a handheld scanner",
+      "input": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A\u001d",
+      "expected": null
+    },
+    {
+      "name": "trailing NEL (U+0085) is not trimmed",
+      "input": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A\u0085",
+      "expected": null
+    },
+    {
+      "name": "pass URL followed by a GS separator",
+      "input": "https://visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A\u001d",
+      "expected": null
+    },
+    {
+      "name": "random text",
+      "input": "Hello, reception!",
+      "expected": null
+    },
+    {
+      "name": "pass URL naming its company (?c=<slug>, the form of every link since Phase 12)",
+      "input": "https://visitors.example.com/pass?c=acme-corp#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL naming its company, on a development origin",
+      "input": "http://localhost:5173/pass?c=demo-company#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL naming its company, with a trailing slash",
+      "input": "https://visitors.example.com/pass/?c=acme#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL with a percent-encoded company and a further parameter",
+      "input": "https://visitors.example.com/pass?c=acme%2Dcorp&utm_source=email#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "pass URL with an empty company parameter",
+      "input": "https://visitors.example.com/pass?c=#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": "Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A"
+    },
+    {
+      "name": "company in the query but no fragment",
+      "input": "https://visitors.example.com/pass?c=acme",
+      "expected": null
+    },
+    {
+      "name": "token in the company parameter instead of the fragment",
+      "input": "https://visitors.example.com/pass?c=Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "token in the query beside the company, and a fragment that is no token",
+      "input": "https://visitors.example.com/pass?c=acme&token=Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A#pass",
+      "expected": null
+    },
+    {
+      "name": "company after the fragment marker",
+      "input": "https://visitors.example.com/pass#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A?c=acme",
+      "expected": null
+    },
+    {
+      "name": "a company's sign-in page is not a pass (/c/<slug>)",
+      "input": "https://visitors.example.com/c/acme#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "the sign-in page with a company is not a pass",
+      "input": "https://visitors.example.com/login?c=acme#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "the reset page with a company is not a pass",
+      "input": "https://visitors.example.com/reset-password?c=acme#token=Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    },
+    {
+      "name": "space in the company parameter",
+      "input": "https://visitors.example.com/pass?c=acme corp#Xo3_vK9-aQ2rT7mN4bL8cY1zW6eH5jP0sD-gF_uIk2A",
+      "expected": null
+    }
+  ]
+}

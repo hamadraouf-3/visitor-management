@@ -1,0 +1,95 @@
+{
+  "stats": {
+    "total": "كل الزيارات",
+    "lastCheckIn": "آخر دخول"
+  },
+  "search": {
+    "title": "الزوار",
+    "todayVisitWith": "{{time}} مع {{host}}",
+    "columns": {
+      "visitor": "الزائر",
+      "contact": "التواصل",
+      "today": "اليوم"
+    },
+    "noMatchesTitle": "لا يوجد زوار يطابقون «{{q}}»",
+    "clear": "مسح البحث",
+    "inviteNew": "دعوة زائر جديد",
+    "emptyTitle": "لا يوجد زوار بعد",
+    "invite": "دعوة زائر",
+    "label": "البحث في الزوار",
+    "placeholder": "الاسم أو البريد الإلكتروني أو الهاتف أو الشركة",
+    "loadError": "تعذّر تحميل الزوار",
+    "captionMatching": "الزوار المطابقون لـ«{{q}}»",
+    "pagesLabel": "صفحات الزوار"
+  },
+  "validation": {
+    "fullNameRequired": "أدخل الاسم الكامل للزائر."
+  },
+  "edit": {
+    "savedNewEmail": "تصل إلى {{email}} دعوة جديدة ورمز QR جديد لكل زيارة مجدولة لـ{{name}}.",
+    "savedEmailCleared": "لم تعد رموز QR للزيارات المجدولة التي أُرسلت إلى العنوان السابق صالحة.",
+    "intents": {
+      "edit": {
+        "title": "تعديل بيانات الزائر"
+      },
+      "correctEmail": {
+        "title": "تصحيح البريد الإلكتروني"
+      }
+    },
+    "savedTitle": "حُدّثت بيانات الزائر",
+    "discard": "تجاهل التغييرات",
+    "saveAndSend": "حفظ وإرسال الدعوة",
+    "save": "حفظ التغييرات",
+    "newInvitationsTitle": "ستصل إلى الزائر دعوات جديدة",
+    "previousQrStops": "تتوقف رموز QR التي أُرسلت إلى العنوان السابق عن العمل."
+  },
+  "fields": {
+    "returningPlaceholder": "الاسم أو البريد الإلكتروني أو الهاتف أو الشركة",
+    "returning": "زائر مسجّل",
+    "orNew": "أو أدخل زائرًا جديدًا",
+    "fullName": "الاسم الكامل",
+    "company": "الشركة",
+    "phone": "الهاتف",
+    "email": "البريد الإلكتروني",
+    "addContact": "إضافة بيانات التواصل (اختياري)",
+    "enterNewInstead": "إدخال زائر جديد بدلًا منه",
+    "selectRegistered": "اختيار الزائر المسجّل"
+  },
+  "backToVisitors": "العودة إلى الزوار",
+  "profile": {
+    "notFound": {
+      "title": "الزائر غير موجود",
+      "heading": "هذا الزائر غير موجود أو غير متاح لك"
+    },
+    "noAccess": {
+      "title": "لا صلاحية للوصول إلى هذا الزائر",
+      "heading": "لا يمكنك فتح ملف هذا الزائر"
+    },
+    "title": "الزائر",
+    "loadError": "تعذّر تحميل بيانات الزائر",
+    "contact": {
+      "title": "بيانات التواصل",
+      "added": "تاريخ الإضافة"
+    },
+    "call": "الاتصال بـ{{name}}",
+    "backToProfile": "العودة إلى ملف الزائر",
+    "loading": "جارٍ تحميل بيانات الزائر…",
+    "documentTitle": "ملف الزائر",
+    "inviteAgain": "دعوة مرة أخرى",
+    "edit": "تعديل بيانات الزائر",
+    "history": {
+      "title": "سجل الزيارات",
+      "loadError": "تعذّر تحميل سجل الزيارات",
+      "emptyTitle": "لا توجد زيارات بعد",
+      "pagesLabel": "صفحات سجل الزيارات",
+      "columns": {
+        "date": "التاريخ",
+        "status": "الحالة",
+        "host": "المضيف",
+        "department": "القسم",
+        "purpose": "الغرض",
+        "attendance": "الحضور"
+      }
+    }
+  }
+}

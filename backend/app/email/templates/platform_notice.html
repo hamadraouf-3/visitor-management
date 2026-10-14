@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{# The security notice to a company's other administrators about an action of the platform owner on an
+   administrator account (B11-43). `action` is "admin_added" or "reset_sent". It carries no link and no
+   credential: there is nothing to click, only something to know. Not editable (B11-21). It is the
+   company's own e-mail (B12-22): the company's header and footer, as base.html draws them for every
+   company; who acted is said in the text ("the platform owner"). #}
+{% set kind = "platform" %}
+{% block preheader %}{{ t(lead, "platform.preheader." ~ action, date=date[lead], time=time) }}{% endblock %}
+
+{% macro body(lang, primary) %}
+{{ ui.heading(t(lang, "platform.heading." ~ action), primary) }}
+{% call ui.paragraph(spacing=4) %}{{ t(lang, "common.hello", name=full_name) }}{% endcall %}
+{% call ui.paragraph(spacing=20) %}{{ t(lang, "platform.body." ~ action, company=company_name[lang], date=date[lang], time=time, zone=zone[lang]) }}{% endcall %}
+{{ ui.details([
+    [(t(lang, "label.administrator"), about_name)],
+    [(t(lang, "label.email"), about_email)],
+], lang) }}
+{% call ui.notice(lang, attention=True) %}<strong class="vik" style="color:{{ ui.INK }};">{{ t(lang, "platform.act") }}</strong>{% endcall %}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 8px 32px") %}
+{{ body(lead, True) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 8px 32px") %}
+{{ body(other, False) }}
+{% endcall %}
+{% endblock %}

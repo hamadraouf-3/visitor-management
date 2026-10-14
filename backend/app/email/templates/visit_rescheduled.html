@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% set kind = "rescheduled" %}
+{% block preheader %}{{ t(lead, "rescheduled.preheader", date=times[lead].date, time=times[lead].time) }}{% endblock %}
+
+{# After the questions line, which has no space below it, the closing brings its own (B11-48). #}
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{% call ui.paragraph(top=16) %}{{ text }}{% endcall %}{% endif %}{% endmacro %}
+
+{% macro body(lang, primary) %}
+{{ ui.heading(edited(lang, "heading") or t(lang, "rescheduled.heading"), primary) }}
+{% call ui.paragraph(spacing=4) %}{{ edited(lang, "greeting") or t(lang, "common.hello", name=visitor_name) }}{% endcall %}
+{% call ui.paragraph(spacing=20) %}{{ edited(lang, "intro") or t(lang, "rescheduled.intro", company=company_name[lang], host=host_name) }}{% endcall %}
+{{ ui.details([
+    [(t(lang, "label.date"), times[lang].date), (t(lang, "label.time"), times[lang].time ~ " (" ~ times[lang].timezone ~ ")")],
+    [(t(lang, "label.host"), host_name), (t(lang, "label.department"), department_name[lang])],
+    [(t(lang, "label.address"), company_address[lang])],
+], lang) }}
+{% call ui.notice(lang) %}<strong class="vik" style="color:{{ ui.INK }};">{{ t(lang, "rescheduled.still_valid") }}</strong> {{ t(lang, "rescheduled.window", start=times[lang].from_phrase | default(times[lang].check_in_from), end=times[lang].until_phrase | default(times[lang].expires_at), zone=times[lang].zone) }}{% endcall %}
+{% call ui.paragraph(muted=True, spacing=0) %}{% if replies_reach_host %}{{ t(lang, "rescheduled.questions_host", host=host_name) }}{% elif has_reply_to %}{{ t(lang, "rescheduled.questions_reply") }}{% else %}{{ t(lang, "rescheduled.questions_contact", host=host_name) }}{% endif %}{% endcall %}
+{{ closing(lang) }}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 28px 32px") %}
+{{ body(lead, True) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 28px 32px") %}
+{{ body(other, False) }}
+{% endcall %}
+{% endblock %}

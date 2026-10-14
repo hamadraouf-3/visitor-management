@@ -1,0 +1,386 @@
+{
+  "insideFlags": {
+    "previousDay": "من يوم سابق",
+    "overdue": "تجاوز وقت المغادرة",
+    "overdueDueOut": "تجاوز وقت المغادرة · {{time}}"
+  },
+  "format": {
+    "fromTime": "من {{time}}",
+    "untilTime": "حتى {{time}}",
+    "in": "دخول {{time}}",
+    "out": "خروج {{time}}",
+    "notCheckedOut": "لم يُسجَّل الخروج",
+    "notCheckedOutInline": "لم يُسجَّل الخروج"
+  },
+  "walkInReasons": {
+    "NO_INVITATION": "بدون دعوة",
+    "EARLY_ARRIVAL": "وصول مبكر",
+    "LATE_ARRIVAL": "وصول متأخر",
+    "LOST_PASS": "بطاقة مفقودة",
+    "DELIVERY": "توصيل",
+    "OTHER": "سبب آخر"
+  },
+  "checkInMethods": {
+    "QR": "مسح رمز QR",
+    "MANUAL": "تسجيل دخول يدوي بعد التحقق من الهوية",
+    "OVERRIDE": "تجاوز من الاستقبال",
+    "WALK_IN": "تسجيل زائر بدون موعد"
+  },
+  "checkOutMethods": {
+    "QR": "مسح رمز QR",
+    "MANUAL": "تسجيل خروج يدوي",
+    "CORRECTED": "وقت خروج مصحَّح",
+    "BULK": "تسجيل خروج جماعي لزيارات سابقة"
+  },
+  "methodShort": {
+    "QR": "رمز QR",
+    "MANUAL": "يدوي",
+    "OVERRIDE": "تجاوز",
+    "WALK_IN": "بدون موعد",
+    "CORRECTED": "خروج مصحَّح",
+    "BULK": "خروج جماعي"
+  },
+  "passRevokeReasons": {
+    "ROTATED": "حلّت محلّ رمز QR هذا دعوةٌ أو رابطُ بطاقةٍ أحدث.",
+    "VISIT_CANCELLED": "أُلغيت الزيارة.",
+    "VISIT_COMPLETED": "سُجّل خروج الزائر.",
+    "VISITOR_EMAIL_CHANGED": "تغيّر البريد الإلكتروني للزائر، فأُرسلت دعوة جديدة إلى العنوان الجديد."
+  },
+  "invitationText": {
+    "theVisitor": "الزائر",
+    "theAddressYouEntered": "البريد الإلكتروني الذي أدخلته",
+    "reusedMismatch": "أدخلت «{{typed}}»، لكن {{address}} يخص «{{stored}}»، لذلك أُنشئت هذه الزيارة باسم «{{stored}}».",
+    "cancellationNotEmailed": "لم يُبلَّغ الزائر بالإلغاء عبر البريد الإلكتروني.",
+    "cancellationSent": "أُرسل إشعار الإلغاء إلى {{email}}.",
+    "cancellationPending": "جارٍ إرسال إشعار الإلغاء إلى {{email}}.",
+    "cancellationFailed": "تعذّر إرسال إشعار الإلغاء إلى {{email}}. أبلغ الزائر بنفسك.",
+    "noInvitationSent": "لم تُرسل دعوة بالبريد الإلكتروني لهذه الزيارة.",
+    "statusStillSending": "ما زال إرسال الدعوة إلى {{recipient}} جاريًا.",
+    "statusSending": "جارٍ إرسال الدعوة إلى {{recipient}}",
+    "statusSent": "أُرسلت الدعوة إلى {{recipient}}.",
+    "statusFailed": "تعذّر إرسال الدعوة إلى {{recipient}}.",
+    "summarySentOn": "أُرسلت إلى {{recipient}} يوم {{when}}.",
+    "summarySent": "أُرسلت إلى {{recipient}}.",
+    "summaryFailed": "تعذّر إرسالها إلى {{recipient}}.",
+    "summaryPending": "جارٍ إرسالها إلى {{recipient}}.",
+    "summaryNoEmail": "ليس لدى الزائر بريد إلكتروني.",
+    "failedTitleTo": "لم تصل الدعوة إلى {{email}}",
+    "failedTitle": "لم تصل الدعوة",
+    "checkAgain": "تحقّق مرة أخرى"
+  },
+  "inviteSuccess": {
+    "titleCancelled": "أُلغيت الزيارة",
+    "titleScheduled": "جُدولت الزيارة",
+    "mismatchTitle": "تحقّق ممّن تخصّه هذه الزيارة",
+    "cancelThisVisit": "إلغاء هذه الزيارة",
+    "passReplacedTitle": "استُبدلت بطاقة الزيارة",
+    "passReplacedEmailChanged": "جارٍ إرسال دعوة جديدة إلى {{email}}.",
+    "passReplacedPrevious": "لم يعد رابط البطاقة السابق صالحًا.",
+    "viewVisit": "عرض الزيارة",
+    "inviteAnother": "دعوة زائر آخر"
+  },
+  "schedule": {
+    "startRequired": "أدخل تاريخ البداية ووقتها.",
+    "endRequired": "أدخل تاريخ النهاية ووقتها.",
+    "endBeforeStart": "يجب أن تكون النهاية بعد البداية.",
+    "tooLong": "لا يمكن أن تتجاوز مدة الزيارة 24 ساعة.",
+    "inPast": "لا يمكن أن تكون البداية في الماضي.",
+    "endInPast": "لا يمكن أن تكون النهاية في الماضي.",
+    "tooFarAhead_zero": "لا يمكن جدولة زيارة مسبقًا.",
+    "tooFarAhead_one": "يمكن جدولة الزيارة قبل يوم واحد على الأكثر.",
+    "tooFarAhead_two": "يمكن جدولة الزيارة قبل يومين على الأكثر.",
+    "tooFarAhead_few": "يمكن جدولة الزيارة قبل {{count}} أيام على الأكثر.",
+    "tooFarAhead_many": "يمكن جدولة الزيارة قبل {{count}} يومًا على الأكثر.",
+    "tooFarAhead_other": "يمكن جدولة الزيارة قبل {{count}} يوم على الأكثر.",
+    "readBack": "{{range}} ({{duration}})",
+    "starts": "البداية",
+    "ends": "النهاية"
+  },
+  "invite": {
+    "deliveryEmail": "إرسال الدعوة بالبريد الإلكتروني",
+    "deliveryShare": "سأشارك البطاقة بنفسي",
+    "emailRequiredForInvitation": "أدخل البريد الإلكتروني للزائر لإرسال الدعوة إليه، أو اختر «{{share}}».",
+    "existingVisitorWithoutEmail": "ليس لدى هذا الزائر بريد إلكتروني. اختر «{{share}}»، أو أضف بريدًا إلكترونيًا في ملف الزائر أولًا.",
+    "hostRequired": "اختر مضيف الزيارة.",
+    "purposeRequired": "أدخل الغرض من الزيارة.",
+    "visitorCard": {
+      "title": "الزائر"
+    },
+    "deliveryLabel": "كيف سيحصل الزائر على بطاقته؟",
+    "visitCard": {
+      "title": "الزيارة"
+    },
+    "host": "المضيف",
+    "department": "القسم",
+    "purpose": "الغرض من الزيارة",
+    "cancel": "إلغاء",
+    "submitSend": "إرسال الدعوة",
+    "submitCreate": "إنشاء الزيارة",
+    "title": "دعوة زائر",
+    "loadingVisitor": "جارٍ تحميل بيانات الزائر…",
+    "visitorLoadError": "تعذّر تحميل بيانات الزائر"
+  },
+  "edit": {
+    "rescheduledNoEmail": "لم يُرسل بريد إلكتروني إلى الزائر.",
+    "rescheduledQueued": "جارٍ إرسال التاريخ والوقت الجديدين إلى الزائر بالبريد الإلكتروني.",
+    "rescheduledLeftOut": "لم يُرسل بريد إلكتروني إلى الزائر: بلغت رسائل التغييرات الحدّ المسموح.",
+    "rescheduledTitle": "أُعيدت جدولة الزيارة",
+    "updatedTitle": "حُدّثت الزيارة",
+    "title": "تعديل الزيارة أو إعادة جدولتها",
+    "discard": "تجاهل التغييرات",
+    "save": "حفظ التغييرات"
+  },
+  "cancel": {
+    "doneNotifying": "جارٍ إبلاغ الزائر بالبريد الإلكتروني.",
+    "notEmailed": "لن يُبلَّغ الزائر بالبريد الإلكتروني.",
+    "doneNotNotified": "لم يُبلَّغ الزائر.",
+    "doneTitle": "أُلغيت الزيارة",
+    "title": "إلغاء هذه الزيارة؟",
+    "description": "{{name}}، {{when}}. سيتوقف رمز QR الخاص بالزائر عن العمل.",
+    "keep": "الإبقاء على الزيارة",
+    "confirm": "إلغاء الزيارة",
+    "reason": "السبب",
+    "notify": "إبلاغ الزائر بالبريد الإلكتروني"
+  },
+  "timeline": {
+    "notice": {
+      "VISIT_CANCELLED": {
+        "SENT": "أُرسل إشعار الإلغاء",
+        "PENDING": "جارٍ إرسال إشعار الإلغاء",
+        "FAILED": "تعذّر إرسال إشعار الإلغاء"
+      },
+      "VISIT_RESCHEDULED": {
+        "SENT": "أُرسل إشعار الموعد الجديد",
+        "PENDING": "جارٍ إرسال إشعار الموعد الجديد",
+        "FAILED": "تعذّر إرسال إشعار الموعد الجديد"
+      }
+    },
+    "noticeFailed": {
+      "VISIT_CANCELLED": "لم يُبلَّغ الزائر. أبلغه بنفسك.",
+      "VISIT_RESCHEDULED": "لم يُبلَّغ الزائر بالموعد الجديد. أبلغه بنفسك."
+    },
+    "walkInRegistered": "سُجّل زائر بدون موعد",
+    "created": "أُنشئت الزيارة",
+    "by": "بواسطة {{name}}",
+    "reason": "السبب: {{reason}}",
+    "invitationSent": "أُرسلت الدعوة",
+    "invitationFailed": "تعذّر إرسال الدعوة",
+    "checkedIn": "سُجّل الدخول",
+    "checkedInBy": "سُجّل الدخول بواسطة {{name}}",
+    "checkedOut": "سُجّل الخروج",
+    "checkedOutBy": "سُجّل الخروج بواسطة {{name}}",
+    "method": "الطريقة: {{method}}",
+    "note": "ملاحظة: {{note}}",
+    "cancelled": "أُلغيت",
+    "cancelledBy": "أُلغيت بواسطة {{name}}",
+    "noReason": "لم يُذكر سبب",
+    "noShow": "سُجّلت كزيارة لم يحضرها الزائر"
+  },
+  "detail": {
+    "actions": {
+      "edit": "تعديل أو إعادة جدولة",
+      "sendInvitation": "إرسال الدعوة",
+      "resendInvitation": "إعادة إرسال الدعوة",
+      "cancel": "إلغاء الزيارة",
+      "menu": "الإجراءات"
+    },
+    "invitation": {
+      "originalTitle": "الدعوة الأصلية",
+      "title": "الدعوة",
+      "addEmail": "إضافة بريد إلكتروني",
+      "attempts_zero": "لا توجد محاولات.",
+      "attempts_one": "محاولة واحدة.",
+      "attempts_two": "محاولتان.",
+      "attempts_few": "{{count}} محاولات.",
+      "attempts_many": "{{count}} محاولة.",
+      "attempts_other": "{{count}} محاولة.",
+      "attemptsLast_zero": "{{count}} محاولة، آخرها يوم {{when}}.",
+      "attemptsLast_one": "محاولة واحدة، يوم {{when}}.",
+      "attemptsLast_two": "محاولتان، آخرهما يوم {{when}}.",
+      "attemptsLast_few": "{{count}} محاولات، آخرها يوم {{when}}.",
+      "attemptsLast_many": "{{count}} محاولة، آخرها يوم {{when}}.",
+      "attemptsLast_other": "{{count}} محاولة، آخرها يوم {{when}}.",
+      "technical": "تفاصيل تقنية"
+    },
+    "facts": {
+      "title": "تفاصيل الزيارة",
+      "when": "الموعد",
+      "visitor": "الزائر",
+      "host": "المضيف",
+      "department": "القسم",
+      "purpose": "الغرض",
+      "createdBy": "أُنشئت بواسطة",
+      "createdByOn": "{{name}} يوم {{when}}",
+      "timeOnSite": "المدة في الموقع"
+    },
+    "timeline": {
+      "title": "السجل الزمني"
+    },
+    "pass": {
+      "title": "بطاقة الزيارة",
+      "active": "صالحة يوم {{window}}",
+      "revoked": "لم يعد رمز QR هذا صالحًا.",
+      "expired": "كانت البطاقة صالحة حتى {{when}}.",
+      "none": "لا توجد بطاقة لهذه الزيارة.",
+      "issued": "صدرت يوم {{when}}",
+      "issueNew": "إصدار رابط بطاقة جديد"
+    },
+    "notFound": {
+      "title": "الزيارة غير موجودة",
+      "heading": "هذه الزيارة غير موجودة أو غير متاحة لك"
+    },
+    "noAccess": {
+      "title": "لا صلاحية للوصول إلى هذه الزيارة",
+      "heading": "لا يمكنك فتح هذه الزيارة"
+    },
+    "title": "تفاصيل الزيارة",
+    "loadError": "تعذّر تحميل الزيارة",
+    "loading": "جارٍ تحميل الزيارة…",
+    "newPass": {
+      "title": "بطاقة زيارة جديدة",
+      "previousStopped": "لم يعد رمز QR السابق صالحًا.",
+      "done": "تم"
+    },
+    "outcome": {
+      "inviteAgain": "دعوة مرة أخرى",
+      "cancelledTitle": "أُلغيت هذه الزيارة",
+      "cancelledByOn": "أُلغيت بواسطة {{name}} يوم {{when}}.",
+      "cancelledOn": "أُلغيت يوم {{when}}.",
+      "reason": "السبب: {{reason}}",
+      "noReason": "لم يُذكر سبب.",
+      "noShowTitle": "لم يحضر الزائر",
+      "passExpiredOn": "انتهت صلاحية البطاقة يوم {{when}}."
+    }
+  },
+  "myVisits": {
+    "tabs": {
+      "today": "اليوم",
+      "upcoming": "القادمة",
+      "past": "السابقة",
+      "attention": "تحتاج انتباهًا"
+    },
+    "captions": {
+      "today": "زيارات اليوم",
+      "upcoming": "الزيارات القادمة",
+      "past": "الزيارات السابقة",
+      "attention": "زيارات تحتاج انتباهًا"
+    },
+    "show": {
+      "allButCancelled": "الكل عدا الملغاة",
+      "cancelled": "الملغاة",
+      "scheduled": "المجدولة",
+      "allStatuses": "كل الحالات",
+      "attended": "حضر الزائر",
+      "noShows": "لم يحضر",
+      "label": "عرض"
+    },
+    "searchEmpty": {
+      "today": "لا توجد زيارات اليوم تطابق «{{q}}»",
+      "upcoming": "لا توجد زيارات قادمة تطابق «{{q}}»",
+      "past": "لا توجد زيارات سابقة تطابق «{{q}}»",
+      "attention": "لا توجد زيارات تحتاج انتباهًا تطابق «{{q}}»"
+    },
+    "filteredEmpty": {
+      "attention": "لا توجد زيارات تحتاج انتباهًا",
+      "today": {
+        "cancelled": "لا توجد زيارات ملغاة اليوم",
+        "attended": "لا توجد زيارات اليوم حضرها الزائر",
+        "no-show": "لا توجد زيارات اليوم لم يحضرها الزائر"
+      },
+      "upcoming": {
+        "cancelled": "لا توجد زيارات قادمة ملغاة",
+        "attended": "لا توجد زيارات قادمة حضرها الزائر",
+        "no-show": "لا توجد زيارات قادمة لم يحضرها الزائر"
+      },
+      "past": {
+        "cancelled": "لا توجد زيارات سابقة ملغاة",
+        "attended": "لا توجد زيارات سابقة حضرها الزائر",
+        "no-show": "لا توجد زيارات سابقة لم يحضرها الزائر"
+      }
+    },
+    "invite": "دعوة زائر",
+    "title": "زياراتي",
+    "summary": {
+      "label": "ملخص الزيارات",
+      "insideNow_zero": "لا أحد داخل المبنى الآن",
+      "insideNow_one": "زائر واحد داخل المبنى الآن",
+      "insideNow_two": "زائران داخل المبنى الآن",
+      "insideNow_few": "{{count}} زوار داخل المبنى الآن",
+      "insideNow_many": "{{count}} زائرًا داخل المبنى الآن",
+      "insideNow_other": "{{count}} زائر داخل المبنى الآن",
+      "lastPrefix": "آخر ",
+      "last30Days": "30 يومًا: {{completed}} مكتملة · {{cancelled}} ملغاة",
+      "unavailable": "أعداد الزيارات غير متاحة.",
+      "loading": "جارٍ تحميل الأعداد…"
+    },
+    "empty": {
+      "clearSearch": "مسح البحث",
+      "showDefault": "عرض: {{option}}",
+      "todayTitle": "لا توجد زيارات اليوم",
+      "upcomingTitle": "لا توجد زيارات قادمة",
+      "pastTitle": "لا توجد زيارات سابقة",
+      "attentionTitle": "لا شيء يحتاج انتباهك",
+      "pageTitle": "هذه الصفحة فارغة",
+      "firstPage": "الانتقال إلى الصفحة الأولى"
+    },
+    "tabsLabel": "الزيارات",
+    "search": {
+      "label": "البحث في الزيارات",
+      "placeholder": "الزائر أو الشركة أو البريد الإلكتروني",
+      "placeholderShort": "بحث"
+    },
+    "loadErrorAll": "تعذّر تحميل زياراتي",
+    "loadError": "تعذّر تحميل الزيارات",
+    "pagesLabel": "صفحات الزيارات"
+  },
+  "backToMyVisits": "العودة إلى زياراتي",
+  "backToVisitors": "العودة إلى الزوار",
+  "table": {
+    "visitor": "الزائر",
+    "when": "التاريخ والوقت",
+    "status": "الحالة",
+    "invitation": "الدعوة",
+    "host": "المضيف",
+    "department": "القسم"
+  },
+  "call": "الاتصال بـ{{name}}",
+  "failure": {
+    "correctAndResend": "تصحيح البريد وإعادة الإرسال",
+    "resendSame": "إعادة الإرسال إلى العنوان نفسه",
+    "resend": "إعادة إرسال الدعوة"
+  },
+  "backToName": "العودة إلى {{name}}",
+  "walkInBadge": "بدون موعد",
+  "issuePass": {
+    "title": "إصدار رابط بطاقة جديد؟",
+    "keep": "الإبقاء على البطاقة الحالية",
+    "confirm": "إصدار رابط بطاقة جديد"
+  },
+  "rotation": {
+    "title": "سيتوقف رمز QR السابق عن العمل"
+  },
+  "resend": {
+    "titleFailed": "إرسال الدعوة مرة أخرى؟",
+    "title": "إعادة إرسال الدعوة؟",
+    "keep": "الإبقاء على الدعوة الحالية",
+    "lastFailed": "تعذّر إرسال آخر دعوة إلى {{email}}.",
+    "lastWentTo": "أُرسلت آخر دعوة إلى {{email}}."
+  },
+  "passActions": {
+    "link": "رابط البطاقة",
+    "shownOnce": "يُعرض مرة واحدة فقط.",
+    "copy": "نسخ الرابط",
+    "copied": "نُسخ الرابط",
+    "showQr": "عرض رمز QR",
+    "qrUnavailable": "تعذّر تحميل رمز QR. تحقّق من اتصالك وأعد تحميل الصفحة؛ رابط البطاقة أعلاه ما زال يعمل.",
+    "qrFor": "رمز QR لبطاقة زيارة {{name}}",
+    "qrPreparing": "جارٍ تجهيز رمز QR…"
+  },
+  "pickers": {
+    "noContactDetails": "لا توجد بيانات تواصل",
+    "noMatchingVisitor": "لا يوجد زائر مطابق.",
+    "noHost": "لا يوجد مضيف نشط بهذا الاسم.",
+    "noDepartment": "بدون قسم",
+    "inactiveDepartment": "{{name}} (غير نشط)"
+  }
+}

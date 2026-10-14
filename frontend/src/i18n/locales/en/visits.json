@@ -1,0 +1,370 @@
+{
+  "insideFlags": {
+    "previousDay": "Previous day",
+    "overdue": "Overdue",
+    "overdueDueOut": "Overdue · due out {{time}}"
+  },
+  "format": {
+    "fromTime": "from {{time}}",
+    "untilTime": "until {{time}}",
+    "in": "In {{time}}",
+    "out": "Out {{time}}",
+    "notCheckedOut": "Not checked out",
+    "notCheckedOutInline": "not checked out"
+  },
+  "walkInReasons": {
+    "NO_INVITATION": "No invitation",
+    "EARLY_ARRIVAL": "Early arrival",
+    "LATE_ARRIVAL": "Late arrival",
+    "LOST_PASS": "Lost pass",
+    "DELIVERY": "Delivery",
+    "OTHER": "Other"
+  },
+  "checkInMethods": {
+    "QR": "QR code scan",
+    "MANUAL": "manual check-in after an ID check",
+    "OVERRIDE": "override by reception",
+    "WALK_IN": "walk-in registration"
+  },
+  "checkOutMethods": {
+    "QR": "QR code scan",
+    "MANUAL": "manual check-out",
+    "CORRECTED": "corrected check-out time",
+    "BULK": "bulk check-out of earlier visits"
+  },
+  "methodShort": {
+    "QR": "QR code",
+    "MANUAL": "Manual",
+    "OVERRIDE": "Override",
+    "WALK_IN": "Walk-in",
+    "CORRECTED": "Corrected check-out",
+    "BULK": "Bulk check-out"
+  },
+  "passRevokeReasons": {
+    "ROTATED": "A newer invitation or pass link replaced this QR code.",
+    "VISIT_CANCELLED": "The visit was cancelled.",
+    "VISIT_COMPLETED": "The visitor has checked out.",
+    "VISITOR_EMAIL_CHANGED": "The visitor’s email address changed, so a new invitation was sent to the new address."
+  },
+  "invitationText": {
+    "theVisitor": "the visitor",
+    "theAddressYouEntered": "the email address you entered",
+    "reusedMismatch": "You entered “{{typed}}”, but {{address}} already belongs to “{{stored}}”, so this visit is for “{{stored}}”.",
+    "cancellationNotEmailed": "The visitor was not emailed about the cancellation.",
+    "cancellationSent": "The cancellation was emailed to {{email}}.",
+    "cancellationPending": "The cancellation is being emailed to {{email}}.",
+    "cancellationFailed": "The cancellation email to {{email}} could not be sent. Let the visitor know yourself.",
+    "noInvitationSent": "No invitation email was sent for this visit.",
+    "statusStillSending": "The invitation to {{recipient}} is still being sent.",
+    "statusSending": "Sending the invitation to {{recipient}}",
+    "statusSent": "Invitation sent to {{recipient}}.",
+    "statusFailed": "The invitation email to {{recipient}} could not be sent.",
+    "summarySentOn": "Sent to {{recipient}} on {{when}}.",
+    "summarySent": "Sent to {{recipient}}.",
+    "summaryFailed": "Could not be sent to {{recipient}}.",
+    "summaryPending": "Being sent to {{recipient}}.",
+    "summaryNoEmail": "The visitor has no email address.",
+    "failedTitleTo": "Invitation not delivered to {{email}}",
+    "failedTitle": "Invitation not delivered",
+    "checkAgain": "Check again"
+  },
+  "inviteSuccess": {
+    "titleCancelled": "Visit cancelled",
+    "titleScheduled": "Visit scheduled",
+    "mismatchTitle": "Check who this visit is for",
+    "cancelThisVisit": "Cancel this visit",
+    "passReplacedTitle": "The visitor pass was replaced",
+    "passReplacedEmailChanged": "A new invitation is being sent to {{email}}.",
+    "passReplacedPrevious": "The previous pass link no longer works.",
+    "viewVisit": "View visit",
+    "inviteAnother": "Invite another visitor"
+  },
+  "schedule": {
+    "startRequired": "Enter the start date and time.",
+    "endRequired": "Enter the end date and time.",
+    "endBeforeStart": "The end must be after the start.",
+    "tooLong": "A visit can last at most 24 hours.",
+    "inPast": "The start cannot be in the past.",
+    "endInPast": "The end cannot be in the past.",
+    "tooFarAhead_one": "A visit can be scheduled at most {{count}} day ahead.",
+    "tooFarAhead_other": "A visit can be scheduled at most {{count}} days ahead.",
+    "readBack": "{{range}} ({{duration}})",
+    "starts": "Starts",
+    "ends": "Ends"
+  },
+  "invite": {
+    "deliveryEmail": "Email the invitation",
+    "deliveryShare": "I’ll share the pass myself",
+    "emailRequiredForInvitation": "Enter the visitor’s email address to email the invitation, or choose “{{share}}”.",
+    "existingVisitorWithoutEmail": "This visitor has no email address. Choose “{{share}}”, or add an email address on the visitor’s profile first.",
+    "hostRequired": "Choose the host of the visit.",
+    "purposeRequired": "Enter the purpose of the visit.",
+    "visitorCard": {
+      "title": "Visitor"
+    },
+    "deliveryLabel": "How will the visitor get their pass?",
+    "visitCard": {
+      "title": "Visit"
+    },
+    "host": "Host",
+    "department": "Department",
+    "purpose": "Purpose",
+    "cancel": "Cancel",
+    "submitSend": "Send invitation",
+    "submitCreate": "Create visit",
+    "title": "Invite visitor",
+    "loadingVisitor": "Loading the visitor…",
+    "visitorLoadError": "The visitor could not be loaded"
+  },
+  "edit": {
+    "rescheduledNoEmail": "The visitor was not emailed.",
+    "rescheduledQueued": "The visitor is being emailed the new date and time.",
+    "rescheduledLeftOut": "The visitor was not emailed: the limit for emails about changes was reached.",
+    "rescheduledTitle": "Visit rescheduled",
+    "updatedTitle": "Visit updated",
+    "title": "Edit or reschedule visit",
+    "discard": "Discard changes",
+    "save": "Save changes"
+  },
+  "cancel": {
+    "doneNotifying": "The visitor is being notified by email.",
+    "notEmailed": "The visitor will not be emailed.",
+    "doneNotNotified": "The visitor was not notified.",
+    "doneTitle": "Visit cancelled",
+    "title": "Cancel this visit?",
+    "description": "{{name}}, {{when}}. The visitor’s QR code stops working.",
+    "keep": "Keep visit",
+    "confirm": "Cancel visit",
+    "reason": "Reason",
+    "notify": "Notify the visitor by email"
+  },
+  "timeline": {
+    "notice": {
+      "VISIT_CANCELLED": {
+        "SENT": "Cancellation email sent",
+        "PENDING": "Sending the cancellation email",
+        "FAILED": "Cancellation email could not be sent"
+      },
+      "VISIT_RESCHEDULED": {
+        "SENT": "Email about the new time sent",
+        "PENDING": "Sending the email about the new time",
+        "FAILED": "Email about the new time could not be sent"
+      }
+    },
+    "noticeFailed": {
+      "VISIT_CANCELLED": "The visitor was not told. Let them know yourself.",
+      "VISIT_RESCHEDULED": "The visitor was not told about the new time. Let them know yourself."
+    },
+    "walkInRegistered": "Walk-in registered",
+    "created": "Visit created",
+    "by": "By {{name}}",
+    "reason": "Reason: {{reason}}",
+    "invitationSent": "Invitation sent",
+    "invitationFailed": "Invitation could not be sent",
+    "checkedIn": "Checked in",
+    "checkedInBy": "Checked in by {{name}}",
+    "checkedOut": "Checked out",
+    "checkedOutBy": "Checked out by {{name}}",
+    "method": "Method: {{method}}",
+    "note": "Note: {{note}}",
+    "cancelled": "Cancelled",
+    "cancelledBy": "Cancelled by {{name}}",
+    "noReason": "No reason given",
+    "noShow": "Marked as no-show"
+  },
+  "detail": {
+    "actions": {
+      "edit": "Edit or reschedule",
+      "sendInvitation": "Send invitation",
+      "resendInvitation": "Resend invitation",
+      "cancel": "Cancel visit",
+      "menu": "Actions"
+    },
+    "invitation": {
+      "originalTitle": "Original invitation",
+      "title": "Invitation",
+      "addEmail": "Add an email address",
+      "attempts_one": "{{count}} attempt.",
+      "attempts_other": "{{count}} attempts.",
+      "attemptsLast_one": "{{count}} attempt, the last on {{when}}.",
+      "attemptsLast_other": "{{count}} attempts, the last on {{when}}.",
+      "technical": "Technical details"
+    },
+    "facts": {
+      "title": "Visit details",
+      "when": "When",
+      "visitor": "Visitor",
+      "host": "Host",
+      "department": "Department",
+      "purpose": "Purpose",
+      "createdBy": "Created by",
+      "createdByOn": "{{name}} on {{when}}",
+      "timeOnSite": "Time on site"
+    },
+    "timeline": {
+      "title": "Timeline"
+    },
+    "pass": {
+      "title": "Visitor pass",
+      "active": "Valid {{window}}",
+      "revoked": "This QR code no longer works.",
+      "expired": "The pass was valid until {{when}}.",
+      "none": "This visit has no pass.",
+      "issued": "Issued {{when}}",
+      "issueNew": "Issue a new pass link"
+    },
+    "notFound": {
+      "title": "Visit not found",
+      "heading": "This visit does not exist or is not available to you"
+    },
+    "noAccess": {
+      "title": "No access to this visit",
+      "heading": "You cannot open this visit"
+    },
+    "title": "Visit details",
+    "loadError": "The visit could not be loaded",
+    "loading": "Loading the visit…",
+    "newPass": {
+      "title": "New visitor pass",
+      "previousStopped": "The previous QR code no longer works.",
+      "done": "Done"
+    },
+    "outcome": {
+      "inviteAgain": "Invite again",
+      "cancelledTitle": "This visit was cancelled",
+      "cancelledByOn": "Cancelled by {{name}} on {{when}}.",
+      "cancelledOn": "Cancelled on {{when}}.",
+      "reason": "Reason: {{reason}}",
+      "noReason": "No reason was given.",
+      "noShowTitle": "The visitor did not arrive",
+      "passExpiredOn": "Pass expired on {{when}}."
+    }
+  },
+  "myVisits": {
+    "tabs": {
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "attention": "Needs attention"
+    },
+    "captions": {
+      "today": "Today’s visits",
+      "upcoming": "Upcoming visits",
+      "past": "Past visits",
+      "attention": "Visits that need attention"
+    },
+    "show": {
+      "allButCancelled": "All but cancelled",
+      "cancelled": "Cancelled",
+      "scheduled": "Scheduled",
+      "allStatuses": "All statuses",
+      "attended": "Attended",
+      "noShows": "No-shows",
+      "label": "Show"
+    },
+    "searchEmpty": {
+      "today": "No visits today match “{{q}}”",
+      "upcoming": "No upcoming visits match “{{q}}”",
+      "past": "No past visits match “{{q}}”",
+      "attention": "No visits that need attention match “{{q}}”"
+    },
+    "filteredEmpty": {
+      "attention": "No visits need attention",
+      "today": {
+        "cancelled": "No cancelled visits today",
+        "attended": "No attended today visits",
+        "no-show": "No today no-shows"
+      },
+      "upcoming": {
+        "cancelled": "No cancelled upcoming visits",
+        "attended": "No attended upcoming visits",
+        "no-show": "No upcoming no-shows"
+      },
+      "past": {
+        "cancelled": "No cancelled past visits",
+        "attended": "No attended past visits",
+        "no-show": "No past no-shows"
+      }
+    },
+    "invite": "Invite visitor",
+    "title": "My visits",
+    "summary": {
+      "label": "Visit summary",
+      "insideNow_one": "{{count}} inside now",
+      "insideNow_other": "{{count}} inside now",
+      "lastPrefix": "Last ",
+      "last30Days": "30 days: {{completed}} completed · {{cancelled}} cancelled",
+      "unavailable": "The visit counts are unavailable.",
+      "loading": "Loading counts…"
+    },
+    "empty": {
+      "clearSearch": "Clear search",
+      "showDefault": "Show {{option}}",
+      "todayTitle": "No visits today",
+      "upcomingTitle": "No upcoming visits",
+      "pastTitle": "No past visits",
+      "attentionTitle": "Nothing needs your attention",
+      "pageTitle": "This page is empty",
+      "firstPage": "Go to the first page"
+    },
+    "tabsLabel": "Visits",
+    "search": {
+      "label": "Search visits",
+      "placeholder": "Visitor, company or email",
+      "placeholderShort": "Search"
+    },
+    "loadErrorAll": "My visits could not be loaded",
+    "loadError": "Visits could not be loaded",
+    "pagesLabel": "Visits pages"
+  },
+  "backToMyVisits": "Back to My visits",
+  "backToVisitors": "Back to Visitors",
+  "table": {
+    "visitor": "Visitor",
+    "when": "Date and time",
+    "status": "Status",
+    "invitation": "Invitation",
+    "host": "Host",
+    "department": "Department"
+  },
+  "call": "Call {{name}}",
+  "failure": {
+    "correctAndResend": "Correct email and resend",
+    "resendSame": "Resend to same address",
+    "resend": "Resend invitation"
+  },
+  "backToName": "Back to {{name}}",
+  "walkInBadge": "Walk-in",
+  "issuePass": {
+    "title": "Issue a new pass link?",
+    "keep": "Keep current pass",
+    "confirm": "Issue new pass link"
+  },
+  "rotation": {
+    "title": "The previous QR code will stop working"
+  },
+  "resend": {
+    "titleFailed": "Send the invitation again?",
+    "title": "Resend the invitation?",
+    "keep": "Keep current invitation",
+    "lastFailed": "The last invitation to {{email}} could not be sent.",
+    "lastWentTo": "The last invitation went to {{email}}."
+  },
+  "passActions": {
+    "link": "Pass link",
+    "shownOnce": "Shown only once.",
+    "copy": "Copy link",
+    "copied": "Link copied",
+    "showQr": "Show QR code",
+    "qrUnavailable": "The QR code could not be loaded. Check your connection and reload the page; the pass link above still works.",
+    "qrFor": "Visitor pass QR code for {{name}}",
+    "qrPreparing": "Preparing the QR code…"
+  },
+  "pickers": {
+    "noContactDetails": "No contact details",
+    "noMatchingVisitor": "No matching visitor.",
+    "noHost": "No active host with that name.",
+    "noDepartment": "No department",
+    "inactiveDepartment": "{{name}} (inactive)"
+  }
+}

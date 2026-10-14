@@ -1,0 +1,21 @@
+{{ identity.masthead[lead] }}
+========================================
+
+{% block lead_section %}{% endblock %}
+
+----------------------------------------
+{{ LANGUAGE_NAMES[other] }}
+----------------------------------------
+
+{% block other_section %}{% endblock %}
+
+--
+{% for lang in (lead, other) %}
+{% for part in footer[lang] %}{% if not loop.first %} {% endif %}{{ t(lang, part.key, **part.values) }}{% endfor %}
+
+{% set note = edited(lang, "footer_note") %}
+{% if note %}
+{{ note }}
+
+{% endif %}
+{% endfor %}

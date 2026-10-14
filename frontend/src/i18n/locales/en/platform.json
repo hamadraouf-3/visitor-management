@@ -1,0 +1,287 @@
+{
+  "area": "Platform",
+  "account": {
+    "role": "Platform owner",
+    "menuFor": "Account menu for {{name}}",
+    "changePassword": "Change password",
+    "signOut": "Sign out",
+    "signOutFailed": "Could not sign out"
+  },
+  "signIn": {
+    "title": "Sign in to the platform",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…"
+  },
+  "changePassword": {
+    "title": "Change password"
+  },
+  "companies": {
+    "title": "Companies",
+    "total_one": "{{count}} company",
+    "total_other": "{{count}} companies",
+    "add": "Add company",
+    "search": {
+      "label": "Search companies",
+      "placeholder": "Name or slug"
+    },
+    "statusFilter": {
+      "label": "Status",
+      "all": "Active and deactivated",
+      "active": "Active",
+      "inactive": "Deactivated"
+    },
+    "columns": {
+      "company": "Company",
+      "status": "Status",
+      "users": "Active users",
+      "visits": "Visits, 30 days",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Deactivated"
+    },
+    "open": "Open",
+    "openNamed": "Open {{name}}",
+    "empty": {
+      "title": "No companies yet",
+      "filteredTitle": "No companies match",
+      "clear": "Clear filters"
+    },
+    "loadError": "The companies could not be loaded.",
+    "pagesLabel": "Pages of companies"
+  },
+  "company": {
+    "back": "Companies",
+    "loadError": "The company could not be loaded.",
+    "notFound": "Company not found",
+    "details": "Company",
+    "facts": {
+      "name": "Name",
+      "nameAr": "Arabic name",
+      "slug": "Slug",
+      "timezone": "Time zone",
+      "language": "Default language",
+      "created": "Created",
+      "deactivated": "Deactivated",
+      "users": "Active users",
+      "visits": "Visits, last 30 days",
+      "none": "None"
+    },
+    "createdOn": "Created {{date}}",
+    "deactivatedOn": "Deactivated {{date}}",
+    "edit": "Edit",
+    "editTitle": "Edit {{name}}",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Company saved",
+    "auditLink": "This company's audit log",
+    "deactivate": {
+      "action": "Deactivate",
+      "title": "Deactivate {{name}}?",
+      "description": "Its users are signed out and cannot sign in, and its visitor passes stop working.",
+      "confirm": "Deactivate company",
+      "done": "{{name}} deactivated"
+    },
+    "reactivate": {
+      "action": "Reactivate",
+      "done": "{{name}} reactivated"
+    },
+    "admins": {
+      "title": "Administrators",
+      "add": "Add administrator",
+      "inactive": "Inactive",
+      "temporaryPassword": "Temporary password",
+      "lastSignIn": "Last sign-in {{when}}",
+      "neverSignedIn": "Never signed in",
+      "sendReset": "Send reset link",
+      "sendResetNamed": "Send reset link to {{name}}",
+      "resetSent": "Reset link sent",
+      "resetSentTo": "To {{email}}",
+      "resetFailed": "The reset link could not be sent",
+      "resetLimited": "Too many reset links for this account. Try again in {{duration}}.",
+      "loadError": "The administrators could not be loaded.",
+      "empty": "No administrators",
+      "listLabel": "Administrators of {{name}}"
+    },
+    "actions": "Actions for this company",
+    "identity": {
+      "title": "Identity",
+      "edit": "Edit identity",
+      "logo": "Logo",
+      "noLogo": "No logo",
+      "colour": "Colour",
+      "defaultColour": "Default colour"
+    },
+    "emailTexts": {
+      "title": "Email texts",
+      "open": "Edit email texts"
+    }
+  },
+  "form": {
+    "companySection": "Company",
+    "adminSection": "First administrator",
+    "name": "Company name",
+    "nameAr": "Arabic name",
+    "slug": "Slug",
+    "timezone": "Time zone",
+    "language": "Default language",
+    "fullName": "Full name",
+    "email": "Email",
+    "create": "Create company",
+    "cancel": "Cancel",
+    "addAdmin": "Add administrator",
+    "limited": "Too many attempts. Try again in {{duration}}.",
+    "validation": {
+      "nameRequired": "Enter the company name.",
+      "slugRequired": "Enter a slug.",
+      "slugFormat": "Use lowercase letters, digits and hyphens, with no hyphen at either end.",
+      "timezoneRequired": "Choose a time zone.",
+      "fullNameRequired": "Enter the administrator's full name.",
+      "emailRequired": "Enter the administrator's email address."
+    }
+  },
+  "created": {
+    "title": "Company created",
+    "adminTitle": "Administrator added",
+    "description": "Pass the temporary password on now: it is shown only once and expires after 72\u00a0hours.",
+    "canSignIn": "{{name}} can now sign in",
+    "canSignInLater": "{{name}} can sign in once the company is reactivated",
+    "open": "Open company",
+    "back": "Back to companies",
+    "copy": "Copy password",
+    "copied": "Password copied",
+    "done": "Done"
+  },
+  "identity": {
+    "title": "Identity",
+    "logos": {
+      "title": "Logo and icon",
+      "kinds": {
+        "logo": "Logo",
+        "logo_dark": "Logo for dark surfaces",
+        "icon": "App icon"
+      },
+      "choose": "Choose image",
+      "chooseNamed": "Choose image: {{slot}}",
+      "replace": "Replace",
+      "replaceNamed": "Replace: {{slot}}",
+      "remove": "Remove",
+      "removeNamed": "Remove: {{slot}}",
+      "none": "None",
+      "fromLogo": "Made from the logo",
+      "fromName": "Made from the name",
+      "notSaved": "Not saved yet",
+      "size": "{{width}} × {{height}} px",
+      "preparing": "Preparing the image…",
+      "previewAlt": "{{slot}} of {{name}}"
+    },
+    "problems": {
+      "undecodable": "This file cannot be read as an image. Choose a {{formats}} file.",
+      "empty": "This image is empty: nothing is drawn in it.",
+      "source-too-large": "This file is too large. Choose one under {{size}} MB.",
+      "too-heavy": "This image has too much detail for a logo. Choose a simpler one.",
+      "too-small": "This image is too small. Choose one that is at least {{pixels}} pixels on its longer side.",
+      "too-wide": "This logo is too wide. Choose one that is at most {{times}} times as wide as it is tall.",
+      "too-tall": "This logo is too tall. Choose one that is at most twice as tall as it is wide.",
+      "too-light": "This logo is too light to show on a white background. Choose a dark version here, and use this one as the “{{slot}}”.",
+      "too-light-icon": "This image is too light to show on a white background. Choose a darker one.",
+      "too-dark": "This logo is too dark to show on a dark background. Choose a light version here, and use this one as the “{{slot}}”.",
+      "invalid_image": "The server refused this image. Choose another file.",
+      "image_too_small": "This image is too small.",
+      "image_too_large": "This image is too large.",
+      "image_not_square": "The app icon must be square.",
+      "upload": "The image could not be saved."
+    },
+    "colour": {
+      "title": "Colour",
+      "suggested": "Colours from the logo",
+      "field": "Colour",
+      "picker": "Colour picker",
+      "invalid": "Enter the colour as six hex digits, like {{example}}.",
+      "default": "Default colour",
+      "reset": "Reset to default colour",
+      "paletteError": "The preview could not be updated."
+    },
+    "preview": {
+      "title": "Preview",
+      "label": "Preview of the identity of {{name}}",
+      "app": "App",
+      "email": "Email",
+      "navCurrent": "My visits",
+      "navOther": "Reception",
+      "navLast": "Reports",
+      "button": "Invite visitor",
+      "chip": "Arriving now",
+      "link": "View visit",
+      "emailKind": "Visit invitation",
+      "emailHeading": "Your visit to {{name}}",
+      "emailButton": "Open my visitor pass",
+      "updating": "Updating the preview…"
+    },
+    "link": {
+      "title": "Sign-in link",
+      "copy": "Copy link",
+      "copied": "Link copied"
+    },
+    "status": {
+      "saved": "All changes are saved.",
+      "unsaved": "You have unsaved changes."
+    },
+    "save": "Save identity",
+    "discard": "Discard changes",
+    "saved": "Identity saved",
+    "saveFailed": "The identity could not be saved",
+    "unsavedDescription": "Your changes to this company's identity have not been saved.",
+    "cancel": "Cancel",
+    "removeDialog": {
+      "title": {
+        "logo": "Remove the logo?",
+        "logo_dark": "Remove the logo for dark surfaces?",
+        "icon": "Remove the app icon?"
+      },
+      "description": {
+        "logo": "The app, the emails and the visitor passes show the company's name instead.",
+        "logoAndIcon": "The app, the emails and the visitor passes show the company's name instead, and the app icon is removed with it.",
+        "logo_dark": "Dark surfaces show the logo on a white plate instead.",
+        "icon": "Browser tabs and the installed app show a neutral icon instead."
+      },
+      "confirm": "Remove",
+      "done": {
+        "logo": "Logo removed",
+        "logoAndIcon": "Logo and app icon removed",
+        "logo_dark": "Logo for dark surfaces removed",
+        "icon": "App icon removed"
+      },
+      "failed": "The image could not be removed"
+    },
+    "resetDialog": {
+      "title": "Reset to the default colour?",
+      "description": "The app, the emails and the visitor passes go back to the default colours.",
+      "confirm": "Reset colour",
+      "done": "Default colour restored",
+      "failed": "The colour could not be reset"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "total_one": "{{count}} event",
+    "total_other": "{{count}} events",
+    "listLabel": "Platform audit events, newest first",
+    "company": "Company",
+    "noCompany": "—",
+    "filters": {
+      "action": "Event",
+      "allActions": "All events",
+      "company": "Company: {{name}}",
+      "clearCompany": "All companies"
+    },
+    "loadError": "The audit log could not be loaded.",
+    "empty": "No events",
+    "filteredEmpty": "No events match",
+    "pagesLabel": "Pages of audit events"
+  }
+}

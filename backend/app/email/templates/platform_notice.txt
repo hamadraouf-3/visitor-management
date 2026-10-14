@@ -1,0 +1,16 @@
+{% extends "base.txt" %}
+{% set kind = "platform" %}
+{% macro body(lang) %}
+{{ t(lang, "platform.heading." ~ action) }}
+
+{{ t(lang, "common.hello", name=full_name) }}
+
+{{ t(lang, "platform.body." ~ action, company=company_name[lang], date=date[lang], time=time, zone=zone[lang]) }}
+
+{{ t(lang, "label.administrator") }}: {{ about_name | isolate(lang) }}
+{{ t(lang, "label.email") }}: {{ about_email | isolate(lang, "ltr") }}
+
+{{ t(lang, "platform.act") }}
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

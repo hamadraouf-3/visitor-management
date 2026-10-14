@@ -1,0 +1,14 @@
+# Build context of backend/Dockerfile: an allowlist of what the image copies. Everything else stays
+# out: the virtual environment, tests, caches, the dev e-mail outbox (var/) and above all any .env
+# file (the image takes its configuration from the environment only).
+*
+!requirements.txt
+!alembic.ini
+!alembic/
+!app/
+
+# Never, even inside the allowed folders.
+**/__pycache__
+**/*.py[cod]
+**/.env
+**/.env.*

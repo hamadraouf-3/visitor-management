@@ -1,0 +1,108 @@
+{
+  "presets": {
+    "last7": "Last 7 days",
+    "last30": "Last 30 days",
+    "last90": "Last 90 days",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "last12Months": "Last 12 months"
+  },
+  "range": {
+    "bothRequired": "Choose a start and an end date.",
+    "tooLong_one": "Choose a range of at most {{count}} day.",
+    "tooLong_other": "Choose a range of at most {{count}} days.",
+    "period": "Period",
+    "custom": "Custom range",
+    "dates": "Dates",
+    "label": "Report period"
+  },
+  "meta": {
+    "range": "{{from}} – {{to}}",
+    "days_one": "{{formatted}} day",
+    "days_other": "{{formatted}} days"
+  },
+  "charts": {
+    "todaySoFar": "today, so far",
+    "otherDepartments": "Other departments ({{count}})",
+    "dailyNone_one": "No visits over {{count}} day.",
+    "dailyNone_other": "No visits over {{count}} days.",
+    "dailyTotal_one": "{{visits}} over {{count}} day.",
+    "dailyTotal_other": "{{visits}} over {{count}} days.",
+    "dailyBusiest": "The busiest day was {{day}}, with {{visits}}.",
+    "dailyBusiestFull": "The busiest full day was {{day}}, with {{visits}}.",
+    "dailyToday": "Today so far: {{visits}}.",
+    "showTable": "Show table",
+    "hideTable": "Hide table",
+    "daily": {
+      "title": "Visits booked per day",
+      "columnDay": "Day",
+      "columnVisits": "Visits booked",
+      "average": "Daily average",
+      "legendDays": "Full days",
+      "legendToday": "Today, so far"
+    },
+    "departments": {
+      "title": "Visits by department",
+      "busiest": "{{department}} had the most visits: {{visits}}.",
+      "none": "No department had visits in this period.",
+      "columnDepartment": "Department",
+      "columnVisits": "Visits",
+      "noDepartment": "No visits with a department.",
+      "unassigned": "No department"
+    },
+    "hourly": {
+      "title": "Check-ins by hour",
+      "summary": "{{checkIns}} by hour of the day. Busiest hour: {{hour}}.",
+      "none": "No check-ins in this period.",
+      "columnHour": "Hour",
+      "columnCheckIns": "Check-ins",
+      "busiest": "Busiest hour"
+    }
+  },
+  "title": "Reports",
+  "period_one": "{{from}} to {{to}} ({{count}} day).",
+  "period_other": "{{from}} to {{to}} ({{count}} days).",
+  "print": "Print",
+  "loadError": "The report could not be loaded",
+  "loading": "Loading the report",
+  "periodLoadError": "This period could not be loaded",
+  "previousPeriodShown": "The report below is for the previous period.",
+  "printTitle": "Visitor report",
+  "units": {
+    "visits_one": "{{formatted}} visit",
+    "visits_other": "{{formatted}} visits",
+    "checkIns_one": "{{formatted}} check-in",
+    "checkIns_other": "{{formatted}} check-ins"
+  },
+  "topHosts": {
+    "title": "Top hosts",
+    "empty": "No hosted visits in this period.",
+    "rank": "#",
+    "host": "Host",
+    "visits": "Visits",
+    "share": "Share"
+  },
+  "summary": {
+    "title": "Summary",
+    "visitsBooked": "Visits booked",
+    "outcomes": "Visits booked by outcome",
+    "arrived": "Arrived",
+    "noShow": "No-show",
+    "cancelled": "Cancelled",
+    "expected": "Still expected",
+    "walkInsCount_one": "{{formatted}} walk-in",
+    "walkInsCount_other": "{{formatted}} walk-ins",
+    "uniqueVisitors": "Unique visitors",
+    "visitsPerVisitor": "{{value}} visits per visitor",
+    "checkedIn": "Checked in",
+    "checkedOutCount_one": "{{formatted}} checked out",
+    "checkedOutCount_other": "{{formatted}} checked out",
+    "noShowRate": "No-show rate",
+    "noShowsCount_one": "{{formatted}} no-show",
+    "noShowsCount_other": "{{formatted}} no-shows",
+    "averageDuration": "Average duration"
+  },
+  "empty": {
+    "title": "No visits in this period"
+  }
+}

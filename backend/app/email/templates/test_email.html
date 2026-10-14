@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% set kind = "test" %}
+{% block preheader %}{{ t(lead, "test.preheader", sent_at=sent_at[lead]) }}{% endblock %}
+
+{% macro sample_address(lang) %}
+{% call ui.paragraph(muted=True, spacing=4) %}{{ t(lang, "test.opens") }}{% endcall %}
+{{ ui.fallback_link(sample_url, lang) }}
+{% call ui.notice(lang) %}{{ t(lang, "test.reachable", url=qr_base_url) }}{% endcall %}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 0 32px") %}
+{{ ui.heading(t(lead, "test.heading")) }}
+{% call ui.paragraph(spacing=22) %}{{ t(lead, "test.intro", product=product[lead], sent_at=sent_at[lead]) }}{% endcall %}
+{% endcall %}
+{% call ui.dark_card(lead) %}
+              <tr>
+                <td align="center" style="padding:24px 24px 0 24px;text-align:center;">
+                  <p style="margin:0 0 16px 0;font-size:13px;line-height:20px;font-weight:700;color:{{ ui.ACCENT }};">{{ t(lead, "test.sample_alt") }}</p>
+{{ ui.qr_tile(qr_cid, t_text(lead, "test.sample_alt"), 180) }}
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding:14px 24px 22px 24px;text-align:center;">
+                  <p style="margin:0;font-size:14px;line-height:22px;color:{{ ui.CARD_MUTED }};">{{ t(lead, "test.not_a_pass") }}</p>
+                </td>
+              </tr>
+{% endcall %}
+{% call ui.section(lead, padding="24px 32px 8px 32px") %}
+{{ sample_address(lead) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 24px 32px") %}
+{{ ui.heading(t(other, "test.heading"), primary=False) }}
+{% call ui.paragraph() %}{{ t(other, "test.intro", product=product[other], sent_at=sent_at[other]) }} {{ t(other, "test.not_a_pass") }}{% endcall %}
+{{ sample_address(other) }}
+{% endcall %}
+{% endblock %}

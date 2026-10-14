@@ -1,0 +1,24 @@
+{% extends "base.txt" %}
+{% set kind = "cancelled" %}
+{# The company's closing paragraph: a paragraph of its own, with a blank line before it (B11-48). #}
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{{ "\n\n" }}{{ text }}{% endif %}{% endmacro %}
+{% macro body(lang) %}
+{{ edited(lang, "heading") or t(lang, "cancelled.heading") }}
+
+{{ edited(lang, "greeting") or t(lang, "common.hello", name=visitor_name) }}
+
+{{ edited(lang, "intro") or t(lang, "cancelled.intro", company=company_name[lang], host=host_name) }}
+
+{{ t(lang, "label.date") }}: {{ times[lang].date }}
+{{ t(lang, "label.time") }}: {{ times[lang].time }} ({{ times[lang].timezone }})
+{{ t(lang, "label.host") }}: {{ host_name | isolate(lang) }}
+{% if reason %}
+{{ t(lang, "label.reason") }}: {{ reason | isolate(lang) }}
+{% endif %}
+
+{{ t(lang, "cancelled.no_longer_valid") }}
+
+{% if replies_reach_host %}{{ t(lang, "cancelled.questions_host", host=host_name) }}{% elif has_reply_to %}{{ t(lang, "cancelled.questions_reply") }}{% else %}{{ t(lang, "cancelled.questions_contact", company=company_name[lang]) }}{% endif %}{{ closing(lang) }}
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

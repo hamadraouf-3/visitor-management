@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% set kind = "cancelled" %}
+{% block preheader %}{{ t(lead, "cancelled.preheader", date=times[lead].date) }}{% endblock %}
+
+{# After the questions line, which has no space below it, the closing brings its own (B11-48). #}
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{% call ui.paragraph(top=16) %}{{ text }}{% endcall %}{% endif %}{% endmacro %}
+
+{% macro body(lang, primary) %}
+{{ ui.heading(edited(lang, "heading") or t(lang, "cancelled.heading"), primary) }}
+{% call ui.paragraph(spacing=4) %}{{ edited(lang, "greeting") or t(lang, "common.hello", name=visitor_name) }}{% endcall %}
+{% call ui.paragraph(spacing=20) %}{{ edited(lang, "intro") or t(lang, "cancelled.intro", company=company_name[lang], host=host_name) }}{% endcall %}
+{{ ui.details([
+    [(t(lang, "label.date"), times[lang].date), (t(lang, "label.time"), times[lang].time ~ " (" ~ times[lang].timezone ~ ")")],
+    [(t(lang, "label.host"), host_name)],
+    [(t(lang, "label.reason"), reason)],
+], lang) }}
+{% call ui.notice(lang, attention=True) %}<strong class="vik" style="color:{{ ui.INK }};">{{ t(lang, "cancelled.no_longer_valid") }}</strong>{% endcall %}
+{% call ui.paragraph(muted=True, spacing=0) %}{% if replies_reach_host %}{{ t(lang, "cancelled.questions_host", host=host_name) }}{% elif has_reply_to %}{{ t(lang, "cancelled.questions_reply") }}{% else %}{{ t(lang, "cancelled.questions_contact", company=company_name[lang]) }}{% endif %}{% endcall %}
+{{ closing(lang) }}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 28px 32px") %}
+{{ body(lead, True) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 28px 32px") %}
+{{ body(other, False) }}
+{% endcall %}
+{% endblock %}

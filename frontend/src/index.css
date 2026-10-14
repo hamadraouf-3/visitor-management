@@ -1,0 +1,742 @@
+@import 'tailwindcss';
+
+/*
+ * «زوار موضوع» / Mawdoo3 Visitors design system: direction C "Bold Modern" in mawdoo3.com's own
+ * colours (phase 10 brand pass, F10-27).
+ *
+ * - mawdoo3.com's palette, taken from its stylesheet: turquoise #27b5bb (its buttons and links),
+ *   dark teal #1d8387 (its sticky header), side-nav teal #188086 (its sidebar), theme colour
+ *   #009999, light turquoise #49cbd2 (selection, notices), slate #33444e (its text and dark UI),
+ *   yellow #f7b916 (its category accent), greys #f8f8f8 and #f1f1f1; the logo is teal #169897.
+ * - A Mawdoo3-teal shell (sidebar, phone top bar, drawer: `theme-shell`) around a light content
+ *   area in the Mawdoo3 greys with slate text; teal #188086 primary buttons with white text.
+ *   Turquoise and the yellow are fills behind dark text, indicators and large accents only: white
+ *   on turquoise is 2.50:1 and fails.
+ * - Dark: the same token names re-pointed to a deep slate/teal family derived from #33444e with
+ *   turquoise accents, for the whole app in the dark colour scheme (the device's appearance: Dark,
+ *   or System on a device in its dark scheme; the `scheme-dark` variant below) and for a subtree
+ *   with `theme-dark` (the reception tablet, emphasis tiles). Components use only
+ *   the semantic tokens below, never raw palette colours, so every kit component works on all of
+ *   them.
+ * - Readex Pro (Arabic and Latin) for all text, Space Grotesk for big numerals and codes. Both are
+ *   self-hosted (CSP `font-src 'self'` via `default-src`): Arabic and Latin subsets only.
+ * - Contrast (WCAG 2.2 AA): text ≥ 4.5:1, UI boundaries, indicators and focus ≥ 3:1. Ratios are
+ *   noted beside each token, measured against the surface it is used on (white unless said
+ *   otherwise; "canvas" is #f1f1f1).
+ */
+
+/* ------------------------------------------------------------------------------------------ */
+/* Fonts                                                                                       */
+/* ------------------------------------------------------------------------------------------ */
+
+/* Readex Pro, variable weight 160–700: the Arabic and Latin subsets (unicode ranges as published). */
+@font-face {
+  font-family: 'Readex Pro';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 160 700;
+  src: url('@fontsource-variable/readex-pro/files/readex-pro-arabic-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41,
+    U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+
+@font-face {
+  font-family: 'Readex Pro';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 160 700;
+  src: url('@fontsource-variable/readex-pro/files/readex-pro-latin-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Space Grotesk, variable weight 300–700, Latin only: digits, codes and the like. */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 700;
+  src: url('@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Tokens                                                                                      */
+/* ------------------------------------------------------------------------------------------ */
+
+@theme {
+  --font-sans:
+    'Readex Pro', system-ui, -apple-system, 'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Noto Sans', Arial, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji';
+  /* Big numerals (KPIs), times in tables, codes: Latin digits in both languages (F10-5). */
+  --font-numeric: 'Space Grotesk', 'Readex Pro', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  /* The product's name beside the logo: Space Grotesk for its Latin letters (direction C's wordmark
+     face), Readex Pro for the Arabic ones. */
+  --font-display: 'Space Grotesk', 'Readex Pro', system-ui, -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;
+
+  --breakpoint-xs: 30rem;
+
+  /* Type scale of direction C. */
+  --text-page: 2.125rem; /* 34 px page title */
+  --text-page--line-height: 1.2;
+  --text-page--letter-spacing: -0.01em;
+  --text-page-sm: 1.625rem; /* 26 px page title on phones */
+  --text-page-sm--line-height: 1.25;
+  --text-section: 1.125rem; /* 18 px section and card titles */
+  --text-section--line-height: 1.35;
+  --text-meta: 0.8125rem; /* 13 px secondary lines: a row's second line, meta data, hints */
+  --text-meta--line-height: 1.4;
+  --text-kpi: 3.25rem; /* 52 px KPI numeral */
+  --text-kpi--line-height: 1;
+  --text-kpi--letter-spacing: -0.03em;
+  --text-kpi-sm: 2.25rem; /* 36 px KPI numeral on phones and in print */
+  --text-kpi-sm--line-height: 1;
+  --text-kpi-sm--letter-spacing: -0.02em;
+
+  /* Radii: cards and panels 18–20 px, controls 12 px, navigation items and avatars 10 px, chips round. */
+  --radius-item: 0.625rem;
+  --radius-control: 0.75rem;
+  --radius-card: 1.125rem;
+  --radius-panel: 1.25rem;
+
+  /* Shadows in the slate of the text (#1c262b), never black. */
+  --shadow-pop: 0 16px 40px -12px rgb(28 38 43 / 0.28), 0 2px 6px rgb(28 38 43 / 0.08);
+  --shadow-raise: 0 1px 2px rgb(28 38 43 / 0.12);
+
+  /* The live dot of a KPI tile ("Live"): a slow pulse, off under reduced motion (base layer). */
+  --animate-live: live-pulse 2s ease-out infinite;
+
+  @keyframes live-pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 7px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+}
+
+/*
+ * The dark colour scheme, on screen only (paper is always light): the one switch for every rule that
+ * means dark (Phase 13). The scheme is the device's appearance: Light, Dark, or System, the device's
+ * own scheme (`prefers-color-scheme`). It is on the root element as `data-scheme` before the first
+ * paint (`public/appearance.js`, then `src/appearance/appearance.ts`), so the stylesheet asks for that
+ * attribute and never for the media feature. Tailwind's own `dark:` follows the device and is not used
+ * (`appearance/appearance.test.ts` holds both). A company's logo for light surfaces lets go of its
+ * white plate here (`scheme-dark:bg-transparent`).
+ */
+@custom-variant scheme-dark {
+  @media screen {
+    &:where(:root[data-scheme='dark'], :root[data-scheme='dark'] *) {
+      @slot;
+    }
+  }
+}
+
+/*
+ * The colours. `static`: every variable is always emitted, so `theme-dark`, `theme-shell` and the
+ * dark colour scheme can re-point them; utilities read them through `var()`.
+ *
+ * A company's identity (Phase 12): every token that carries the brand's colour reads a custom
+ * property first, `var(--brand-<set>-<token>, <the product's colour>)`, in each of the four sets
+ * (`light` here, `dark`, `shell` and `deep` in the utilities below). `src/identity/tokens.ts` derives
+ * those properties from the company's palette and puts them on the document's root through the
+ * CSSOM; without a palette none is set and the colours written here apply. The ratios in the
+ * comments are those of the product's own colours; `src/identity/tokens.test.ts` computes them for
+ * companies' palettes.
+ */
+@theme static {
+  /*
+   * Palette (reference). Components use the semantic tokens further down; these name the brand's
+   * own colours for the few places that mean the brand itself (the shell's tokens, the logo).
+   * Teal steps 50–900 around mawdoo3.com's side-nav teal #188086 (hue 183°).
+   */
+  --color-brand: #169897; /* logo teal; white on it only 3.52:1 (the app icon, large marks) */
+  --color-brand-50: #e8f6f7;
+  --color-brand-100: #cdeef0;
+  --color-brand-200: #a3dde0;
+  --color-brand-300: #49cbd2; /* mawdoo3 light turquoise: selection, notices; ink text 7.90:1 */
+  --color-brand-400: #27b5bb; /* mawdoo3 turquoise: white text only 2.50:1 (fails); ink text 6.18:1 */
+  --color-brand-600: #188086; /* mawdoo3 side-nav teal: white text 4.70:1 */
+  --color-brand-650: #1d8387; /* mawdoo3 sticky header teal: white text 4.52:1 */
+  --color-brand-700: #136a6f; /* white text 6.33:1 */
+  --color-brand-800: #0f5357; /* white text 8.77:1 */
+  --color-brand-900: #0f3b3f; /* the deep shell: white text 12.23:1 */
+  /* Slate steps around mawdoo3.com's text slate #33444e (hue 202°). */
+  --color-ink-950: #101619;
+  --color-ink-900: #1c262b; /* white text 15.42:1 */
+  --color-ink-700: #33444e; /* mawdoo3 slate: 10.11:1 on white */
+  --color-ink-500: #4d616c;
+  /* mawdoo3.com's category yellow: ink text 8.74:1; on white only 1.76:1 (a fill, never a text colour). */
+  --color-sun: #f7b916;
+
+  /* Ink: the darkest slate, for direction C's dark button and dark emphasis. */
+  --color-ink: #1c262b; /* white text 15.42:1 */
+  --color-ink-hover: #33444e; /* white text 10.11:1 */
+  --color-on-ink: #ffffff;
+
+  /* The shell (sidebar, phone top bar, drawer): mawdoo3's side-nav teal (`theme-shell` sets its text). */
+  --color-shell: var(--brand-light-shell, #188086); /* white text 4.70:1 */
+  /* The line a shell ends at where it would blend into the canvas (a near-white company's): none otherwise. */
+  --color-shell-edge: transparent;
+  /* Direction C's dark emphasis surface (the one figure a screen is about): ink here, deep teal in the dark scheme. */
+  --color-emphasis: #1c262b;
+
+  /* Surfaces and text, light content area: the mawdoo3 greys and slate. */
+  --color-canvas: #f1f1f1; /* mawdoo3 grey */
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef0f1; /* hover fills, disabled controls, avatar tiles */
+  --color-surface-sunken: #f8f8f8; /* mawdoo3 grey: table headers */
+  --color-surface-raised: #ffffff; /* menus, popovers, dialogs, toasts */
+  --color-border: #e1e4e6; /* decorative dividers and card edges (not a control boundary) */
+  --color-border-subtle: #ebedef; /* row dividers */
+  --color-border-strong: #718691; /* form controls: 3.80:1 on white, 3.37:1 on canvas */
+  --color-fg: #1c262b; /* 15.42:1; 13.66:1 on canvas */
+  --color-fg-secondary: #33444e; /* mawdoo3 slate: 10.11:1; 8.95:1 on canvas; 8.29:1 on the tab track */
+  --color-fg-muted: #4d616c; /* 6.48:1; 5.73:1 on canvas; 5.67:1 on surface-muted; 6.10:1 on sunken */
+  --color-fg-placeholder: #627883; /* 4.63:1 */
+  --color-fg-inverse: #ffffff;
+  --color-overlay: rgb(16 22 25 / 0.55); /* behind dialogs and drawers */
+
+  /*
+   * Accent (actions, links, selection): the side-nav teal and its darker step. `accent` is a fill
+   * under `on-accent` (primary buttons, a chosen segment): a company's own colour, which may be a
+   * yellow under ink text. The brand as a line or a mark on the content area (a chosen option's
+   * border, a meter, a native checkbox) is `accent-strong`, which keeps 3:1 on white and the canvas.
+   */
+  --color-accent: var(--brand-light-accent, #188086); /* primary buttons, white text 4.70:1 */
+  --color-accent-hover: var(--brand-light-accent-hover, #136a6f); /* white text 6.33:1 */
+  --color-on-accent: var(--brand-light-on-accent, #ffffff);
+  /* The edge of an accent fill that would blend into a white card (a near-white company's): none otherwise. */
+  --color-accent-edge: var(--brand-light-accent-edge, transparent);
+  --color-accent-strong: var(--brand-light-accent-strong, #188086); /* 4.70:1 on white, 4.16:1 on canvas */
+  --color-accent-strong-hover: var(--brand-light-accent-strong-hover, #136a6f);
+  --color-accent-surface: var(--brand-light-accent-surface, #e8f6f7); /* selected chips; accent-text 5.71:1 on it */
+  --color-accent-border: var(--brand-light-accent-border, #a3dde0);
+  --color-accent-text: var(--brand-light-accent-text, #136a6f); /* links: 6.33:1 on white, 5.60:1 on canvas, 5.71:1 on accent-surface */
+  --color-focus: var(--brand-light-focus, #188086); /* focus ring: 4.70:1 on white, 4.16:1 on canvas */
+  --color-selection: var(--brand-light-selection, #49cbd2); /* text selection, mawdoo3 light turquoise: ink 7.90:1 */
+  --color-on-selection: var(--brand-light-on-selection, #1c262b);
+  /*
+   * Highlight: mawdoo3's light turquoise as a fill behind ink text (7.90:1): the signed-in user's
+   * avatar, a live dot, the highlighted row's avatar. Decorative against white (2.03:1): never the
+   * only mark of anything.
+   */
+  --color-highlight: var(--brand-light-highlight, #49cbd2);
+  --color-on-highlight: var(--brand-light-on-highlight, #1c262b);
+  /* A highlighted list or table row (direction C's visitor inside now): a teal tint; fg 14.41:1, fg-muted 6.05:1. */
+  --color-row-highlight: var(--brand-light-row-highlight, #f0f9f9);
+
+  /*
+   * Attention: mawdoo3's yellow with ink text (8.74:1), for what needs action (the "needs
+   * attention" counts, the no-show chip). A fill only: as a colour on white it is 1.76:1.
+   */
+  --color-attention: #f7b916;
+  --color-on-attention: #1c262b;
+
+  /*
+   * Segmented tabs: the selected segment is raised on the track (white) here, turquoise on dark.
+   * White on the track is only 1.22:1, so the raised segment also carries a teal edge (WCAG
+   * 1.4.11): 4.70:1 against the segment, 3.85:1 against the track.
+   */
+  --color-tab-track: #e6e9eb;
+  --color-tab-selected: #ffffff;
+  --color-on-tab-selected: #1c262b; /* 15.42:1: also the selected tab's focus ring */
+  --color-tab-indicator: var(--brand-light-tab-indicator, #188086);
+
+  /* Tones (alerts, toasts, badges, tile icons). Text on its surface ≥ 5.8:1, icon (solid) ≥ 4.1:1. */
+  --color-info-surface: #eaf3fb;
+  --color-info-border: #bcd5ee;
+  --color-info-text: #185c91; /* mawdoo3's link blue: 6.28:1 */
+  --color-info-solid: #1a659e; /* 5.50:1 on its surface */
+
+  --color-success-surface: #e6f5ed;
+  --color-success-border: #b2dfc6;
+  --color-success-text: #0c6a3f; /* 5.92:1 */
+  --color-success-solid: #11804c; /* 4.42:1 on its surface; white text 4.98:1 */
+
+  --color-warning-surface: #fff6da;
+  --color-warning-border: #f2d27a;
+  --color-warning-text: #7a5300; /* 6.35:1 */
+  --color-warning-solid: #a06e00; /* 4.12:1 on its surface */
+
+  --color-danger-surface: #fdeeee;
+  --color-danger-border: #f2c4c6;
+  --color-danger-text: #b4232a; /* 5.80:1; 6.53:1 on white */
+  --color-danger-solid: #c42b32; /* white text 5.62:1; 4.99:1 on its surface */
+  --color-danger-hover: #a61f26; /* white text 7.38:1 */
+  --color-on-danger: #ffffff;
+
+  --color-neutral-surface: #eef1f2;
+  --color-neutral-border: #d3dadd;
+  --color-neutral-text: #33444e; /* 8.90:1 */
+  --color-neutral-solid: #536a76; /* 5.01:1 on its surface */
+
+  /*
+   * Visit status chips. The five statuses differ in lightness as well as hue, so they stay apart
+   * for colour-blind people and in greyscale print (and each has its icon and word anyway):
+   * Checked in solid green, No-show mawdoo3 yellow, Checked out grey, Scheduled pale blue with a
+   * ring, Cancelled white with a red ring. The green (hue 153°) is kept apart from the teal accent
+   * (183°) by hue and by the chip's shape.
+   */
+  --color-status-scheduled-bg: #e9f2fb;
+  --color-status-scheduled-fg: #185c91; /* 6.23:1 */
+  --color-status-scheduled-ring: #bcd5ee;
+  --color-status-in-bg: #137a4a;
+  --color-status-in-fg: #ffffff; /* 5.37:1 */
+  --color-status-in-ring: #137a4a;
+  --color-status-out-bg: #e1e6e9;
+  --color-status-out-fg: #33444e; /* 8.04:1 */
+  --color-status-out-ring: #e1e6e9;
+  --color-status-cancelled-bg: #ffffff;
+  --color-status-cancelled-fg: #b4232a; /* 6.53:1 */
+  --color-status-cancelled-ring: #f2c4c6;
+  --color-status-noshow-bg: #f7b916;
+  --color-status-noshow-fg: #1c262b; /* 8.74:1 */
+  --color-status-noshow-ring: #f7b916;
+
+  /*
+   * Chart series. Marks a reader must tell apart need 3:1 against the plot (WCAG 1.4.11): series 1
+   * (teal, 4.70:1 on white) carries the data; turquoise (2.50:1) and yellow (1.76:1) only mark a
+   * highlight that a label or the legend also names, or fill behind ink text.
+   */
+  --color-chart-1: var(--brand-light-chart-1, #188086);
+  --color-chart-2: #27b5bb;
+  --color-chart-3: #f7b916;
+  --color-chart-muted: #b9c5cb; /* the other bars beside a highlighted one (with their values as text) */
+  --color-chart-grid: #e1e4e6;
+
+  /* The camera preview (reception scanner): a dark panel showing the live picture, which can be
+     any brightness, under its controls and captions. */
+  --color-media: #0e1316;
+  --color-media-scrim: #070a0c; /* behind controls and captions on the picture */
+  --color-on-media: #ffffff; /* 18.69:1 on media */
+  --color-on-media-muted: #c3ced5; /* 11.67:1 on media */
+}
+
+/*
+ * The dark surfaces: a deep slate/teal family from mawdoo3's #33444e with turquoise accents (the
+ * reception tablet of direction C, dark emphasis tiles, and the whole app in the dark colour
+ * scheme). Put it on the element whose subtree is dark (with `bg-canvas` or `bg-emphasis`); kit
+ * components inside use the same token names. Ratios on surface #182126 unless said otherwise.
+ */
+@utility theme-dark {
+  /* Screen only: on paper every surface is white with black text. */
+  @media screen {
+    color-scheme: dark;
+    --color-canvas: #101619;
+    --color-surface: #182126;
+    --color-surface-muted: #1f2a30; /* fg 13.04:1, fg-muted 6.06:1 */
+    --color-surface-sunken: #12191c;
+    --color-surface-raised: #1f2a30;
+    --color-border: #2a373e;
+    --color-border-subtle: #222d33;
+    --color-border-strong: #6c8493; /* 4.17:1; 3.74:1 on surface-muted; 4.66:1 on canvas */
+    --color-fg: #eef2f4; /* 14.51:1; 16.20:1 on canvas */
+    --color-fg-secondary: #c3ced5; /* 10.21:1 */
+    --color-fg-muted: #99a9b2; /* 6.75:1; 7.54:1 on canvas; 6.06:1 on surface-muted */
+    --color-fg-placeholder: #8b9da7; /* 5.82:1 */
+    --color-fg-inverse: #101619;
+    --color-overlay: rgb(4 7 8 / 0.7);
+
+    /* The accent is mawdoo3's turquoise with ink text (7.31:1), as direction C's bright accent. */
+    --color-accent: var(--brand-dark-accent, #27b5bb); /* 6.55:1 against the surface, 7.31:1 against the canvas */
+    --color-accent-hover: var(--brand-dark-accent-hover, #49cbd2);
+    --color-on-accent: var(--brand-dark-on-accent, #101619);
+    /* On dark surfaces the accent is a fill and a mark at once (it shows 3:1 on each of them). */
+    --color-accent-edge: transparent;
+    --color-accent-strong: var(--color-accent);
+    --color-accent-strong-hover: var(--color-accent-hover);
+    --color-accent-surface: var(--brand-dark-accent-surface, #0f3236);
+    --color-accent-border: var(--brand-dark-accent-border, #1d6a6f);
+    --color-accent-text: var(--brand-dark-accent-text, #5ed0d6); /* 8.93:1; 7.50:1 on accent-surface */
+    --color-focus: var(--brand-dark-focus, #49cbd2); /* 8.37:1; 9.35:1 on canvas */
+    --color-on-selection: var(--brand-dark-on-selection, #101619); /* on light turquoise 9.35:1 */
+    --color-on-highlight: var(--brand-dark-on-highlight, #101619); /* 9.35:1 */
+    --color-row-highlight: var(--brand-dark-row-highlight, #14282c); /* fg 13.61:1, fg-muted 6.33:1 */
+
+    --color-ink: #eef2f4; /* ink inverts on the dark surfaces: ink text on it */
+    --color-ink-hover: #c3ced5;
+    --color-on-ink: #101619;
+
+    --color-tab-track: #1c272d; /* a raised well on the canvas (1.20:1); fg-secondary 9.52:1, fg-muted 6.30:1 on it */
+    --color-tab-selected: var(--brand-dark-tab-selected, #27b5bb); /* 6.11:1 against the track: the segment itself marks the selection */
+    --color-on-tab-selected: var(--brand-dark-on-tab-selected, #101619); /* 7.31:1 */
+    --color-tab-indicator: var(--brand-dark-tab-indicator, #27b5bb);
+
+    --color-info-surface: #11283d;
+    --color-info-border: #24476a;
+    --color-info-text: #9ccaf5; /* 8.73:1 on its surface */
+    --color-info-solid: #6fb0ee; /* 6.54:1 */
+
+    --color-success-surface: #0e2c20;
+    --color-success-border: #1e5a41;
+    --color-success-text: #82dcaa; /* 9.12:1 */
+    --color-success-solid: #3cc48a; /* 6.75:1 */
+
+    --color-warning-surface: #2d2408;
+    --color-warning-border: #6b5412;
+    --color-warning-text: #f7cd5a; /* 10.12:1 */
+    --color-warning-solid: #f7b916; /* 8.71:1 */
+
+    --color-danger-surface: #351619;
+    --color-danger-border: #6e2c32;
+    --color-danger-text: #ff9da2; /* 8.28:1 */
+    --color-danger-solid: #d6383f; /* buttons: white text 4.67:1; 3.50:1 against the surface */
+    --color-danger-hover: #b4232a; /* white text 6.53:1 */
+
+    --color-neutral-surface: #1f2a30;
+    --color-neutral-border: #3a4950;
+    --color-neutral-text: #c3ced5; /* 9.15:1 */
+    --color-neutral-solid: #99a9b2; /* 6.06:1 */
+
+    --color-status-scheduled-bg: #13283f;
+    --color-status-scheduled-fg: #a6cff5; /* 9.17:1 */
+    --color-status-scheduled-ring: #2a4d72;
+    --color-status-in-bg: #3cc48a;
+    --color-status-in-fg: #0b1a12; /* 8.08:1 */
+    --color-status-in-ring: #3cc48a;
+    --color-status-out-bg: #28363e;
+    --color-status-out-fg: #c3ced5; /* 7.77:1 */
+    --color-status-out-ring: #3a4950;
+    --color-status-cancelled-bg: transparent;
+    --color-status-cancelled-fg: #ff9da2; /* 8.25:1 */
+    --color-status-cancelled-ring: #6e2c32;
+
+    --color-chart-1: var(--brand-dark-chart-1, #27b5bb); /* 6.55:1 */
+    --color-chart-2: var(--brand-dark-chart-2, #49cbd2);
+    --color-chart-muted: #4a5d67;
+    --color-chart-grid: #2a373e;
+  }
+}
+
+/*
+ * The deep shell: the shell's dark teal (#0f3b3f) in the dark colour scheme and around the dark
+ * reception screen, so that screen is dark from edge to edge. White text 12.23:1; the current page
+ * is a turquoise pill with ink text (7.31:1; the pill 4.90:1 against the shell).
+ */
+@utility theme-shell-deep {
+  @media screen {
+    color-scheme: dark;
+    --color-shell: var(--brand-deep-shell, #0f3b3f);
+    --color-shell-edge: transparent;
+    --color-surface: var(--brand-deep-surface, #15565a); /* the user block: white 8.36:1, fg-muted 5.39:1 */
+    --color-surface-muted: var(--brand-deep-surface-muted, #13504f); /* hover: white 9.18:1 */
+    --color-surface-sunken: var(--brand-deep-surface-sunken, #0d3437);
+    --color-surface-raised: var(--brand-deep-surface-raised, #14494d); /* menus opened from the shell: white 10.05:1, fg-muted 6.47:1 */
+    --color-border: rgb(255 255 255 / 0.14);
+    --color-border-subtle: rgb(255 255 255 / 0.1);
+    --color-border-strong: var(--brand-deep-border-strong, #5fa9ad); /* 4.52:1 against the shell */
+    --color-fg: #ffffff; /* 12.23:1 */
+    --color-fg-secondary: var(--brand-deep-fg-secondary, #c9e9eb); /* 9.51:1 */
+    --color-fg-muted: var(--brand-deep-fg-muted, #a9d8db); /* 7.88:1 */
+    --color-accent: var(--brand-deep-accent, #27b5bb);
+    --color-accent-hover: var(--brand-deep-accent-hover, #49cbd2);
+    --color-on-accent: var(--brand-deep-on-accent, #101619); /* 7.31:1 */
+    --color-accent-edge: transparent;
+    --color-accent-strong: var(--color-accent);
+    --color-accent-strong-hover: var(--color-accent-hover);
+    --color-accent-surface: var(--brand-deep-accent-surface, #15565a);
+    --color-accent-border: rgb(255 255 255 / 0.2);
+    --color-accent-text: var(--brand-deep-accent-text, #49cbd2); /* 6.26:1 */
+    --color-focus: var(--brand-deep-focus, #49cbd2); /* 6.26:1 against the shell */
+    /* The signed-in user's tile: said here so a light shell's ink tile never reaches the deep shell. */
+    --color-highlight: var(--brand-deep-highlight, #49cbd2);
+    --color-on-highlight: var(--brand-deep-on-highlight, #101619); /* 9.35:1 */
+    --color-neutral-surface: var(--brand-deep-neutral-surface, #14494d);
+    --color-neutral-text: #ffffff;
+    --color-danger-text: #ffb3b6; /* menu items: 5.92:1 on the raised surface */
+  }
+}
+
+/*
+ * The slate shell: mawdoo3's slate #33444e (its text and dark UI colour) as a shell. It is the
+ * platform owner's shell in the dark colour scheme (`theme-shell-platform` below), where a company's
+ * shell is the deep teal. Against that teal (#0f3b3f) it is another hue, slate beside teal (only
+ * 1.21:1 apart in lightness: the hue carries the difference), and it stands a step above the dark
+ * content (1.81:1 against the canvas #101619, 1.62:1 against its cards #182126). White text 10.11:1;
+ * the current page is a turquoise pill with ink text (7.31:1; the pill 4.05:1 against the shell).
+ */
+@utility theme-shell-slate {
+  @media screen {
+    color-scheme: dark;
+    --color-shell: #33444e;
+    --color-surface: #3d505c; /* the user block: white 8.40:1, fg-secondary 6.26:1, fg-muted 5.72:1 */
+    --color-surface-muted: #475c69; /* hover (also of the user block): white 6.99:1, fg-secondary 5.21:1, fg-muted 4.76:1 */
+    --color-surface-sunken: #2b3a43;
+    --color-surface-raised: #2a3840; /* menus opened from the shell: white 12.08:1, fg-muted 8.23:1 */
+    --color-border: rgb(255 255 255 / 0.16);
+    --color-border-subtle: rgb(255 255 255 / 0.1);
+    --color-border-strong: #8fa6b1; /* 3.97:1 against the shell */
+    --color-fg: #ffffff; /* 10.11:1 */
+    --color-fg-secondary: #d6e0e5; /* 7.53:1 */
+    --color-fg-muted: #cbd7dd; /* 6.88:1 */
+    --color-accent: #27b5bb; /* the current page: 4.05:1 against the shell */
+    --color-accent-hover: #49cbd2;
+    --color-on-accent: #101619; /* 7.31:1; 9.35:1 on the hover */
+    --color-accent-surface: #3d505c;
+    --color-accent-border: rgb(255 255 255 / 0.2);
+    --color-accent-text: #5ed0d6; /* 5.52:1; 6.60:1 on the raised surface */
+    --color-focus: #49cbd2; /* 5.18:1 against the shell */
+    --color-neutral-surface: #2a3840;
+    --color-neutral-text: #ffffff;
+    --color-danger-text: #ffb3b6; /* menu items: 7.12:1 on the raised surface */
+  }
+}
+
+/*
+ * The platform owner's shell (Phase 11): never taken for a company's, in either colour scheme. Light
+ * scheme: the deep teal beside the companies' side-nav teal (white on it 12.23:1 against 4.70:1).
+ * Dark scheme: the companies' shell is that deep teal itself (`theme-shell` above), and the two were
+ * the same colour with only the small "Platform" label apart (UX review L10), so the platform's is
+ * the slate shell.
+ */
+@utility theme-shell-platform {
+  @apply theme-shell-deep;
+  @variant scheme-dark {
+    @apply theme-shell-slate;
+  }
+}
+
+/*
+ * The app shell (sidebar, phone top bar, navigation drawer) in mawdoo3's side-nav teal #188086.
+ * Only pure white reads on it (4.70:1; even #f6f8f9 is 4.41:1), so every text is white and the
+ * hierarchy comes from size and weight. Darker teal steps are the shell's cards and hover fills,
+ * the current page a white pill with teal text (6.33:1; the pill 4.70:1 against the shell), the
+ * focus ring white (4.70:1). In the dark colour scheme it is the deep shell.
+ *
+ * A company's shell is its own colour (`surface` of its palette), which may be a light one: a
+ * yellow, a pastel, white. Its ink is then the dark one, and every token below follows it (texts,
+ * the current page's pill, dividers, the focus ring, the scrollbars' scheme), so each of them reads
+ * a brand property and none is a fixed white.
+ */
+@utility theme-shell {
+  @media screen {
+    color-scheme: var(--brand-shell-scheme, dark);
+    --color-shell: var(--brand-shell-shell, #188086);
+    --color-shell-edge: var(--brand-shell-shell-edge, transparent);
+    --color-surface: var(--brand-shell-surface, #146f74); /* the user block and the language switch: white 5.91:1 */
+    --color-surface-muted: var(--brand-shell-surface-muted, #116166); /* hover: white 7.18:1 */
+    --color-surface-sunken: var(--brand-shell-surface-sunken, #136a6f);
+    --color-surface-raised: var(--brand-shell-surface-raised, #0f5357); /* menus opened from the shell: white 8.77:1 */
+    --color-border: var(--brand-shell-border, rgb(255 255 255 / 0.22));
+    --color-border-subtle: var(--brand-shell-border-subtle, rgb(255 255 255 / 0.14));
+    --color-border-strong: var(--brand-shell-border-strong, #cdeef0); /* the switch's outline: 3.82:1 against the shell */
+    --color-fg: var(--brand-shell-fg, #ffffff); /* 4.70:1 */
+    --color-fg-secondary: var(--brand-shell-fg-secondary, #ffffff);
+    --color-fg-muted: var(--brand-shell-fg-muted, #ffffff);
+    --color-accent: var(--brand-shell-accent, #ffffff); /* the current page: a white pill (4.70:1 against the shell) */
+    --color-accent-hover: var(--brand-shell-accent-hover, #e8f6f7);
+    --color-on-accent: var(--brand-shell-on-accent, #136a6f); /* 6.33:1 on the pill, 5.71:1 on its hover */
+    --color-accent-edge: transparent;
+    --color-accent-strong: var(--color-accent);
+    --color-accent-strong-hover: var(--color-accent-hover);
+    --color-accent-surface: var(--brand-shell-accent-surface, #146f74);
+    --color-accent-border: var(--brand-shell-accent-border, rgb(255 255 255 / 0.3));
+    --color-accent-text: var(--brand-shell-accent-text, #ffffff);
+    --color-focus: var(--brand-shell-focus, #ffffff); /* 4.70:1 against the shell */
+    --color-highlight: var(--brand-shell-highlight, #49cbd2); /* the signed-in user's tile */
+    --color-on-highlight: var(--brand-shell-on-highlight, #1c262b); /* 7.90:1 */
+    --color-neutral-surface: var(--brand-shell-neutral-surface, #0f5357);
+    --color-neutral-text: var(--brand-shell-neutral-text, #ffffff); /* 8.77:1 */
+    --color-danger-text: var(--brand-shell-danger-text, #ffc9cb); /* menu items: 6.04:1 on the raised surface */
+  }
+  @variant scheme-dark {
+    @apply theme-shell-deep;
+  }
+}
+
+/*
+ * Edge shadows on a horizontally scrolling strip (tab lists on phones): a shadow appears at
+ * each edge that has more content beyond it, in either writing direction. Pure CSS: the covers
+ * scroll with the content (`local`) and hide the shadows (`scroll`) when an end is reached.
+ * `--scroll-shadow-cover` must match the background behind the strip.
+ */
+@utility scroll-shadow-x {
+  --scroll-shadow-cover: var(--color-canvas);
+  background:
+    linear-gradient(to right, var(--scroll-shadow-cover) 40%, transparent) left center / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--scroll-shadow-cover) 40%, transparent) right center / 2rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(28 38 43 / 0.2), transparent) left center / 0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(28 38 43 / 0.2), transparent) right center / 0.75rem 100% no-repeat scroll;
+}
+
+/*
+ * A directional icon (arrow, chevron, sign-in/sign-out) points the reading direction's way: it is
+ * mirrored in right-to-left text. Icons that show a real-world shape (a clock, a phone) are not.
+ */
+@utility mirror-rtl {
+  &:where([dir='rtl'], [dir='rtl'] *) {
+    scale: -1 1;
+  }
+}
+
+/*
+ * A value with a direction of its own inside text of the other direction (a slug or an address,
+ * `dir="ltr"`, among Arabic facts): when it is a box of its own and wraps, its lines keep to the side
+ * the text around it starts from, the right in Arabic, instead of its own start. `match-parent` is the
+ * standard value (Firefox); Chromium and Safari know it by its prefixed name.
+ */
+@utility text-align-parent {
+  text-align: -webkit-match-parent;
+  text-align: match-parent;
+}
+
+/*
+ * The controls on the camera preview (CameraView): their focus ring lies on the live picture, and
+ * a white ring alone measured 1.14:1 on a bright frame (#eef0f2). The ring is two-tone: the white
+ * outline (2 px, 2 px out, as everywhere) between dark bands (a 6 px shadow under it). On a bright
+ * frame the outer dark band shows (17.7:1 on #eef0f2), on a dark one the white ring (20:1 next to
+ * the dark band); whatever the frame, one of the two has at least 3:1 against it, on all four sides
+ * (WCAG 1.4.11). Put it on the element that holds the controls.
+ */
+@utility focus-ring-on-media {
+  --color-focus: var(--color-on-media);
+
+  & :focus-visible {
+    box-shadow: 0 0 0 6px var(--color-media-scrim);
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /*
+     * The app's top bar is sticky (4rem) below lg. Focusing a field (e.g. the first invalid one
+     * after a failed submit) or jumping to an anchor scrolls it below the bar with room for its
+     * label (WCAG 2.4.11 Focus Not Obscured). On lg+ there is no top bar.
+     */
+    scroll-padding-top: 6.5rem;
+    @media (width >= 64rem) {
+      scroll-padding-top: 1.5rem;
+    }
+  }
+
+  /*
+   * The dark colour scheme: the whole app on the deep slate/teal surfaces (screen only), the dark
+   * emphasis tiles in deep teal so they still stand out from the dark cards.
+   */
+  :root {
+    @variant scheme-dark {
+      @apply theme-dark;
+      --color-emphasis: var(--brand-dark-emphasis, #0f3b3f); /* turquoise numeral 6.26:1, fg-muted 5.05:1 */
+    }
+  }
+
+  /*
+   * A dark screen inside the app (the reception tablet: a route whose `handle` asks for
+   * `surface: 'dark'`, see layouts/shellSurface.ts): the page and everything it opens on top of
+   * itself (dialogs, toasts, the drawer: portals on <body>) take the dark tokens. Dark in either
+   * scheme, unless the device chose Light (Phase 13): the layout then draws it without `data-surface`.
+   */
+  body:has([data-surface='dark']) {
+    @apply theme-dark;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-fg antialiased;
+    font-synthesis: none;
+  }
+
+  ::selection {
+    background-color: var(--color-selection);
+    color: var(--color-on-selection);
+  }
+
+  /* One visible, high-contrast focus indicator for every focusable element. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Date inputs: when Tab reaches Chromium's calendar-picker button inside the input, the
+   * input matches neither :focus-visible nor :focus (only :focus-within), and the ring
+   * vanished (WCAG 2.4.7). :focus-within matches the input itself and every inner stop.
+   * Text-like inputs show focus on click in every browser anyway, so it need not be visible-only.
+   */
+  input:is([type='date'], [type='datetime-local'], [type='time']):focus-within {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Text typed in Latin script inside the Arabic UI (e-mail addresses, codes, URLs) keeps its own
+   * direction where the field says so (`dir="ltr"` on email/url/tel inputs); placeholders follow
+   * the field's direction.
+   */
+  input:is([type='email'], [type='url'], [type='tel']) {
+    direction: ltr;
+  }
+  [dir='rtl'] input:is([type='email'], [type='url'], [type='tel']) {
+    text-align: right;
+  }
+
+  /*
+   * While a page's colours are replaced (a company's identity arrives, or another one takes its
+   * place: `identity/document.ts`; the colour scheme changes: `appearance/appearance.ts`), nothing
+   * fades from the old colour to the new one.
+   */
+  :root[data-identity-change] *,
+  :root[data-identity-change] *::before,
+  :root[data-identity-change] *::after {
+    transition: none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @media print {
+    body {
+      background: white;
+    }
+
+    /*
+     * One-time visitor pass (Invite success, Resend): while a page offers a printable pass,
+     * printing it puts only the pass on paper (company, visitor, date and time, QR code,
+     * instructions). The pass is a direct child of body (portal), see PassActions.tsx.
+     */
+    body:has(> [data-print-pass]) > :not([data-print-pass]) {
+      display: none !important;
+    }
+  }
+}
+
+/*
+ * A page with an action bar stuck to the bottom of the screen (the walk-in form, the company
+ * settings): a field scrolled into view (Tab, focus on an error) stays above the bar instead of
+ * under it, with room for its focus ring (WCAG 2.4.11 Focus Not Obscured). The bar's height
+ * differs per layout (157 px for the stacked settings bar on a phone, about 70 px in one row) and
+ * with the text size, so StickyActionBar measures it; 5rem until it has.
+ */
+html:has([data-sticky-actions]) {
+  scroll-padding-bottom: calc(var(--sticky-actions-height, 5rem) + 1rem);
+}
+
+/*
+ * The printed evacuation list (/inside) is a roll-call sheet with nine columns: it prints in
+ * landscape with 10 mm margins on whatever paper the printer uses (A4 or Letter). Browsers
+ * without named pages print it in portrait, where its fixed column widths still fit.
+ */
+@page evacuation-list {
+  size: landscape;
+  margin: 10mm;
+}

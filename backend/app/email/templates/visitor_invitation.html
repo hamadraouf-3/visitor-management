@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% set kind = "invitation" %}
+{% block preheader %}{{ t(lead, "invitation.preheader", date=times[lead].date, company=company_name[lead]) }}{% endblock %}
+
+{% macro intro(lang) %}{% if edited(lang, "intro") %}{{ edited(lang, "intro") }}{% elif booked_by %}{{ t(lang, "invitation.invited_on_behalf", booker=booked_by, host=host_name, company=company_name[lang]) }}{% else %}{{ t(lang, "invitation.invited", host=host_name, company=company_name[lang]) }}{% endif %}{% endmacro %}
+
+{% macro questions(lang) %}{% if replies_reach_host %}{{ t(lang, "invitation.questions_host", host=host_name) }}{% elif has_reply_to %}{{ t(lang, "invitation.questions_reply") }}{% else %}{{ t(lang, "invitation.questions_contact", host=host_name) }}{% endif %}{% endmacro %}
+
+{% macro visit_details(lang) %}
+{{ ui.details([
+    [(t(lang, "label.date"), times[lang].date), (t(lang, "label.time"), times[lang].time ~ " (" ~ times[lang].timezone ~ ")")],
+    [(t(lang, "label.host"), host_name), (t(lang, "label.department"), department_name[lang])],
+    [(t(lang, "label.address"), company_address[lang])],
+    [(t(lang, "label.invited_by"), booked_by)],
+    [(t(lang, "label.purpose"), purpose)] if booked_by else [(t(lang, "label.purpose"), purpose, t(lang, "label.purpose_note"))],
+], lang) }}
+{% endmacro %}
+
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{% call ui.paragraph() %}{{ text }}{% endcall %}{% endif %}{% endmacro %}
+
+{% macro arrival(lang) %}
+{{ ui.subheading(t(lang, "invitation.arrival_heading")) }}
+{{ ui.steps([
+    t(lang, "invitation.step_id"),
+    t(lang, "invitation.step_reception"),
+    t(lang, "invitation.step_notify", host=host_name) if notify_host_on_check_in else t(lang, "invitation.step_contact"),
+], lang) }}
+{% call ui.paragraph() %}{{ questions(lang) }}{% endcall %}
+{% endmacro %}
+
+{# One end of the pass window on the card: its label over its value. A time alone is a figure. With a
+   date (a window that crosses midnight) the value is a phrase: it is set smaller, and the two ends stand
+   one under the other, each across the card, so that no phone has to fit a date into half of it
+   (B12-23). The value may break anywhere before it would push the card wider than the screen. #}
+{% macro window_end(label, value) %}
+                        <span style="display:block;font-size:12px;line-height:18px;color:{{ ui.CARD_MUTED }};">{{ label }}</span>
+                        <span dir="{{ DIRECTION[lead] }}" style="display:block;margin-top:2px;font-family:{{ ui.FIGURES }};font-size:{{ '18px;line-height:26px' if times[lead].dated | default(false) else '26px;line-height:34px' }};font-weight:700;color:#FFFFFF;word-break:break-word;">{{ value }}</span>
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 0 32px") %}
+{{ ui.heading(edited(lead, "heading") or t(lead, "invitation.heading", company=company_name[lead])) }}
+{% call ui.paragraph(spacing=4) %}{{ edited(lead, "greeting") or t(lead, "common.hello", name=visitor_name) }}{% endcall %}
+{% call ui.paragraph(spacing=22) %}{{ intro(lead) }}{% endcall %}
+{% endcall %}
+        {# The visitor pass: a dark slate card with the QR code on a white tile, the check-in window and the link. #}
+{% call ui.dark_card(lead) %}
+              <tr>
+                <td align="center" style="padding:24px 24px 0 24px;text-align:center;">
+                  <p style="margin:0 0 6px 0;font-size:13px;line-height:20px;font-weight:700;color:{{ ui.ACCENT }};">{{ t(lead, "invitation.pass_label") }}</p>
+                  <p style="margin:0 0 18px 0;font-size:21px;line-height:30px;font-weight:700;color:#FFFFFF;">{{ t(lead, "invitation.pass_title") }}</p>
+{{ ui.qr_tile(qr_cid, t_text(lead, "invitation.qr_alt", company=company_name[lead]), 200) }}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:20px 24px 0 24px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="{{ DIRECTION[lead] }}" style="border-collapse:separate;border-spacing:0;border:1px solid {{ ui.CARD_LINE }};border-radius:12px;">
+{% if times[lead].dated | default(false) %}
+                    <tr>
+                      <td align="center" valign="top" style="padding:12px 12px;border-bottom:1px solid {{ ui.CARD_LINE }};text-align:center;">
+{{ window_end(t(lead, "label.check_in_from"), times[lead].check_in_from) }}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td align="center" valign="top" style="padding:12px 12px;text-align:center;">
+{{ window_end(t(lead, "label.expires_at"), times[lead].expires_at) }}
+                      </td>
+                    </tr>
+{% else %}
+                    <tr>
+                      <td width="50%" align="center" valign="top" style="width:50%;padding:12px 8px;border-{{ END[lead] }}:1px solid {{ ui.CARD_LINE }};text-align:center;">
+{{ window_end(t(lead, "label.check_in_from"), times[lead].check_in_from) }}
+                      </td>
+                      <td width="50%" align="center" valign="top" style="width:50%;padding:12px 8px;text-align:center;">
+{{ window_end(t(lead, "label.expires_at"), times[lead].expires_at) }}
+                      </td>
+                    </tr>
+{% endif %}
+                  </table>
+                  <p style="margin:8px 0 0 0;font-size:12px;line-height:18px;color:{{ ui.CARD_MUTED }};text-align:center;">{{ times[lead].timezone }}</p>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding:20px 24px 0 24px;text-align:center;">
+{{ ui.button(pass_url, edited(lead, "button") or t(lead, "invitation.open_pass"), "on_dark", center=True) }}
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding:16px 24px 22px 24px;text-align:center;">
+                  <p style="margin:0;font-size:12.5px;line-height:20px;color:{{ ui.CARD_MUTED }};">{{ t(lead, "invitation.personal") }}</p>
+                </td>
+              </tr>
+{% endcall %}
+{% call ui.section(lead, padding="24px 32px 8px 32px") %}
+{{ visit_details(lead) }}
+{{ arrival(lead) }}
+{{ closing(lead) }}
+{% call ui.paragraph(muted=True, spacing=4) %}{{ t(lead, "common.button_fallback") }}{% endcall %}
+{{ ui.fallback_link(pass_url, lead) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 24px 32px") %}
+{{ ui.heading(edited(other, "heading") or t(other, "invitation.heading", company=company_name[other]), primary=False) }}
+{% call ui.paragraph(spacing=4) %}{{ edited(other, "greeting") or t(other, "common.hello", name=visitor_name) }}{% endcall %}
+{% call ui.paragraph(spacing=16) %}{{ intro(other) }}{% endcall %}
+{{ visit_details(other) }}
+{% call ui.notice(other) %}<strong class="vik" style="color:{{ ui.INK }};">{{ t(other, "invitation.present_above") }}</strong> {{ t(other, "invitation.window", start=times[other].from_phrase | default(times[other].check_in_from), end=times[other].until_phrase | default(times[other].expires_at), zone=times[other].zone) }}{% endcall %}
+{{ arrival(other) }}
+{{ closing(other) }}
+{{ ui.button(pass_url, edited(other, "button") or t(other, "invitation.open_pass"), "outline") }}
+{% call ui.paragraph(muted=True, spacing=4, top=16) %}{{ t(other, "common.button_fallback") }}{% endcall %}
+{{ ui.fallback_link(pass_url, other) }}
+{% call ui.paragraph(muted=True, spacing=0) %}{{ t(other, "invitation.personal") }}{% endcall %}
+{% endcall %}
+{% endblock %}

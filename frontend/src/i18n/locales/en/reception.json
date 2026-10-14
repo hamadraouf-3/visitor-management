@@ -1,0 +1,307 @@
+{
+  "tabs": {
+    "scan": "Scan",
+    "expected": "Expected",
+    "inside": "Inside",
+    "walkIn": "Walk-in"
+  },
+  "scan": {
+    "notices": {
+      "early": "Early: scheduled {{range}} (starts {{startsIn}})",
+      "earlySpoken": "Early: scheduled {{range}}.",
+      "late": "Late: scheduled {{range}} (ended {{endedAgo}})",
+      "lateSpoken": "Late: scheduled {{range}}."
+    },
+    "warnings": {
+      "OUTSIDE_SCHEDULED_TIME": "Outside the scheduled time.",
+      "OVERSTAYED": "Still inside after the scheduled end of the visit."
+    },
+    "atTime": "at {{time}}",
+    "onDay": "on {{date}}, {{time}}",
+    "refusal": {
+      "cancelledBy": "Visit cancelled by {{name}}",
+      "cancelled": "Visit cancelled",
+      "checkedOutAt": "Checked out {{when}}",
+      "completed": "Visit already completed",
+      "hostInactiveNamed": "Host no longer active: {{name}}",
+      "hostInactive": "Host no longer active",
+      "replacedAt": "Pass replaced {{when}}",
+      "replaced": "Pass replaced",
+      "expiredAt": "Pass expired {{when}}",
+      "expired": "Pass expired",
+      "validFrom": "Pass valid from {{time}}",
+      "notYetValid": "Pass not valid yet"
+    },
+    "next": {
+      "button": "Scan next"
+    },
+    "checking": "Checking the pass…",
+    "theVisitor": "the visitor",
+    "announce": {
+      "checkingIn": "Checking in {{name}}…",
+      "checkingOut": "Checking out {{name}}…",
+      "checkedIn": "{{name}} checked in.",
+      "checkedOut": "{{name}} checked out.",
+      "ready": "Ready to check in {{name}}. Verify ID.",
+      "insideRecent": "{{name}} was already checked in less than 5 minutes ago.",
+      "inside": "{{name}} is already checked in."
+    },
+    "beep": "Beep on check-in and check-out",
+    "checkPassAgain": "Check pass again",
+    "validReady": "Valid pass – ready to check in",
+    "valid": "Valid pass",
+    "alreadyInAt": "Already checked in at {{time}} ({{ago}})",
+    "alreadyInOn": "Already checked in at {{date}}, {{time}} ({{ago}})",
+    "alreadyIn": "Already checked in",
+    "failed": "The pass could not be checked",
+    "checkAgain": "Check again",
+    "readyTitle": "Ready to scan",
+    "expectedNext": "Expected next",
+    "allExpected": "All expected",
+    "successIn": "Checked in",
+    "successOut": "Checked out",
+    "resultHeading": "Scan result"
+  },
+  "arrival": {
+    "noShow": "No-show · pass expired {{time}}",
+    "validFrom": "Pass valid from {{time}}",
+    "due": "Due {{time}}",
+    "now": "Expected now",
+    "late": "Late · pass valid until {{time}}",
+    "expired": "Pass expired {{time}}"
+  },
+  "override": {
+    "contextExpired": "The pass expired at {{time}}.",
+    "contextNotYet": "The pass is valid from {{time}}.",
+    "contextOther": "The pass cannot be used for this check-in.",
+    "reasonRequired": "Choose a common reason, or enter why the visitor is checked in anyway.",
+    "reasons": {
+      "late": "Arrived late – host confirmed",
+      "early": "Arrived early – host confirmed",
+      "noPass": "Did not receive the pass"
+    },
+    "title": "Check in anyway",
+    "commonReasons": "Common reasons",
+    "other": "Other",
+    "reason": "Reason"
+  },
+  "inside": {
+    "timeAndStay": "{{time}} · {{stay}} inside",
+    "timeAndOut": "{{time}} · out {{out}}",
+    "checkedInLabel": "Checked in {{when}}",
+    "notCheckedOut": "{{name}} was not checked out",
+    "loading": "Loading visitors inside…",
+    "loadError": "The visitors inside could not be loaded",
+    "staleTitle_one": "{{count}} visitor from previous days is still checked in",
+    "staleTitle_other": "{{count}} visitors from previous days are still checked in",
+    "staleAction": "Check out remaining from previous days",
+    "filter": "Filter visitors inside",
+    "count_one": "{{count}} visitor inside",
+    "count_other": "{{count}} visitors inside",
+    "emptyTitle": "Nobody is checked in",
+    "noMatch": "Nobody inside matches “{{filter}}”",
+    "listLabel": "Visitors inside"
+  },
+  "stale": {
+    "reasonRequired": "Enter why these visitors are checked out, e.g. \"Left without checking out\".",
+    "nobody": "Nobody to check out",
+    "done_one": "{{count}} visitor checked out",
+    "done_other": "{{count}} visitors checked out",
+    "title": "Check out visitors from previous days",
+    "description": "This cannot be undone.",
+    "confirm_one": "Check out {{count}} visitor",
+    "confirm_other": "Check out {{count}} visitors",
+    "who": "Who is checked out",
+    "hostAndIn": "Host {{host}} · in {{checkIn}}",
+    "out": "Out {{when}}",
+    "showFewer": "Show fewer",
+    "showAll_one": "Show all {{count}}",
+    "showAll_other": "Show all {{count}}"
+  },
+  "correct": {
+    "noteRequired": "Explain the correction, e.g. \"Left at 17:00 without checking out\".",
+    "leftAtRequired": "Choose the date and time the visitor left.",
+    "leftAtBeforeCheckIn": "Choose a time after the check-in ({{when}}).",
+    "leftAtFuture": "The time the visitor left cannot be in the future.",
+    "title": "Correct check-out time",
+    "recordedFor": "Check-out recorded for {{when}}.",
+    "save": "Save check-out",
+    "context": "Checked in {{checkIn}} · scheduled to leave {{scheduledEnd}}",
+    "leftAt": "Left at",
+    "note": "Note"
+  },
+  "walkIn": {
+    "stay": {
+      "30m": "30 min",
+      "1h": "1 hour",
+      "2h": "2 hours",
+      "until": "Until {{time}}",
+      "other": "Other…",
+      "label": "Expected to stay",
+      "hint": "Leaves about {{time}} if checked in now.",
+      "hintOn": "Leaves about {{date}}, {{time}} if checked in now."
+    },
+    "validation": {
+      "host": "Choose the host the visitor is here to see.",
+      "purpose": "Enter the purpose of the visit.",
+      "expectedEndMissing": "Choose when the visit is expected to end.",
+      "expectedEndPast": "Choose a time after now.",
+      "expectedEndTooLate": "A visit can last up to 24 hours.",
+      "reason": "Choose why the visitor is registered as a walk-in.",
+      "reasonNote": "Describe the reason for this walk-in."
+    },
+    "registered": "Registered as a walk-in.",
+    "loading": "Loading…",
+    "disabledTitle": "Walk-in registration is turned off",
+    "visitorCard": {
+      "title": "Visitor"
+    },
+    "visitorLoadFailed": "The visitor’s record could not be loaded. Search for them below, or enter their details.",
+    "loadingVisitor": "Loading the visitor…",
+    "visitCard": {
+      "title": "Visit"
+    },
+    "host": "Host",
+    "hostNoPhone": "No phone number on record.",
+    "loadingHost": "Loading the host…",
+    "hostInactive": "{{name}} is not an active host any more. Choose the host the visitor is here to see.",
+    "department": "Department",
+    "purpose": "Purpose",
+    "expectedEnd": "Expected end",
+    "reason": "Reason for the walk-in",
+    "reasonDetails": "Reason details",
+    "clear": "Clear form",
+    "submit": "Check in walk-in"
+  },
+  "camera": {
+    "errors": {
+      "permissionDenied": {
+        "title": "Camera access is blocked",
+        "message": "Allow camera access for this site in the browser's address bar or site settings, then select Try again. You can still scan with a handheld scanner or paste the pass below."
+      },
+      "noCamera": {
+        "title": "No camera found",
+        "message": "Connect a camera, then select Try again. You can still scan with a handheld scanner or paste the pass below."
+      },
+      "inUse": {
+        "title": "The camera is in use",
+        "message": "Another app or browser tab may be using the camera, or it failed to start. Close the other app, then select Try again."
+      },
+      "constraints": {
+        "title": "This camera cannot be used",
+        "message": "The selected camera does not support the video settings the scanner needs. Choose another camera, or select Try again."
+      },
+      "ended": {
+        "title": "The camera stopped",
+        "message": "The camera was disconnected or switched off. Select Try again."
+      },
+      "insecure": {
+        "title": "The camera needs a secure connection",
+        "message": "Browsers allow the camera only on HTTPS pages. Open the reception screen over HTTPS. You can still scan with a handheld scanner or paste the pass below."
+      },
+      "unsupported": {
+        "title": "Camera scanning is not supported here",
+        "message": "This browser cannot use a camera for scanning. Use a current version of Chrome, Edge, Safari or Firefox. You can still scan with a handheld scanner or paste the pass below."
+      },
+      "decoder": {
+        "title": "The QR reader could not be loaded",
+        "message": "Reload the page to try again. You can still scan with a handheld scanner or paste the pass below."
+      },
+      "unknown": {
+        "title": "The camera could not be started",
+        "message": "Select Try again. If it keeps failing, reload the page. You can still scan with a handheld scanner or paste the pass below."
+      }
+    },
+    "numbered": "Camera {{number}}",
+    "off": "The camera is off",
+    "start": "Start camera",
+    "starting": "Starting the camera…",
+    "stop": "Turn camera off",
+    "paused": "Scanning paused",
+    "live": "Live",
+    "point": "Point the camera at the visitor’s QR code",
+    "label": "Camera",
+    "default": "Default camera"
+  },
+  "checkedIn": "{{name}} checked in",
+  "checkedOut": "{{name}} checked out",
+  "search": {
+    "open": "Find a visitor",
+    "noVisitToday": "No visit to check in or out today.",
+    "visitsOf": "Visits of {{name}} to act on",
+    "searching": "Searching visitors…",
+    "noMatch": "No visitor matches “{{query}}”.",
+    "showAll_one": "Show all {{count}} results",
+    "showAll_other": "Show all {{count}} results",
+    "capped": "Showing {{shown}} of {{total}} visitors.",
+    "placeholder": "Name, email, phone or company",
+    "resultsLabel": "Visitor search results"
+  },
+  "title": "Reception",
+  "counts": {
+    "unavailable": "Today’s counts are unavailable.",
+    "loading": "Loading today’s counts…",
+    "label": "Today at reception",
+    "expected": "Expected",
+    "inside": "Inside",
+    "checkedOut": "Checked out",
+    "noShows": "No-shows",
+    "walkIns": "Walk-ins",
+    "live": "Live"
+  },
+  "passEntry": {
+    "label": "Pass entry",
+    "open": "Enter or paste pass",
+    "field": "Scan or paste a pass",
+    "submit": "Check pass",
+    "hide": "Hide pass field"
+  },
+  "verifyId": "Verify ID: {{name}}",
+  "actions": {
+    "checkIn": "Check in",
+    "checkOut": "Check out",
+    "checkOutConfirm": "Check out…",
+    "registerWalkIn": "Register walk-in",
+    "checkInAnyway": "Check in anyway…",
+    "verifyAndCheckIn": "Verify ID & check in"
+  },
+  "checkOutDialog": {
+    "title": "Check out {{name}}?",
+    "description": "The visitor leaves the building now and their pass stops working.",
+    "recentTitle": "Checked in {{ago}}",
+    "recentNote": "Make sure the visitor is leaving, not arriving."
+  },
+  "hostNamed": "Host {{name}}",
+  "facts": {
+    "reasonGiven": "Reason given",
+    "note": "Note",
+    "company": "Company",
+    "host": "Host",
+    "department": "Department",
+    "purpose": "Purpose",
+    "scheduled": "Scheduled",
+    "passValid": "Pass valid",
+    "walkIn": "Walk-in",
+    "checkedIn": "Checked in"
+  },
+  "call": "Call {{name}}",
+  "moreActionsFor": "More actions for {{name}}",
+  "checkInUnavailable": "Check-in not available",
+  "expected": {
+    "loading": "Loading expected visitors…",
+    "loadError": "Expected visitors could not be loaded",
+    "filter": "Filter expected visitors",
+    "truncated": "Showing the first {{shown}} of {{total}} expected visits.",
+    "emptyTitle": "Nobody else is expected today",
+    "noMatch": "No expected visitor matches “{{filter}}”",
+    "arriving": "Arriving now",
+    "later": "Later today",
+    "noShows": "No-shows today"
+  },
+  "filterPlaceholder": "Visitor, company, host or purpose",
+  "clearFilter": "Clear filter",
+  "cancel": "Cancel",
+  "checkInDialog": {
+    "title": "Verify ID and check in"
+  }
+}

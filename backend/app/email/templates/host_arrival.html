@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{% set kind = "arrival" %}
+{% block preheader %}{{ t(lead, "arrival.preheader", visitor=visitor_name, time=arrived_at) }}{% endblock %}
+
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{% call ui.paragraph() %}{{ text }}{% endcall %}{% endif %}{% endmacro %}
+
+{% macro body(lang, primary) %}
+{{ ui.heading(edited(lang, "heading") or t(lang, "arrival.heading"), primary) }}
+{% call ui.paragraph(spacing=4) %}{{ edited(lang, "greeting") or t(lang, "common.hello", name=host_full_name) }}{% endcall %}
+{% call ui.paragraph(spacing=20) %}{{ edited(lang, "intro") or t(lang, "arrival.body", visitor=visitor_name, time=arrived_at, zone=times[lang].zone) }}{% endcall %}
+{{ ui.details([
+    [(t(lang, "label.visitor"), visitor_name), (t(lang, "label.company"), visitor_company_name)],
+    [(t(lang, "label.scheduled"), times[lang].date ~ COMMA[lang] ~ times[lang].time)],
+    [(t(lang, "label.purpose"), purpose)],
+], lang) }}
+{% call ui.notice(lang) %}<strong class="vik" style="color:{{ ui.INK }};">{{ t(lang, "arrival.meet") }}</strong>{% endcall %}
+{{ closing(lang) }}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 8px 32px") %}
+{{ body(lead, True) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 8px 32px") %}
+{{ body(other, False) }}
+{% endcall %}
+{% endblock %}

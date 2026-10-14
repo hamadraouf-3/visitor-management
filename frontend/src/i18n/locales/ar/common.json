@@ -1,0 +1,213 @@
+{
+  "app": {
+    "skipToContent": "انتقل إلى المحتوى الرئيسي",
+    "loading": "جارٍ التحميل…",
+    "checkingSession": "جارٍ التحقق من جلستك…",
+    "sessionLoadFailed": "تعذّر تحميل جلستك"
+  },
+  "nav": {
+    "label": "التنقل الرئيسي",
+    "open": "فتح قائمة التنقل",
+    "close": "إغلاق القائمة",
+    "sections": {
+      "insights": "التحليلات",
+      "admin": "الإدارة"
+    },
+    "items": {
+      "reception": "الاستقبال",
+      "myVisits": "زياراتي",
+      "inviteVisitor": "دعوة زائر",
+      "visitors": "الزوار",
+      "inside": "داخل المبنى الآن",
+      "history": "سجل الزيارات",
+      "reports": "التقارير",
+      "adminDashboard": "لوحة التحكم",
+      "adminUsers": "المستخدمون",
+      "adminDepartments": "الأقسام",
+      "adminSettings": "إعدادات الشركة",
+      "adminAudit": "سجل التدقيق",
+      "adminEmailTemplates": "نصوص الرسائل",
+      "platformCompanies": "الشركات",
+      "platformAudit": "سجل التدقيق"
+    }
+  },
+  "account": {
+    "menuFor": "قائمة الحساب: {{name}}",
+    "changePassword": "تغيير كلمة المرور",
+    "signOut": "تسجيل الخروج",
+    "signOutFailed": "تعذّر تسجيل الخروج"
+  },
+  "appearance": {
+    "label": "المظهر",
+    "light": "فاتح",
+    "dark": "داكن",
+    "system": "تلقائي"
+  },
+  "roles": {
+    "person": {
+      "SYSTEM_ADMIN": "مدير النظام",
+      "EMPLOYEE": "موظف",
+      "RECEPTIONIST": "موظف استقبال",
+      "MANAGEMENT": "الإدارة العليا"
+    },
+    "group": {
+      "SYSTEM_ADMIN": "إدارة النظام",
+      "EMPLOYEE": "الموظفون",
+      "RECEPTIONIST": "الاستقبال",
+      "MANAGEMENT": "الإدارة العليا"
+    }
+  },
+  "language": {
+    "changeFailed": "تعذّر حفظ اللغة"
+  },
+  "actions": {
+    "close": "إغلاق",
+    "dismiss": "إخفاء",
+    "dismissNotification": "إخفاء الإشعار",
+    "tryAgain": "حاول مرة أخرى",
+    "reloadPage": "إعادة تحميل الصفحة",
+    "previous": "السابق",
+    "next": "التالي",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "copyFailed": "تعذّر النسخ تلقائيًا. حدّد النص وانسخه يدويًا.",
+    "showPassword": "إظهار كلمة المرور",
+    "clearSearch": "مسح البحث",
+    "goHome": "الانتقال إلى صفحتك الرئيسية"
+  },
+  "field": {
+    "optional": "(اختياري)",
+    "date": "التاريخ",
+    "time": "الوقت",
+    "from": "من",
+    "to": "إلى"
+  },
+  "combobox": {
+    "options": "الخيارات",
+    "showOptions": "إظهار الخيارات",
+    "hideOptions": "إخفاء الخيارات",
+    "noMatches": "لا توجد نتائج مطابقة.",
+    "results_zero": "لا توجد نتائج.",
+    "results_one": "نتيجة واحدة متاحة.",
+    "results_two": "نتيجتان متاحتان.",
+    "results_few": "{{count}} نتائج متاحة.",
+    "results_many": "{{count}} نتيجة متاحة.",
+    "results_other": "{{count}} نتيجة متاحة.",
+    "typeAtLeast_zero": "ابدأ الكتابة للبحث.",
+    "typeAtLeast_one": "اكتب حرفًا واحدًا على الأقل للبحث.",
+    "typeAtLeast_two": "اكتب حرفين على الأقل للبحث.",
+    "typeAtLeast_few": "اكتب {{count}} أحرف على الأقل للبحث.",
+    "typeAtLeast_many": "اكتب {{count}} حرفًا على الأقل للبحث.",
+    "typeAtLeast_other": "اكتب {{count}} حرف على الأقل للبحث."
+  },
+  "pagination": {
+    "label": "التنقل بين الصفحات",
+    "noResults": "لا توجد نتائج",
+    "showing": "عرض {{from}}–{{to}} من {{total}}",
+    "page": "الصفحة {{page}} من {{pageCount}}"
+  },
+  "filters": {
+    "label": "التصفية",
+    "toggle": "التصفية",
+    "toggleWithCount": "التصفية ({{count}})",
+    "status": "الحالة"
+  },
+  "status": {
+    "visit": {
+      "SCHEDULED": "مجدولة",
+      "CHECKED_IN": "تم الدخول",
+      "CHECKED_OUT": "تم الخروج",
+      "CANCELLED": "ملغاة",
+      "NO_SHOW": "لم يحضر"
+    },
+    "invitation": {
+      "NOT_SENT": "لم تُرسل",
+      "PENDING": "قيد الإرسال",
+      "SENT": "أُرسلت",
+      "FAILED": "تعذّر الإرسال"
+    },
+    "invitationLong": {
+      "NOT_SENT": "الدعوة لم تُرسل",
+      "PENDING": "جارٍ إرسال الدعوة",
+      "SENT": "أُرسلت الدعوة",
+      "FAILED": "تعذّر إرسال الدعوة"
+    },
+    "pass": {
+      "ACTIVE": "صالحة",
+      "REVOKED": "مُبطلة",
+      "EXPIRED": "منتهية",
+      "NONE": "لا توجد بطاقة"
+    }
+  },
+  "table": {
+    "loading": "جارٍ تحميل {{caption}}…"
+  },
+  "dates": {
+    "today": "اليوم",
+    "tomorrow": "غدًا",
+    "yesterday": "أمس",
+    "dateTime": "{{date}}، {{time}}",
+    "atTime": "{{date}} الساعة {{time}}",
+    "timeZone": "توقيت {{place}} ({{offset}})",
+    "dstShifted": "هذا الوقت غير موجود في {{zone}} بسبب تغيير التوقيت الصيفي، وسيُحفظ على أنه {{time}}.",
+    "rangeOn": "في {{date}}.",
+    "rangeFromTo": "من {{from}} إلى {{to}}.",
+    "rangeFrom": "من {{date}}.",
+    "rangeUpTo": "حتى {{date}}.",
+    "rangeEndBeforeStart": "اختر تاريخ نهاية يساوي تاريخ البداية أو يليه."
+  },
+  "duration": {
+    "unknown": "—",
+    "lessThanMinute": "<\u00a01\u00a0د",
+    "lessThanMinuteInText": "أقل من دقيقة",
+    "minutes": "{{minutes}}\u00a0د",
+    "hours": "{{hours}}\u00a0س",
+    "hoursMinutes": "{{hours}}\u00a0س {{minutes}}\u00a0د",
+    "ago": "قبل {{duration}}",
+    "in": "بعد {{duration}}",
+    "waitMinutes_zero": "{{count}}\u00a0دقيقة",
+    "waitMinutes_one": "دقيقة واحدة",
+    "waitMinutes_two": "دقيقتين",
+    "waitMinutes_few": "{{count}}\u00a0دقائق",
+    "waitMinutes_many": "{{count}}\u00a0دقيقة",
+    "waitMinutes_other": "{{count}}\u00a0دقيقة",
+    "waitHours_zero": "{{count}}\u00a0ساعة",
+    "waitHours_one": "ساعة واحدة",
+    "waitHours_two": "ساعتين",
+    "waitHours_few": "{{count}}\u00a0ساعات",
+    "waitHours_many": "{{count}}\u00a0ساعة",
+    "waitHours_other": "{{count}}\u00a0ساعة",
+    "waitHoursMinutes": "{{hours}} و{{minutes}}"
+  },
+  "text": {
+    "characterCount_zero": "{{length}} من {{count}} حرف",
+    "characterCount_one": "{{length}} من حرف واحد",
+    "characterCount_two": "{{length}} من حرفين",
+    "characterCount_few": "{{length}} من {{count}} أحرف",
+    "characterCount_many": "{{length}} من {{count}} حرفًا",
+    "characterCount_other": "{{length}} من {{count}} حرف",
+    "maxLength_zero": "لا يُسمح بأي حرف.",
+    "maxLength_one": "أدخل حرفًا واحدًا على الأكثر.",
+    "maxLength_two": "أدخل حرفين على الأكثر.",
+    "maxLength_few": "أدخل {{count}} أحرف على الأكثر.",
+    "maxLength_many": "أدخل {{count}} حرفًا على الأكثر.",
+    "maxLength_other": "أدخل {{count}} حرف على الأكثر.",
+    "listSeparator": "، "
+  },
+  "print": {
+    "generated": "تاريخ الإنشاء: {{when}}، {{zone}}.",
+    "printedBy": "طُبعت بواسطة {{name}}."
+  },
+  "errorPage": {
+    "title": "خطأ",
+    "newVersionTitle": "يتوفر إصدار جديد",
+    "unexpectedTitle": "حدث خطأ ما"
+  },
+  "accessDenied": {
+    "title": "ليست لديك صلاحية الوصول إلى هذه الصفحة"
+  },
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "goHome": "الانتقال إلى الصفحة الرئيسية"
+  }
+}

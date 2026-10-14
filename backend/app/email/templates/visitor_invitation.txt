@@ -1,0 +1,47 @@
+{% extends "base.txt" %}
+{% set kind = "invitation" %}
+{# The company's closing paragraph: a paragraph of its own, with a blank line before it (B11-48). #}
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{{ "\n\n" }}{{ text }}{% endif %}{% endmacro %}
+{% macro body(lang) %}
+{{ edited(lang, "heading") or t(lang, "invitation.heading", company=company_name[lang]) }}
+
+{{ edited(lang, "greeting") or t(lang, "common.hello", name=visitor_name) }}
+
+{% if edited(lang, "intro") %}{{ edited(lang, "intro") }}{% elif booked_by %}{{ t(lang, "invitation.invited_on_behalf", booker=booked_by, host=host_name, company=company_name[lang]) }}{% else %}{{ t(lang, "invitation.invited", host=host_name, company=company_name[lang]) }}{% endif %}
+
+
+{{ t(lang, "label.date") }}: {{ times[lang].date }}
+{{ t(lang, "label.time") }}: {{ times[lang].time }} ({{ times[lang].timezone }})
+{{ t(lang, "label.host") }}: {{ host_name | isolate(lang) }}
+{% if department_name[lang] %}
+{{ t(lang, "label.department") }}: {{ department_name[lang] | isolate(lang) }}
+{% endif %}
+{% if company_address[lang] %}
+{{ t(lang, "label.address") }}: {{ company_address[lang] | isolate(lang) }}
+{% endif %}
+{% if booked_by %}
+{{ t(lang, "label.invited_by") }}: {{ booked_by | isolate(lang) }}
+{{ t(lang, "label.purpose") }}: {{ purpose | isolate(lang) }}
+{% else %}
+{{ t(lang, "label.purpose") }} ({{ t(lang, "label.purpose_note") }}): {{ purpose | isolate(lang) }}
+{% endif %}
+
+{{ t(lang, "invitation.pass_label") | upper }}
+{{ t(lang, "invitation.text_pass") }}
+
+{{ pass_url }}
+
+{{ t(lang, "invitation.window", start=times[lang].from_phrase | default(times[lang].check_in_from), end=times[lang].until_phrase | default(times[lang].expires_at), zone=times[lang].zone) }}
+
+{{ t(lang, "invitation.arrival_heading") | upper }}
+1. {{ t(lang, "invitation.step_id") }}
+2. {{ t(lang, "invitation.step_reception") }}
+3. {% if notify_host_on_check_in %}{{ t(lang, "invitation.step_notify", host=host_name) }}{% else %}{{ t(lang, "invitation.step_contact") }}{% endif %}
+
+
+{% if replies_reach_host %}{{ t(lang, "invitation.questions_host", host=host_name) }}{% elif has_reply_to %}{{ t(lang, "invitation.questions_reply") }}{% else %}{{ t(lang, "invitation.questions_contact", host=host_name) }}{% endif %}{{ closing(lang) }}
+
+{{ t(lang, "invitation.personal") }}
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

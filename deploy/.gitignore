@@ -1,0 +1,3 @@
+# Real deployment secrets and certificates never enter the repository (deploy/README.md).
+/env/*.env
+/tls/

@@ -1,0 +1,287 @@
+# Mawdoo3 Visitors - single-host production deployment (contract §15;
+# docs/decisions/phase-9-deploy.md; operator steps in deploy/README.md).
+#
+#   cp deploy/env/postgres.env.example deploy/env/postgres.env   # and backend.env, migrate.env, frontend.env
+#   mkdir -p deploy/tls   # tls.crt (full chain) + tls.key, readable by uid 101
+#   docker compose build
+#   docker compose up -d
+#
+# Order: postgres (healthy) -> migrate (one-shot `alembic upgrade head` as the schema owner, must exit 0)
+# -> the API services backend, backend-reception (two replicas) and backend-reports (healthy) -> frontend
+# (nginx, publishes 80 and 443, shares the API requests out by method and path; only GET requests leave
+# backend: deploy/README.md §4).
+#
+# Secrets live only in the git-ignored deploy/env/*.env files (never inline here, never in an image).
+# This file uses no ${...} interpolation on purpose: the repository root .env is the local development
+# configuration, and Compose would otherwise read it.
+
+name: vms
+
+x-backend-build: &backend-build
+  context: ./backend
+  dockerfile: Dockerfile
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+# One API instance: the image's command `python -m app.serve` (one worker; app/serve.py), read-only,
+# without capabilities, reachable only by nginx on the `app` network. The three API services below
+# (backend, backend-reception, backend-reports) share it and differ only in their resource limits, the
+# number of replicas and, for the two read services, the Argon2 slots and the database pool size.
+x-api: &api
+  build: *backend-build
+  image: vms-backend:local
+  restart: unless-stopped
+  env_file:
+    - path: deploy/env/backend.env
+      required: true
+  depends_on:
+    postgres:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+  networks:
+    - db
+    - app
+  # Not published: reachable only by nginx on the `app` network. The image's health check
+  # (GET /api/v1/health, which also checks the database) applies.
+  expose:
+    - "8000"
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:size=16m
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  # On SIGTERM the API stops accepting connections, gives the requests in flight and their e-mail
+  # deliveries up to 20 s (app.serve GRACEFUL_SHUTDOWN_SECONDS), cancels the rest, writes the coalesced
+  # security-event counts (lifespan shutdown) and exits. The extra 25 s keep the SIGKILL away from that
+  # last step; backend/tests/unit/test_serve.py and deploy/verify/test_api_instances.py fail if the two
+  # drift. `init: true` matters here: as PID 1 the interpreter would ignore the SIGTERM it re-raises to
+  # exit and wait for busy worker threads.
+  stop_grace_period: 45s
+  logging: *logging
+
+services:
+  postgres:
+    image: postgres:18.6-trixie@sha256:fc973eb97c9fd04bfa1840e0f510719a584ccb3be8debfe6a4144637a9dfe8cf
+    restart: unless-stopped
+    env_file:
+      - path: deploy/env/postgres.env
+        required: true
+    environment:
+      # Same text behaviour as the development cluster (scripts/db.ps1): UTF-8, the builtin C.UTF-8
+      # collation provider (lower()/ILIKE fold accented Latin and Arabic), and a UTF-8 LC_CTYPE, because
+      # pg_trgm classifies word characters with the C library's ctype: with LC_CTYPE=C, Arabic and
+      # accented text would produce no trigrams and visitor search would miss them.
+      POSTGRES_INITDB_ARGS: >-
+        --encoding=UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8
+        --locale=C --lc-ctype=en_US.UTF-8 --auth-local=trust --auth-host=scram-sha-256
+      # The entrypoint creates no database of its own; 10-vms-roles.sh creates `vms` for vms_owner.
+      POSTGRES_USER: postgres
+    command:
+      - postgres
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+      - -c
+      - timezone=UTC
+      - -c
+      - log_timezone=UTC
+      - -c
+      - password_encryption=scram-sha-256
+      # Memory and planner settings for this service's 2 GiB limit on SSD storage (the stock values
+      # assume a small machine with spinning disks). Scale them with the limit: deploy/README.md §4
+      # "Capacity and tuning", docs/decisions/phase-9-deploy.md D9-31. shared_buffers ~25 % and
+      # effective_cache_size ~75 % of the limit (the planner's estimate of cached data: shared buffers
+      # plus the page cache within the limit); random_page_cost 1.1 because a random read costs about as
+      # much as a sequential one on SSD (at 4 the visit history search scanned all of visits); work_mem
+      # 16MB per sort/hash step (a year of report totals with count(DISTINCT) sorted on disk at 4MB),
+      # with at most 50 API connections (DB_POOL_SIZE 10 + 10 overflow on the main instance, 5 + 5 on each
+      # of the three read processes: two reception-list replicas and the reports instance).
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=1536MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - work_mem=16MB
+      # TLS to the database (needed when the API runs on another host; then also DB_REQUIRE_TLS=true,
+      # `?sslmode=verify-full&sslrootcert=...` on both URLs and `hostssl` in pg_hba.conf): mount the
+      # server certificate and key (key owned by uid 999, mode 0600) and add
+      #   -c ssl=on -c ssl_cert_file=/etc/postgresql/tls/server.crt -c ssl_key_file=/etc/postgresql/tls/server.key
+    volumes:
+      # postgres 18 images keep the cluster in /var/lib/postgresql/18/docker: the volume is mounted at
+      # /var/lib/postgresql (a mount at .../data is refused by the 18 image).
+      - pgdata:/var/lib/postgresql
+      - ./deploy/postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - ./deploy/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    networks:
+      - db
+    # Over TCP, so the temporary socket-only server of the first-start initialisation never counts as
+    # ready: migrate must not run against it.
+    healthcheck:
+      test: ["CMD", "pg_isready", "--host=127.0.0.1", "--port=5432", "--username=vms_owner", "--dbname=vms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    shm_size: 256m
+    stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2g
+    logging: *logging
+
+  migrate:
+    build: *backend-build
+    image: vms-backend:local
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    restart: "no"
+    env_file:
+      - path: deploy/env/backend.env
+        required: true
+      - path: deploy/env/migrate.env
+        required: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - db
+    healthcheck:
+      disable: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512m
+    logging: *logging
+
+  # The main API instance: every sign-in, every write (scans and check-ins included) and every request
+  # that nginx does not route to one of the read services below. Exactly one process: every rate limit
+  # but the per-user API budget is counted here only (never add replicas; deploy/README.md §4).
+  backend:
+    <<: *api
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          # PASSWORD_HASH_CONCURRENCY x 64 MiB of Argon2id, plus the application and the in-memory
+          # rate limiter (bounded by its bucket caps).
+          memory: 1g
+          pids: 256
+
+  # Read services (deploy/README.md §4 "Capacity and tuning", docs/decisions/phase-9-deploy.md D9-34,
+  # D9-35). Same image and configuration; nginx sends them only the GET requests of its $vms_api_pool
+  # map: the reception lists (every open reception page polls one every 15 s, the desk reloads it after
+  # each check-in) and the reports, audit, admin dashboard and visit history reads. One API process
+  # time-slices all its requests, so these reads no longer delay the desk's scans and check-ins on the
+  # main instance. No sign-in reaches them (one Argon2 slot is enough) and their few concurrent
+  # requests need a smaller pool: 5 + 5 overflow connections per process.
+  backend-reception:
+    <<: *api
+    environment:
+      PASSWORD_HASH_CONCURRENCY: "1"
+      DB_POOL_SIZE: "5"
+    deploy:
+      # Two processes build the reception lists. One interpreter builds one list at a time (about 40 ms of
+      # CPU on a normal day), and the polls and the desk's reload arrive in bursts. Under stress B one
+      # process missed the 300 ms list budget in most of the re-audit's runs; two held it in every run
+      # (D9-35). Docker's DNS returns one address per replica and nginx sends each request to the least
+      # busy one. Each replica counts the per-user API budget for the lists it serves. Limits apply per
+      # replica.
+      replicas: 2
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512m
+          pids: 128
+
+  backend-reports:
+    <<: *api
+    environment:
+      PASSWORD_HASH_CONCURRENCY: "1"
+      DB_POOL_SIZE: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512m
+          pids: 128
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      additional_contexts:
+        vms_contract: ./docs/contract
+        vms_nginx: ./deploy/nginx
+    image: vms-frontend:local
+    restart: unless-stopped
+    env_file:
+      - path: deploy/env/frontend.env
+        required: true
+    depends_on:
+      backend:
+        condition: service_healthy
+      backend-reception:
+        condition: service_healthy
+      backend-reports:
+        condition: service_healthy
+    networks:
+      app:
+        # Fixed, because the backend trusts X-Forwarded-For from this address only
+        # (TRUSTED_PROXIES=172.30.47.10/32 in backend.env).
+        ipv4_address: 172.30.47.10
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - ./deploy/tls:/etc/nginx/tls:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+      # The entrypoint renders /etc/nginx/templates/vms.conf.template here at every start.
+      - /etc/nginx/conf.d:size=1m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256m
+          pids: 128
+    logging: *logging
+
+networks:
+  # PostgreSQL's network: no route outside the host.
+  db:
+    internal: true
+  # nginx <-> API. Not internal: the API sends e-mail through Resend, and nginx publishes ports. The
+  # subnet is fixed for nginx's fixed address; change both (and TRUSTED_PROXIES) if it collides with a
+  # network of this host.
+  app:
+    ipam:
+      config:
+        - subnet: 172.30.47.0/24
+
+volumes:
+  pgdata:

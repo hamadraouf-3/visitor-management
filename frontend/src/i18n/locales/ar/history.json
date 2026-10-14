@@ -1,0 +1,56 @@
+{
+  "title": "سجل الزيارات",
+  "count_zero": "لا زيارات",
+  "count_one": "زيارة واحدة",
+  "count_two": "زيارتان",
+  "count_few": "{{formatted}} زيارات",
+  "count_many": "{{formatted}} زيارة",
+  "count_other": "{{formatted}} زيارة",
+  "filters": {
+    "hostLoading": "جارٍ تحميل المضيف…",
+    "hostSelected": "المضيف المحدد",
+    "search": "بحث",
+    "searchPlaceholder": "زائر، شركة، مضيف",
+    "searchMinLength_zero": "ابدأ الكتابة للبحث.",
+    "searchMinLength_one": "اكتب حرفًا واحدًا على الأقل للبحث.",
+    "searchMinLength_two": "اكتب حرفين على الأقل للبحث.",
+    "searchMinLength_few": "اكتب {{count}} أحرف على الأقل للبحث.",
+    "searchMinLength_many": "اكتب {{count}} حرفًا على الأقل للبحث.",
+    "searchMinLength_other": "اكتب {{count}} حرف على الأقل للبحث.",
+    "dates": "تاريخ الموعد",
+    "host": "المضيف",
+    "hostAll": "كل المضيفين",
+    "department": "القسم",
+    "clear": "مسح عوامل التصفية"
+  },
+  "backLabel": "العودة إلى سجل الزيارات",
+  "found_zero": "لم يُعثر على زيارات.",
+  "found_one": "عُثر على زيارة واحدة.",
+  "found_two": "عُثر على زيارتين.",
+  "found_few": "عُثر على {{count}} زيارات.",
+  "found_many": "عُثر على {{count}} زيارة.",
+  "found_other": "عُثر على {{count}} زيارة.",
+  "checkDates": "تحقّق من التواريخ",
+  "loadError": "تعذّر تحميل سجل الزيارات",
+  "empty": {
+    "pageTitle": "هذه الصفحة فارغة",
+    "firstPage": "الانتقال إلى الصفحة الأولى",
+    "filteredTitle": "لا توجد زيارات تطابق عوامل التصفية هذه",
+    "title": "لا توجد زيارات بعد"
+  },
+  "pagesLabel": "صفحات سجل الزيارات",
+  "columns": {
+    "visitor": "الزائر",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "host": "المضيف",
+    "purpose": "الغرض",
+    "attendance": "الحضور"
+  },
+  "departmentFilter": {
+    "notListed": "قسم غير مدرج",
+    "inactive": "غير نشط",
+    "empty": "لا يوجد قسم بهذا الاسم.",
+    "all": "كل الأقسام"
+  }
+}

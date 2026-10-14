@@ -1,0 +1,12 @@
+# Lint and format settings for the deployment tooling (deploy/verify/*.py), picked up by `ruff check deploy`
+# and `ruff format deploy` from the repository root. The backend's rule set, with two exceptions for
+# standard-library command-line tools.
+extend = "../backend/pyproject.toml"
+# The scripts promise Python 3.12+ (deploy/README.md), not the backend image's 3.14: no newer syntax.
+target-version = "py312"
+
+[lint]
+extend-ignore = [
+    "T201",   # print: these are command-line checks; their output is the result
+    "PT009",  # unittest-style assertions: the tests run on the standard library's unittest, no pytest
+]
