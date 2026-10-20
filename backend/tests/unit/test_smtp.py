@@ -14,6 +14,7 @@ import threading
 import time
 import uuid
 from collections.abc import Callable, Iterator
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
@@ -34,7 +35,7 @@ from app.email.service import (
     QR_CONTENT_ID,
     EmailService,
 )
-from app.models import Company, EmailKind, Visit
+from app.models import Company, EmailKind, User, Visit
 from app.security.tokens import generate_token
 from tests.png_support import SAMPLE_LOGO as COMPANY_LOGO
 from tests.png_support import CompanyLogos
@@ -298,6 +299,119 @@ def test_implicit_tls_delivers(certificate: Certificate) -> None:
         assert tls.credentials is not None and tls.credentials.attempts == 1
         _text, _html, image = _parts(received.message())
         assert image["Content-ID"] == f"<{QR_CONTENT_ID}>"
+
+
+def _calendar_emails() -> tuple[OutgoingEmail, OutgoingEmail]:
+    """The visitor's calendar invitation (a REQUEST, B14-10) and the host's notice of a cancellation (a
+    CANCEL, B14-2) of a company with a logo, rendered by EmailService."""
+    company = Company(
+        id=uuid.uuid4(),
+        name="Mawdoo3",
+        name_ar="موضوع",
+        default_language="ar",
+        slug="demo",
+        timezone="Asia/Amman",
+        address="Building 14\nKing Abdullah II Street, Amman",
+        notify_host_on_check_in=True,
+    )
+    visit = Visit(
+        id=uuid.uuid4(),
+        company_id=company.id,
+        visitor_name="Dana Guest",
+        visitor_company_name="Acme",
+        host_name="Omar Khalil",
+        department_name="Finance",
+        purpose="Quarterly review",
+        scheduled_start=START,
+        scheduled_end=START + timedelta(hours=1),
+        window_start=START - timedelta(hours=1),
+        window_end=START + timedelta(hours=2),
+        calendar_sequence=2,
+    )
+    service = EmailService(
+        None,  # type: ignore[arg-type]
+        settings=_settings(),
+        renderer=EmailRenderer(),
+        provider_name="smtp",
+        template_texts=NO_TEMPLATE_TEXTS,
+        brand_images=CompanyLogos(COMPANY_LOGO, 240, 80),
+    )
+    service.messages = _Messages()  # type: ignore[assignment]
+    invitation = service.queue_visitor_calendar(
+        visit, company=company, recipient=RECIPIENT, host_email=HOST_EMAIL
+    ).email
+    host = User(
+        id=uuid.uuid4(),
+        company_id=company.id,
+        full_name="Omar Khalil",
+        email=HOST_EMAIL,
+        preferred_language="en",
+    )
+    cancelled = service.queue_host_visit(
+        visit, kind=EmailKind.HOST_VISIT_CANCELLED, company=company, host=host, reason="Plans changed"
+    ).email
+    return invitation, cancelled
+
+
+@pytest.mark.parametrize(("which", "method"), [(0, "REQUEST"), (1, "CANCEL")])
+def test_a_calendar_event_travels_as_the_tree_outlook_gmail_and_apple_read(
+    server: SmtpTestServer, certificate: Certificate, which: int, method: str
+) -> None:
+    """B14-7: multipart/mixed > [multipart/alternative > [text/plain, multipart/related > [text/html,
+    logo], text/calendar; method=…], application/ics attachment]. The text/calendar part is the last
+    alternative, has no Content-Disposition ([MS-STANOICAL]: an attachment is not imported as iMIP data)
+    and carries the iTIP method as its parameter (RFC 6047 §2.4); both copies are the object as written,
+    octet for octet."""
+    email = _calendar_emails()[which]
+    assert email.calendar is not None and email.calendar.method == method
+    _provider(server.port, certificate).send(email, timeout_seconds=20.0)
+    [received] = server.handler.received
+    message = received.message()
+    assert message.get_content_type() == "multipart/mixed"
+    # The company's name in the e-mail's language (the visitor's: the company's; the host's: English).
+    assert message["From"] == ("موضوع" if which == 0 else "Mawdoo3") + " <visitors@demo.test>"
+    alternative, attachment = message.iter_parts()
+    assert alternative.get_content_type() == "multipart/alternative"
+    text, related, calendar = alternative.iter_parts()
+    assert text.get_content_type() == "text/plain" and related.get_content_type() == "multipart/related"
+    html, logo = related.iter_parts()
+    assert html.get_content_type() == "text/html" and logo["Content-ID"] == f"<{LOGO_CONTENT_ID}>"
+    # The invitation: text/calendar with the method, UTF-8, no disposition, base64 (7-bit on the wire).
+    assert calendar.get_content_type() == "text/calendar"
+    assert calendar.get_param("method") == method and calendar.get_param("charset") == "UTF-8"
+    assert calendar.get_content_disposition() is None and calendar["Content-Transfer-Encoding"] == "base64"
+    assert calendar.get_payload(decode=True) == email.calendar.content
+    # The same object as invite.ics, an attachment of the whole message.
+    assert attachment.get_content_type() == "application/ics"
+    assert attachment.get_content_disposition() == "attachment" and attachment.get_filename() == "invite.ics"
+    assert attachment.get_param("name") == "invite.ics"
+    assert attachment.get_payload(decode=True) == email.calendar.content
+    assert received.data.isascii()
+    # The bodies arrive as rendered, and the headers are the message's own.
+    assert _body(html).rstrip("\n") == email.html.rstrip("\n")
+    assert _body(text).rstrip("\n") == email.text.rstrip("\n")
+    assert {name.lower() for name in message} <= ALLOWED_HEADERS
+    assert message["Message-ID"] == f"<vms-email-{email.message_id}@demo.test>"
+
+
+def test_a_message_without_an_event_keeps_its_tree() -> None:
+    """Every other e-mail is the tree it was: no mixed part, no calendar."""
+    with smtp_server(security="none") as capture:
+        _provider(capture.port, None, security="none", username=None, password=None).send(_invitation())
+        message = capture.handler.received[0].message()
+        assert message.get_content_type() == "multipart/alternative"
+        assert not any(part.get_content_type() == "text/calendar" for part in message.walk())
+
+
+def test_an_event_with_an_unknown_method_is_not_sent() -> None:
+    email = _calendar_emails()[0]
+    assert email.calendar is not None
+    broken = replace(email, calendar=replace(email.calendar, method="PUBLISH"))
+    with smtp_server(security="none") as capture:
+        provider = _provider(capture.port, None, security="none", username=None, password=None)
+        with pytest.raises(EmailDeliveryError, match="could not be built") as caught:
+            provider.send(broken)
+        assert caught.value.transient is False and capture.handler.received == []
 
 
 def test_plain_text_to_a_local_capture_server() -> None:

@@ -23,7 +23,7 @@ const ME: Me = {
     must_change_password: false,
     preferred_language: null,
   },
-  company: { id: '00000000-0000-4000-8000-0000000000c1', name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED },
+  company: { id: '00000000-0000-4000-8000-0000000000c1', name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED, address: null, address_ar: null },
 }
 
 const TODAY: ReceptionToday = {

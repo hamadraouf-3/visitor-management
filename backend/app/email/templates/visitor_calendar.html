@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{# The visitor's calendar invitation (Phase 14, B14-10): the short e-mail that follows every invitation and
+   carries the visit as an event of the visitor's calendar. Outlook keeps an invitation's own text as the
+   body of the calendar entry it adds, so this e-mail holds no pass link and no QR code: only what the
+   visit is. Its words are the invitation's (the company's own heading, when it wrote one). #}
+{% set kind = "invitation" %}
+{% block preheader %}{{ t(lead, "calendar.attached") }}{% endblock %}
+
+{% macro body(lang, primary) %}
+{{ ui.heading(edited(lang, "heading") or t(lang, "invitation.heading", company=company_name[lang]), primary) }}
+{{ ui.details([
+    [(t(lang, "label.date"), times[lang].date), (t(lang, "label.time"), times[lang].time ~ " (" ~ times[lang].timezone ~ ")")],
+    [(t(lang, "label.host"), host_name), (t(lang, "label.department"), department_name[lang])],
+    [(t(lang, "label.address"), company_address[lang])],
+], lang) }}
+{% call ui.paragraph(muted=True) %}{{ t(lang, "calendar.attached") }}{% endcall %}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 8px 32px") %}
+{{ body(lead, True) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 8px 32px") %}
+{{ body(other, False) }}
+{% endcall %}
+{% endblock %}

@@ -235,6 +235,71 @@ MESSAGES: dict[str, dict[Language, str]] = {
         EN: "Please meet your visitor at reception.",
         AR: "يُرجى التوجّه لملاقاة زائرك عند مكتب الاستقبال.",
     },
+    # ---- the host's visit: new, a new time, cancelled (Phase 14, B14-2) ----------------------------
+    # The host's own e-mails of a scheduled visit, each carrying the visit as an event of the host's
+    # calendar. `{time}` is the visit's time range here, never a check-in time.
+    "host_scheduled.kind": {EN: "New visit", AR: "زيارة جديدة"},
+    "host_scheduled.subject": {EN: "New visit: {visitor} on {date}", AR: "زيارة جديدة: {visitor} يوم {date}"},
+    "host_scheduled.preheader": {
+        EN: "A visit from {visitor} on {date}, {time}.",
+        AR: "زيارة من {visitor} يوم {date}، {time}.",
+    },
+    "host_scheduled.heading": {EN: "You have a new visit", AR: "لديك زيارة جديدة"},
+    "host_scheduled.intro": {
+        EN: "You have a visit from {visitor} on {date}, {time} ({zone}).",
+        AR: "لديك زيارة من {visitor} يوم {date}، {time} ({zone}).",
+    },
+    "host_rescheduled.kind": {EN: "Visit rescheduled", AR: "تغيير موعد الزيارة"},
+    "host_rescheduled.subject": {
+        EN: "Visit rescheduled: {visitor} on {date}",
+        AR: "تغيّر موعد زيارة {visitor} إلى يوم {date}",
+    },
+    "host_rescheduled.preheader": {EN: "New time: {date}, {time}.", AR: "الموعد الجديد: {date}، {time}."},
+    "host_rescheduled.heading": {EN: "A visit has been rescheduled", AR: "تغيّر موعد زيارة"},
+    "host_rescheduled.intro": {
+        EN: "The visit of {visitor} has a new time: {date}, {time} ({zone}).",
+        AR: "تغيّر موعد زيارة {visitor}، والموعد الجديد يوم {date}، {time} ({zone}).",
+    },
+    "host_cancelled.kind": {EN: "Visit cancelled", AR: "إلغاء الزيارة"},
+    "host_cancelled.subject": {
+        EN: "Visit cancelled: {visitor} on {date}",
+        AR: "أُلغيت زيارة {visitor} يوم {date}",
+    },
+    "host_cancelled.preheader": {
+        EN: "The visit on {date} has been cancelled.",
+        AR: "أُلغيت الزيارة المقرّرة يوم {date}.",
+    },
+    "host_cancelled.heading": {EN: "A visit has been cancelled", AR: "أُلغيت زيارة"},
+    "host_cancelled.intro": {
+        EN: "The visit of {visitor} on {date}, {time} ({zone}) has been cancelled.",
+        AR: "أُلغيت زيارة {visitor} المقرّرة يوم {date}، {time} ({zone}).",
+    },
+    "label.booked_by": {EN: "Booked by", AR: "الحجز بواسطة"},
+    # ---- the visit as a calendar event (Phase 14, B14-3) -------------------------------------------
+    # The one line of an invitation that says what the event attached to it is for.
+    "calendar.attached": {
+        EN: "The visit is attached for your calendar.",
+        AR: "الزيارة مرفقة لإضافتها إلى تقويمك.",
+    },
+    # The event's summary in the visitor's calendar and in the host's, and the description's last line in
+    # the visitor's. No link: the pass link is a credential, and calendars are shared (B14-4).
+    "calendar.visitor_summary": {EN: "Visit to {company}", AR: "زيارة إلى {company}"},
+    "calendar.host_summary": {EN: "Visit: {visitor}", AR: "زيارة: {visitor}"},
+    "calendar.show_pass": {
+        EN: "Show your visitor pass at reception when you arrive.",
+        AR: "اعرض بطاقة زيارتك عند الاستقبال لدى وصولك.",
+    },
+    # The summary of the event taken out of the calendar of an address the visitor no longer has (D-19,
+    # B14-17): it names nothing, since the address may be nobody the visit concerns.
+    "calendar.withdrawn_summary": {EN: "Visit", AR: "زيارة"},
+    # ---- the visit taken out of the calendar of an address the visitor no longer has (B14-17) ---------
+    "withdrawn.kind": {EN: "Invitation withdrawn", AR: "سحب الدعوة"},
+    "withdrawn.subject": {EN: "Visit invitation withdrawn", AR: "سحب دعوة الزيارة"},
+    "withdrawn.heading": {EN: "This visit invitation has been withdrawn", AR: "سُحبت دعوة الزيارة هذه"},
+    "withdrawn.intro": {
+        EN: "The visit has been removed from your calendar.",
+        AR: "أُزيلت الزيارة من تقويمك.",
+    },
     # ---- password reset ----------------------------------------------------------------------------
     "reset.kind": {EN: "Password reset", AR: "إعادة تعيين كلمة المرور"},
     "reset.subject": {

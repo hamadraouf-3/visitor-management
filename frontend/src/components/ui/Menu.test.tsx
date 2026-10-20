@@ -1,8 +1,15 @@
-import { screen, within } from '@testing-library/react'
-import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, screen, within } from '@testing-library/react'
+import { Archive } from 'lucide-react'
+import { createRef } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { deferred } from '../../test/api'
 import { renderWithProviders } from '../../test/render'
-import { Menu, type MenuEntry, type MenuItem } from './Menu'
+import { Menu, type MenuControl, type MenuItem } from './Menu'
+
+/** Lets a load that was settled reach the menu. */
+async function settle() {
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+}
 
 function renderMenu({ onArchive = vi.fn<() => void>(), header }: { onArchive?: () => void; header?: string } = {}) {
   const items: MenuItem[] = [
@@ -102,108 +109,220 @@ describe('Menu', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(trigger).not.toHaveAttribute('aria-controls')
   })
-})
 
-function renderChoices({ dir = 'ltr' }: { dir?: 'ltr' | 'rtl' } = {}) {
-  const chosen: string[] = []
-  function Choices() {
-    const [value, setValue] = useState('system')
-    const entries: MenuEntry[] = [
-      {
-        id: 'appearance',
-        type: 'radio-group',
-        label: 'Appearance',
-        value,
-        options: [
-          { value: 'light', label: 'Light' },
-          { value: 'dark', label: 'Dark' },
-          { value: 'system', label: 'System' },
-        ],
-        onValueChange: (next) => {
-          chosen.push(next)
-          setValue(next)
-        },
-      },
-      { id: 'sign-out', label: 'Sign out', onSelect: () => {} },
-    ]
-    return <Menu items={entries} trigger="Account" />
-  }
-  const view = renderWithProviders(
-    <div dir={dir}>
-      <Choices />
-    </div>,
-  )
-  return { ...view, chosen, trigger: screen.getByRole('button', { name: 'Account' }) }
-}
+  it('moves on from the item that has the focus, also when a pointer put it there', async () => {
+    const { user, trigger } = renderMenu()
 
-const choice = (name: string) => screen.getByRole('menuitemradio', { name })
-
-describe('Menu, with a group of choices (menuitemradio)', () => {
-  it('is a named group of menuitemradio items, the chosen one checked, set apart from the items after it', async () => {
-    const { user, trigger } = renderChoices()
     await user.click(trigger)
-    const menu = screen.getByRole('menu')
-    const group = within(menu).getByRole('group', { name: 'Appearance' })
-    expect(within(group).getAllByRole('menuitemradio').map((item) => [item.textContent, item.getAttribute('aria-checked')])).toEqual([
-      ['Light', 'false'],
-      ['Dark', 'false'],
-      ['System', 'true'],
-    ])
-    // Its name is read once, through the group: the visible words are hidden from the tree.
-    expect(within(menu).getAllByText('Appearance').every((element) => element.getAttribute('aria-hidden') === 'true')).toBe(true)
-    expect(within(menu).getByRole('separator')).toBeInTheDocument()
-    // The arrows visit every choice, then the items after them.
-    expect(choice('Light')).toHaveFocus()
-    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
-    expect(screen.getByRole('menuitem', { name: 'Sign out' })).toHaveFocus()
-    await user.keyboard('{ArrowDown}')
-    expect(choice('Light')).toHaveFocus()
+    expect(screen.getByRole('menuitem', { name: 'Profile' })).toHaveFocus()
+    // A pointer pressed Delete (its focus, without choosing): the arrows go on from there.
+    screen.getByRole('menuitem', { name: 'Delete' }).focus()
+    await user.keyboard('{ArrowUp}')
+    expect(screen.getByRole('menuitem', { name: 'Archive' })).toHaveFocus()
+    await user.keyboard('{ArrowDown}{ArrowDown}')
+    expect(screen.getByRole('menuitem', { name: 'Profile' })).toHaveFocus()
   })
 
-  it('chooses with a click and with Space, and stays open; Enter chooses, closes and returns focus', async () => {
-    const { user, trigger, chosen } = renderChoices()
+  it('opens an address outside the app in a new tab, says so to a screen reader, and returns the focus to the trigger', async () => {
+    const { user } = renderWithProviders(<Menu items={[{ id: 'google', label: 'Google Calendar', href: 'https://calendar.google.com/calendar/render?action=TEMPLATE' }]} trigger="Add to my calendar" fitContent />)
+    const trigger = screen.getByRole('button', { name: 'Add to my calendar' })
+
     await user.click(trigger)
-    await user.click(choice('Dark'))
-    expect(choice('Dark')).toHaveAttribute('aria-checked', 'true')
-    expect(choice('System')).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByRole('menu')).toBeInTheDocument()
-
-    choice('Light').focus()
-    await user.keyboard(' ')
-    expect(choice('Light')).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('menu')).toBeInTheDocument()
-
-    await user.keyboard('{ArrowDown}{Enter}')
+    const item = screen.getByRole('menuitem', { name: 'Google Calendar (opens in a new tab)' })
+    expect(item.tagName).toBe('A')
+    expect(item).toHaveAttribute('href', 'https://calendar.google.com/calendar/render?action=TEMPLATE')
+    expect(item).toHaveAttribute('target', '_blank')
+    // No opener and no referrer: the new tab cannot reach this page or learn its address.
+    expect(item).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(item).toHaveFocus()
+    // As wide as its items, not as the trigger: no name wraps beside a narrow button.
+    expect(screen.getByRole('menu').parentElement?.className).toContain('w-max')
+    item.addEventListener('click', (event) => event.preventDefault())
+    await user.click(item)
     expect(screen.queryByRole('menu')).toBeNull()
     expect(trigger).toHaveFocus()
-    // One choice per activation: Space and Enter never also click.
-    expect(chosen).toEqual(['dark', 'light', 'dark'])
   })
 
-  it('moves between the choices with Left and Right in the reading direction, from wherever the pointer left the focus', async () => {
-    const ltr = renderChoices()
-    await ltr.user.click(ltr.trigger)
-    await ltr.user.keyboard('{ArrowRight}')
-    expect(choice('Dark')).toHaveFocus()
-    await ltr.user.keyboard('{ArrowRight}{ArrowRight}')
-    expect(choice('Light')).toHaveFocus()
-    await ltr.user.keyboard('{ArrowLeft}')
-    expect(choice('System')).toHaveFocus()
-    // Left and Right mean nothing on an item outside the group.
-    await ltr.user.keyboard('{End}{ArrowRight}')
-    expect(screen.getByRole('menuitem', { name: 'Sign out' })).toHaveFocus()
-    // A pointer put the focus on Dark: the arrows go on from there.
-    await ltr.user.click(choice('Dark'))
-    await ltr.user.keyboard('{ArrowDown}')
-    expect(choice('System')).toHaveFocus()
-    ltr.unmount()
+  it('chooses a link item with Space, as a button item, but not with the Space that opened the menu on it', async () => {
+    const clicks: string[] = []
+    const { user, router } = renderWithProviders(
+      <Menu
+        items={[
+          { id: 'google', label: 'Google Calendar', href: 'https://calendar.google.com/calendar/render' },
+          { id: 'profile', label: 'Profile', to: '/profile' },
+          { id: 'archive', label: 'Archive', onSelect: () => clicks.push('archive') },
+        ]}
+        trigger="Actions"
+      />,
+    )
+    const trigger = screen.getByRole('button', { name: 'Actions' })
 
-    const rtl = renderChoices({ dir: 'rtl' })
-    await rtl.user.click(rtl.trigger)
-    // In right-to-left text the next choice lies to the left.
-    await rtl.user.keyboard('{ArrowLeft}')
-    expect(choice('Dark')).toHaveFocus()
-    await rtl.user.keyboard('{ArrowRight}')
-    expect(choice('Light')).toHaveFocus()
+    // Space on the trigger opens the menu on the link: its release there chooses nothing.
+    trigger.focus()
+    await user.keyboard(' ')
+    const google = screen.getByRole('menuitem', { name: 'Google Calendar (opens in a new tab)' })
+    expect(google).toHaveFocus()
+    google.addEventListener('click', (event) => {
+      clicks.push('google')
+      event.preventDefault()
+    })
+    await user.keyboard(' ')
+    expect(clicks).toEqual(['google'])
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).toHaveFocus()
+
+    // A page of the app, with Space.
+    await user.keyboard('{Enter}{ArrowDown}')
+    expect(screen.getByRole('menuitem', { name: 'Profile' })).toHaveFocus()
+    await user.keyboard(' ')
+    expect(router.state.location.pathname).toBe('/profile')
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('loads its items when it opens: busy meanwhile, then open on them', async () => {
+    const load = deferred<readonly MenuItem[] | null>()
+    const loadItems = vi.fn<() => Promise<readonly MenuItem[] | null>>(() => load.promise)
+    const { user } = renderWithProviders(
+      <div>
+        <Menu trigger="Actions" triggerIcon={<Archive aria-hidden="true" data-icon="archive" />} loadItems={loadItems} />
+        <button type="button">Elsewhere</button>
+      </div>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Actions' })
+    expect(trigger.querySelector('[data-icon="archive"]')).not.toBeNull()
+
+    trigger.focus()
+    await user.keyboard('{ArrowUp}')
+    // The kit's loading state: busy and unavailable, but still focused, the spinner in place of the icon;
+    // a second press asks nothing more.
+    expect(trigger).toHaveAttribute('aria-busy', 'true')
+    expect(trigger).toHaveAttribute('aria-disabled', 'true')
+    expect(trigger.querySelector('.animate-spin')).not.toBeNull()
+    expect(trigger.querySelector('[data-icon="archive"]')).toBeNull()
+    expect(trigger).toHaveFocus()
+    await user.click(trigger)
+    expect(loadItems).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).toBeNull()
+
+    load.resolve([{ id: 'one', label: 'One', onSelect: () => {} }, { id: 'two', label: 'Two', onSelect: () => {} }])
+    await settle()
+    // ArrowUp opened it on the last of the items that came.
+    expect(screen.getByRole('menuitem', { name: 'Two' })).toHaveFocus()
+    expect(trigger).not.toHaveAttribute('aria-busy')
+    expect(trigger).not.toHaveAttribute('aria-disabled')
+    expect(trigger.querySelector('.animate-spin')).toBeNull()
+    expect(trigger.querySelector('[data-icon="archive"]')).not.toBeNull()
+  })
+
+  it('opens nothing when the load brings nothing, fails, or is overtaken by Escape, a click outside or the focus leaving', async () => {
+    let load = deferred<readonly MenuItem[] | null>()
+    const { user } = renderWithProviders(
+      <div>
+        <Menu trigger="Actions" loadItems={() => load.promise} />
+        <button type="button">Elsewhere</button>
+      </div>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Actions' })
+    const item: MenuItem = { id: 'one', label: 'One', onSelect: () => {} }
+
+    await user.click(trigger)
+    load.resolve(null)
+    await settle()
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).not.toHaveAttribute('aria-busy')
+
+    load = deferred()
+    await user.click(trigger)
+    load.reject(new Error('offline'))
+    await settle()
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).not.toHaveAttribute('aria-busy')
+
+    for (const overtake of [() => user.keyboard('{Escape}'), () => user.click(screen.getByRole('button', { name: 'Elsewhere' })), () => user.tab()]) {
+      load = deferred()
+      trigger.focus()
+      await user.keyboard('{Enter}')
+      expect(trigger).toHaveAttribute('aria-busy', 'true')
+      await overtake()
+      expect(trigger).not.toHaveAttribute('aria-busy')
+      load.resolve([item])
+      await settle()
+      expect(screen.queryByRole('menu')).toBeNull()
+    }
+
+    // Asked again, it opens.
+    load = deferred()
+    await user.click(trigger)
+    load.resolve([item])
+    await settle()
+    expect(screen.getByRole('menuitem', { name: 'One' })).toHaveFocus()
+  })
+
+  it('closes from outside when its items went out of date: the focus back on the trigger, a load stopped', async () => {
+    const control = createRef<MenuControl>()
+    let load = deferred<readonly MenuItem[] | null>()
+    const { user } = renderWithProviders(<Menu trigger="Actions" loadItems={() => load.promise} controlRef={control} />)
+    const trigger = screen.getByRole('button', { name: 'Actions' })
+
+    trigger.focus()
+    await user.keyboard('{Enter}')
+    load.resolve([{ id: 'one', label: 'One', onSelect: () => {} }])
+    await settle()
+    expect(screen.getByRole('menuitem', { name: 'One' })).toHaveFocus()
+    act(() => control.current!.close())
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).toHaveFocus()
+
+    // While its items load: the load opens nothing any more.
+    load = deferred()
+    await user.keyboard('{Enter}')
+    expect(trigger).toHaveAttribute('aria-busy', 'true')
+    act(() => control.current!.close())
+    expect(trigger).not.toHaveAttribute('aria-busy')
+    load.resolve([{ id: 'one', label: 'One', onSelect: () => {} }])
+    await settle()
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+})
+
+describe('Menu: a held key', () => {
+  // A link item's activation, wherever it comes from (a press, a key, the kit's own click).
+  const followed: string[] = []
+  const follow = (event: MouseEvent) => {
+    if (!(event.target instanceof HTMLAnchorElement)) return
+    followed.push(event.target.textContent ?? '')
+    event.preventDefault()
+  }
+  afterEach(() => {
+    document.removeEventListener('click', follow, true)
+    followed.length = 0
+  })
+
+  it.each(['Space', 'Enter'])('chooses nothing when a held %s repeats on the first item it opened the menu on', async (key) => {
+    document.addEventListener('click', follow, true)
+    const onSelect = vi.fn<() => void>()
+    const { user } = renderWithProviders(
+      <div>
+        <Menu items={[{ id: 'google', label: 'Google Calendar', href: 'https://calendar.google.com/calendar/render' }]} trigger="Calendars" />
+        <Menu items={[{ id: 'archive', label: 'Archive', onSelect }]} trigger="Actions" />
+      </div>,
+    )
+
+    // The OS repeats the keydown of a key held down; the first one opens the menu on its first item.
+    for (const name of ['Calendars', 'Actions']) {
+      const trigger = screen.getByRole('button', { name })
+      trigger.focus()
+      await user.keyboard(`[${key}>4/]`)
+      const first = within(screen.getByRole('menu', { name })).getAllByRole('menuitem')[0]!
+      expect(first).toHaveFocus()
+      await user.keyboard('{Escape}')
+    }
+    expect(followed).toEqual([])
+    expect(onSelect).not.toHaveBeenCalled()
+
+    // A press of its own still chooses.
+    await user.click(screen.getByRole('button', { name: 'Calendars' }))
+    await user.keyboard(key === 'Space' ? ' ' : '{Enter}')
+    expect(followed).toEqual(['Google Calendar'])
   })
 })

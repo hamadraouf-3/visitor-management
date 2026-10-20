@@ -37,7 +37,11 @@ export function CompanyIdentityCard({ company, displayName }: { company: Platfor
           {
             term: t('company.identity.logo'),
             description: brand.logo_url ? (
-              <span className="inline-flex h-12 max-w-44 items-center rounded-item border border-border bg-white px-2.5 py-1.5">
+              // The logo for light surfaces on the card itself; on a white plate in the dark scheme only (Phase 13, F13-26).
+              <span
+                data-logo-plate="dark-scheme"
+                className="inline-flex h-12 max-w-44 items-center rounded-item border border-transparent px-2.5 py-1.5 scheme-dark:border-border scheme-dark:bg-white"
+              >
                 <img
                   src={brand.logo_url}
                   alt={t('identity.logos.previewAlt', { slot: t('company.identity.logo'), name: displayName })}

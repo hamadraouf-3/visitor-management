@@ -13,6 +13,15 @@ function recipient(invitation: Invitation): TextPart {
 }
 
 /**
+ * FAILED because the calendar invitation that followed the latest invitation did not arrive, while the
+ * invitation itself, with the pass, went out or is on its way (`calendar_failed`, Phase 14): worded as
+ * the calendar invitation's, never as a visitor without a pass. A resend sends both again.
+ */
+export function calendarInvitationFailed(invitation: Invitation): boolean {
+  return invitation.status === 'FAILED' && invitation.calendar_failed
+}
+
+/**
  * The success view's page title: the outcome that holds whatever happens to the email (the
  * visit exists and its pass works), or that the visit was cancelled from the view. The card
  * below names the visitor; the invitation's state is the status line under the name.
@@ -76,7 +85,9 @@ export function invitationStatusText(invitation: Invitation, pollingStopped: boo
     case 'SENT':
       return textWithParts((markers) => t('invitationText.statusSent', markers), parts)
     case 'FAILED':
-      return textWithParts((markers) => t('invitationText.statusFailed', markers), parts)
+      return calendarInvitationFailed(invitation)
+        ? textWithParts((markers) => t('invitationText.statusCalendarFailed', markers), parts)
+        : textWithParts((markers) => t('invitationText.statusFailed', markers), parts)
   }
 }
 
@@ -94,7 +105,9 @@ export function invitationSummaryText(invitation: Invitation, timeZone: string, 
         : textWithParts((markers) => t('invitationText.summarySent', markers), parts)
     }
     case 'FAILED':
-      return textWithParts((markers) => t('invitationText.summaryFailed', markers), parts)
+      return calendarInvitationFailed(invitation)
+        ? textWithParts((markers) => t('invitationText.statusCalendarFailed', markers), parts)
+        : textWithParts((markers) => t('invitationText.summaryFailed', markers), parts)
     case 'PENDING':
       return textWithParts((markers) => t('invitationText.summaryPending', markers), parts)
     case 'NOT_SENT':
@@ -102,18 +115,24 @@ export function invitationSummaryText(invitation: Invitation, timeZone: string, 
   }
 }
 
-/** The title of a failed invitation's alert (success view and visit page): "Invitation not delivered to x". */
+/**
+ * The title of a failed invitation's alert (success view and visit page): "Invitation not delivered to
+ * x", or "The calendar invitation did not reach x" when only the calendar invitation failed.
+ */
 export function invitationFailedTitle(invitation: Invitation): TextPart[] {
   const email = invitation.to_email
-  return email
-    ? textWithParts((markers) => t('invitationText.failedTitleTo', markers), { email: { email } })
-    : [t('invitationText.failedTitle')]
+  const calendar = calendarInvitationFailed(invitation)
+  if (!email) return [calendar ? t('invitationText.calendarFailedTitle') : t('invitationText.failedTitle')]
+  return textWithParts((markers) => (calendar ? t('invitationText.calendarFailedTitleTo', markers) : t('invitationText.failedTitleTo', markers)), {
+    email: { email },
+  })
 }
 
 /**
  * Whether the visitor depends on the one-time pass link: no invitation email went out, or it
- * failed. While an invitation is pending or sent, the email carries the QR code.
+ * failed. While an invitation is pending or sent, the email carries the QR code; so it does when
+ * only the calendar invitation that followed it failed.
  */
 export function passIsOnlyChannel(visit: Visit): boolean {
-  return visit.invitation.status === 'NOT_SENT' || visit.invitation.status === 'FAILED'
+  return visit.invitation.status === 'NOT_SENT' || (visit.invitation.status === 'FAILED' && !calendarInvitationFailed(visit.invitation))
 }

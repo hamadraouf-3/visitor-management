@@ -38,7 +38,7 @@ function setup({ template = makeEmailTemplate(), me = ADMIN, extra = {} }: { tem
   let current = template
   const api = mockApi({
     'GET /auth/me': () => jsonResponse(me),
-    'GET /email-templates': () => jsonResponse([current, makeEmailTemplate('VISIT_RESCHEDULED'), makeEmailTemplate('VISIT_CANCELLED'), makeEmailTemplate('HOST_ARRIVAL')]),
+    'GET /email-templates': () => jsonResponse([current, makeEmailTemplate('VISIT_RESCHEDULED'), makeEmailTemplate('VISIT_CANCELLED'), makeEmailTemplate('HOST_ARRIVAL'), makeEmailTemplate('HOST_VISIT_SCHEDULED'), makeEmailTemplate('HOST_VISIT_RESCHEDULED'), makeEmailTemplate('HOST_VISIT_CANCELLED')]),
     'GET /email-templates/VISITOR_INVITATION': () => jsonResponse(current),
     'PATCH /email-templates/VISITOR_INVITATION': (request) => {
       const body = request.body as EmailTemplateUpdate
@@ -79,13 +79,24 @@ function previewSection(line: string): Element | null {
 }
 
 describe('the email texts list', () => {
-  it('lists the four emails with what the company changed, under Administration', async () => {
+  it('lists the seven emails with what the company changed, under Administration', async () => {
     setup({ template: withOverrides(makeEmailTemplate(), { en: { subject: 'Hi {company}' }, ar: { subject: 'أهلًا {company}' } }) })
     renderRoutes(routes, { initialEntries: ['/admin/email-templates'] })
 
     const list = await screen.findByRole('list', { name: 'Emails' })
     const items = within(list).getAllByRole('listitem')
-    expect(items.map((item) => within(item).getByRole('link').textContent)).toEqual(['Visitor invitation', 'Visit rescheduled', 'Visit cancelled', 'Visitor arrival'])
+    expect(items.map((item) => within(item).getByRole('link').textContent)).toEqual([
+      'Visitor invitation',
+      'Visit rescheduled',
+      'Visit cancelled',
+      'Visitor arrival',
+      'New visit (host)',
+      'Visit rescheduled (host)',
+      'Visit cancelled (host)',
+    ])
+    // Phase 14: the host's three e-mails of a visit are the host's.
+    expect(items.slice(3).map((item) => item.textContent?.includes('To the host'))).toEqual([true, true, true, true])
+    expect(within(items[4]!).getByRole('link')).toHaveAttribute('href', '/admin/email-templates/HOST_VISIT_SCHEDULED')
     expect(items[0]).toHaveTextContent('2 texts changed')
     expect(items[0]).toHaveTextContent('To the visitor')
     // One name for the default texts in English too, as «النصوص الأصلية» in Arabic.
@@ -540,7 +551,7 @@ describe('the email texts editor', () => {
     expect(section(`Hello ${isolated('سارة أحمد')},`)).toHaveAttribute('dir', 'ltr')
   })
 
-  it('says when the email is not one of the four', async () => {
+  it('says when the email is not one of the seven', async () => {
     mockApi({ 'GET /auth/me': () => jsonResponse(ADMIN) })
     renderRoutes(routes, { initialEntries: ['/admin/email-templates/PASSWORD_RESET'] })
     expect(await screen.findByRole('heading', { level: 1, name: 'Email not found' })).toBeInTheDocument()
@@ -589,5 +600,54 @@ describe('the email texts editor', () => {
     await screen.findByRole('heading', { level: 1, name: 'دعوة الزائر' })
     await user.click(screen.getByRole('button', { name: 'إرسال رسالة تجريبية' }))
     expect(await screen.findByText('بلغت الحد المسموح من الرسائل التجريبية. حاول مجددًا بعد 59 دقيقة.')).toBeInTheDocument()
+  })
+})
+
+/*
+ * Phase 14: the host's three e-mails of a visit (a new visit, a new time, a cancellation) are edited like
+ * the others: their texts in both languages without a button, the visitor's name required in the subject,
+ * the department among the variables, the draft's preview and the test sent to the administrator.
+ */
+describe('the host’s visit emails', () => {
+  it.each([
+    ['HOST_VISIT_SCHEDULED', 'New visit (host)'],
+    ['HOST_VISIT_RESCHEDULED', 'Visit rescheduled (host)'],
+    ['HOST_VISIT_CANCELLED', 'Visit cancelled (host)'],
+  ] as const)('edits %s: its fields, its rules, its preview and its test', async (kind, name) => {
+    const base = `/email-templates/${kind}`
+    const { requests } = setup({
+      extra: {
+        [`GET ${base}`]: () => jsonResponse(makeEmailTemplate(kind)),
+        [`POST ${base}/preview`]: (request) => jsonResponse({ ...makePreview((request.body as { language: 'ar' | 'en' }).language), kind }),
+        [`POST ${base}/test`]: () => jsonResponse({ sent_to: ADMIN.user.email }, 202),
+      },
+    })
+    const { user } = renderRoutes(routes, { initialEntries: [`/admin/email-templates/${kind}`] })
+    expect(await screen.findByRole('heading', { level: 1, name })).toBeInTheDocument()
+    await waitFor(() => expect(document.title).toBe(`${name} · Acme Holdings`))
+    expect(screen.getByRole('heading', { level: 1, name }).closest('header')).toHaveTextContent('To the host')
+
+    // Every text but a button's, in both languages.
+    expect(within(screen.getByRole('main')).getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual(
+      expect.arrayContaining(['Subject', 'Heading', 'Greeting', 'Opening paragraph', 'Closing paragraph', 'Footer line']),
+    )
+    expect(document.querySelector('[data-template-field="en.button"]')).toBeNull()
+    expect(control('ar', 'subject')).toHaveAttribute('dir', 'rtl')
+
+    // The subject names the visitor and never holds the purpose; the department is a variable.
+    expect(within(fieldBox('en', 'subject')).getByText('Must include Visitor name')).toBeInTheDocument()
+    expect(chips('Variables: Subject (English)')).toEqual(['Host name', 'Visitor name', "Visitor's company", 'Company', 'Date', 'Time', 'Time zone', 'Department'])
+    expect(chips('Variables: Opening paragraph (English)')).toContain('Purpose')
+    await user.click(control('en', 'subject'))
+    await user.paste('Visit {department}')
+    expect(fieldBox('en', 'subject')).toHaveTextContent('Include “Visitor name” in this text.')
+    await user.clear(control('en', 'subject'))
+
+    await user.type(control('en', 'footer_note'), 'Meet them at the desk.')
+    await waitFor(() => expect(requests.some((request) => request.method === 'POST' && request.path === `${base}/preview`)).toBe(true))
+    await user.click(screen.getByRole('button', { name: 'Send test' }))
+    expect(await screen.findByText('Test email sent')).toBeInTheDocument()
+    const body = requests.find((request) => request.path === `${base}/test`)?.body as { en: Record<string, unknown> }
+    expect(body.en.footer_note).toBe('Meet them at the desk.')
   })
 })

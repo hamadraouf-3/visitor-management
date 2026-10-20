@@ -1,10 +1,9 @@
 import { Building2, ChevronDown, ChevronsUpDown, KeyRound, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getErrorMessage } from '../api/client'
-import { useAppearanceMenuGroup } from '../appearance/useAppearance'
 import { useSignOut } from '../auth/useSessionActions'
 import { Avatar } from '../components/ui/Avatar'
-import { Menu, type MenuEntry } from '../components/ui/Menu'
+import { Menu, type MenuItem } from '../components/ui/Menu'
 import { useToast } from '../components/ui/toastContext'
 import { useCompanyName } from '../i18n/useLanguage'
 import { paths } from '../paths'
@@ -19,9 +18,10 @@ export interface UserMenuProps {
 }
 
 /**
- * The signed-in user's block and account menu: the device's appearance (Light, Dark, System: Phase 13),
- * change password, sign out. The menu's header names the user, their e-mail, roles and company. The sidebar's block does not repeat the company:
- * its logo or wordmark heads the shell (Phase 12), so every user sees whose data they are in.
+ * The signed-in user's block and account menu: change password, sign out (the appearance is the shell's
+ * toggle beside the language switch, Phase 13). The menu's header names the user, their e-mail, roles
+ * and company. The sidebar's block does not repeat the company: its logo or wordmark heads the shell
+ * (Phase 12), so every user sees whose data they are in.
  *
  * The menu is never wider than the screen (`Menu`): the name and the address are cut with an
  * ellipsis, and the company's name, which may be long, wraps onto a second line.
@@ -31,13 +31,11 @@ export function UserMenu({ user, company, placement = 'bar' }: UserMenuProps) {
   const signOut = useSignOut()
   const toast = useToast()
   const companyName = useCompanyName(company)
-  const appearance = useAppearanceMenuGroup()
   const inSidebar = placement === 'sidebar'
   // One person's roles: their job titles («موظف · مدير النظام»), not the teams' names.
   const roles = user.roles.map((role) => t(`roles.person.${role}`)).join(' · ')
 
-  const items: MenuEntry[] = [
-    appearance,
+  const items: MenuItem[] = [
     { id: 'change-password', label: t('account.changePassword'), icon: KeyRound, to: paths.changePassword },
     {
       id: 'sign-out',
@@ -92,7 +90,8 @@ export function UserMenu({ user, company, placement = 'bar' }: UserMenuProps) {
           ) : (
             <>
               <span className="hidden max-w-48 truncate sm:inline">{user.full_name}</span>
-              <ChevronDown aria-hidden="true" className="size-4 text-fg-muted" />
+              {/* Below 384 px the avatar alone (a 44 px target): the bar also holds both switches. */}
+              <ChevronDown aria-hidden="true" className="size-4 text-fg-muted max-[24rem]:hidden" />
             </>
           )}
         </>

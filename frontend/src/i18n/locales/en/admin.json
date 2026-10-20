@@ -191,6 +191,8 @@
       "reschedule_notices_per_user_day": "Reschedule emails per day",
       "reschedule_notices_per_visit": "Reschedule emails per visit",
       "host_arrivals_per_user_day": "Host notifications per day",
+      "host_visit_notices_per_user_day": "Host visit emails per day",
+      "calendar_emails_per_company_day": "Calendar emails per company per day",
       "api_per_user": "Requests",
       "platform": "Platform owner",
       "company_inactive": "Deactivated company",
@@ -207,6 +209,9 @@
       "VISITOR_INVITATION": "Visitor invitation",
       "VISIT_RESCHEDULED": "Visit rescheduled",
       "HOST_ARRIVAL": "Visitor arrival",
+      "HOST_VISIT_SCHEDULED": "New visit (host)",
+      "HOST_VISIT_RESCHEDULED": "Visit rescheduled (host)",
+      "HOST_VISIT_CANCELLED": "Visit cancelled (host)",
       "PASSWORD_RESET": "Password reset",
       "PASSWORD_CHANGED": "Password changed"
     },
@@ -254,6 +259,9 @@
       "host_notified": "Host notified",
       "notice": "Notice",
       "notice_limited_by": "Notice limited by",
+      "host_notice_limited_by": "Host notice limited by",
+      "calendar_sent": "Calendar event sent",
+      "host_calendar_sent": "Host calendar event sent",
       "visitor_notified": "Visitor notified",
       "reason_given": "Reason given",
       "trigger": "Trigger",
@@ -571,7 +579,10 @@
       "VISITOR_INVITATION": "Visitor invitation",
       "VISIT_RESCHEDULED": "Visit rescheduled",
       "VISIT_CANCELLED": "Visit cancelled",
-      "HOST_ARRIVAL": "Visitor arrival"
+      "HOST_ARRIVAL": "Visitor arrival",
+      "HOST_VISIT_SCHEDULED": "New visit (host)",
+      "HOST_VISIT_RESCHEDULED": "Visit rescheduled (host)",
+      "HOST_VISIT_CANCELLED": "Visit cancelled (host)"
     },
     "recipients": {
       "visitor": "To the visitor",

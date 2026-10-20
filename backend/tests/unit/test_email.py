@@ -1,5 +1,6 @@
 import json
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from app.core.config import ConfigurationError, Settings
 from app.email.dispatcher import sanitize_error
 from app.email.headers import sanitize_header
 from app.email.identity import DEFAULT_COLORS, Identity
-from app.email.providers.base import EmailDeliveryError, InlineImage, OutgoingEmail
+from app.email.providers.base import CalendarPart, EmailDeliveryError, InlineImage, OutgoingEmail
 from app.email.providers.factory import create_email_provider, ehlo_name, email_configuration_warnings
 from app.email.providers.memory import MemoryProvider
 from app.email.providers.outbox import OutboxProvider
@@ -123,6 +124,7 @@ def test_outbox_writes_the_contract_files(tmp_path: Path) -> None:
         "created_at": "2026-10-05T08:30:00Z",
         "pass_url": None,
         "reset_url": RESET_URL,
+        "calendar": None,  # no calendar event (Phase 14, B14-7)
     }
     assert (tmp_path / f"{stem}-qr.png").read_bytes() == b"\x89PNG fake"
 
@@ -300,3 +302,28 @@ def test_the_outbox_writes_every_inline_image_of_a_real_message(tmp_path: Path) 
     html = (tmp_path / f"{stem}.html").read_text(encoding="utf-8")
     for content_id in (LOGO_CONTENT_ID, QR_CONTENT_ID):
         assert f'src="cid:{content_id}"' in html
+
+
+def test_the_outbox_writes_a_calendar_event_beside_the_message(tmp_path: Path) -> None:
+    """Phase 14 (B14-7): `<id>.ics`, the event octet for octet, and `calendar` in the JSON file with its
+    method, UID and version (what the E2E suite checks without parsing the file)."""
+    content = b"BEGIN:VCALENDAR\r\nMETHOD:CANCEL\r\nEND:VCALENDAR\r\n"
+    calendar = CalendarPart(method="CANCEL", uid="visit-1-host", sequence=3, content=content)
+    email = replace(_email(), kind=EmailKind.HOST_VISIT_CANCELLED, calendar=calendar)
+    OutboxProvider(tmp_path, clock=lambda: datetime(2026, 10, 19, tzinfo=UTC)).send(email)
+    stem = str(email.message_id)
+    assert (tmp_path / f"{stem}.ics").read_bytes() == content
+    metadata = json.loads((tmp_path / f"{stem}.json").read_text(encoding="utf-8"))
+    assert metadata["kind"] == "HOST_VISIT_CANCELLED"
+    assert metadata["calendar"] == {"method": "CANCEL", "uid": "visit-1-host", "sequence": 3}
+    # A message without one has no file.
+    other = tmp_path / "other"
+    OutboxProvider(other).send(_email())
+    assert not list(other.glob("*.ics"))
+
+
+def test_the_memory_provider_keeps_the_event() -> None:
+    calendar = CalendarPart(method="REQUEST", uid="u", sequence=0, content=b"BEGIN:VCALENDAR\r\n")
+    provider = MemoryProvider()
+    provider.send(replace(_email(), calendar=calendar))
+    assert provider.sent[0].calendar == calendar

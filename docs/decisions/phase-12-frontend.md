@@ -143,6 +143,9 @@ falls back to the product's logo: a company without a logo is its own name, in t
 `IdentityLockup` is what a page uses: the company's logo, the product's lockup in the platform area, or the
 page's `neutral` content.
 
+*The light page changed by F13-26 (2026-10-19): in the light scheme the logo stands on the page itself, without a
+plate.*
+
 **F12-8 — The neutral sign-in page.** No logo, no name. In the logo's place stands direction C's dark tile
 with the page's own symbol (`NeutralMark`: a lock on the sign-in page, a key on the password pages), in
 `bg-emphasis` with the highlight colour, so the page has the product's shape without anybody's mark. The
@@ -305,6 +308,9 @@ darkened until white reads on it): the preview shows what people will see, not t
 white plate (a building tile where it has none), and a company's page has an identity card: the logo, the
 colour's swatch and value, the sign-in link with a copy button (`{origin}/c/{slug}`), and the ways to
 "Edit identity" and "Email texts".
+
+*Changed by F13-26 (2026-10-19): in the light scheme the logo stands on the card, without the plate; in the dark
+scheme it is the company's logo for dark surfaces, or the logo on its plate for a company without one.*
 
 **F12-24 — "Email texts" of a company, for the platform owner**
 (`/platform/companies/{id}/email-templates[/{kind}]`). The Phase 11 list and editor serve both: they read
@@ -598,6 +604,9 @@ around it, in the light scheme as it did in the dark one, so a logo saved before
 own, looks meant; with a logo for dark surfaces the plate lets go of its fill in the dark scheme. The room
 kept for the logo while it is on its way is the plate's height (82 px), so the form still does not move
 (the existing spec found that it did, by 9 to 18 px, before the room was made).
+
+*(b) changed by F13-26 (2026-10-19): in the light scheme the logo stands on the page itself, no plate; the plate
+is the dark scheme's alone, for a company without a logo for dark surfaces, in the same room.*
 
 **F12-33 — The app icon of a wordmark is the company's letter on its colour (review 6, 9).** The icon made
 from a logo was the logo at 76 % of a white tile: for a wordmark a speck in a browser tab. For a logo wider

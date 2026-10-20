@@ -196,7 +196,7 @@ def test_the_demo_company_s_e_mails_carry_its_brand(
     host = _signed_in(make_client, "host@demo.local")
     me = host.get("/auth/me").json()
     create_visit(host, me["user"]["id"], TEST_START.replace(hour=12), send_invitation=True)
-    invitation = email_provider.sent[-1]
+    [invitation] = [sent for sent in email_provider.sent if sent.kind == "VISITOR_INVITATION"]
     # The demo's two logos, as e-mails send them since Phase 13 (B13-2): the light rendition, and the
     # one for the dark design.
     assert {image.content_id: image.content for image in invitation.inline_images} == {
@@ -210,7 +210,7 @@ def test_the_demo_company_s_e_mails_carry_its_brand(
     create_visit(
         other, other.get("/auth/me").json()["user"]["id"], TEST_START.replace(hour=12), send_invitation=True
     )
-    plain = email_provider.sent[-1]
+    [plain] = [sent for sent in email_provider.sent if sent.kind == "VISITOR_INVITATION"][1:]
     assert [image.content_id for image in plain.inline_images] == ["visitor-pass-qr"]
     assert plain.sender == '"Other Corp" <no-reply@localhost>'
 

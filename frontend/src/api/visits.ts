@@ -5,6 +5,7 @@ import type {
   VisitCancelRequest,
   VisitCreate,
   VisitCreateResult,
+  VisitResendResult,
   VisitListParams,
   VisitPage,
   VisitPassResult,
@@ -35,8 +36,12 @@ export function cancelVisit(id: string, body: VisitCancelRequest = {}, options?:
   return apiRequest(`/visits/${segment(id)}/cancel`, { ...options, method: 'POST', body })
 }
 
-/** Rotates the pass (the previous QR stops working) and sends a new invitation (D-10). */
-export function resendInvitation(id: string, options?: CallOptions): Promise<VisitCreateResult> {
+/**
+ * Rotates the pass (the previous QR stops working) and sends a new invitation (D-10); when only the
+ * calendar invitation had failed (`invitation.calendar_failed`), sends that one alone, the pass kept
+ * (`pass_url` null, B14-31).
+ */
+export function resendInvitation(id: string, options?: CallOptions): Promise<VisitResendResult> {
   return apiRequest(`/visits/${segment(id)}/invitation`, { ...options, method: 'POST' })
 }
 

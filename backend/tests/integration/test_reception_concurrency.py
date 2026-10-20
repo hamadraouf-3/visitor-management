@@ -577,7 +577,9 @@ def test_a_check_in_waiting_for_the_hosts_deactivation_is_refused(
     )
     assert _count(committed_session_factory, checked_in) == 0
     arrivals = (
-        select(func.count()).select_from(EmailMessage).where(EmailMessage.visit_id == scenario["visit_id"])
+        select(func.count())
+        .select_from(EmailMessage)
+        .where(EmailMessage.visit_id == scenario["visit_id"], EmailMessage.kind == "HOST_ARRIVAL")
     )
     assert _count(committed_session_factory, arrivals) == 0
 

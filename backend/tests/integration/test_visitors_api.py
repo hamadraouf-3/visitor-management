@@ -326,8 +326,17 @@ def test_email_change_revokes_and_reissues_passes(
 
     response = employee.patch(f"/visitors/{visitor_id}", json={"email": "new@example.com"})
     assert response.status_code == 200, response.text
-    # Both SCHEDULED visits: old pass revoked (VISITOR_EMAIL_CHANGED), new pass sent to the new address.
-    assert sorted(email.to for email in email_provider.sent) == ["new@example.com", "new@example.com"]
+    # Both SCHEDULED visits: old pass revoked (VISITOR_EMAIL_CHANGED), new pass sent to the new address,
+    # each invitation followed by its calendar invitation (B14-10). The one whose calendar invitation went
+    # to the old address is first taken out of that calendar (B14-17).
+    sent = [(email.kind, email.to) for email in email_provider.sent]
+    assert sorted(sent) == sorted(
+        [
+            ("VISITOR_CALENDAR", "old@example.com"),
+            *[("VISITOR_INVITATION", "new@example.com"), ("VISITOR_CALENDAR", "new@example.com")] * 2,
+        ]
+    )
+    assert sent.index(("VISITOR_CALENDAR", "old@example.com")) in {0, 2}  # before its visit's invitation
     for result in (first, second):
         visit_id = result["visit"]["id"]
         passes = db.scalars(
@@ -338,6 +347,7 @@ def test_email_change_revokes_and_reissues_passes(
         detail = employee.get(f"/visits/{visit_id}").json()
         assert detail["invitation"]["to_email"] == "new@example.com"
         assert detail["invitation"]["status"] == "SENT"
+        assert detail["visitor_calendar_sent"] is True
     sent_urls = {email.pass_url for email in email_provider.sent}
     assert first["pass_url"] not in sent_urls and second["pass_url"] not in sent_urls
     # The cancelled visit is untouched.
@@ -405,7 +415,8 @@ def test_more_re_sends_than_the_daily_budget_holds_are_refused_with_what_to_do(
         admin.post(f"/visits/{visits[3]['id']}/cancel", json={"notify_visitor": False})
         changed = admin.patch(f"/visitors/{visitor_id}", json={"email": "contract.correct@example.com"})
         assert changed.status_code == 200, changed.text
-        assert len([sent for sent in email_provider.sent if sent.to == "contract.correct@example.com"]) == 3
+        corrected = [sent for sent in email_provider.sent if sent.to == "contract.correct@example.com"]
+        assert [sent.kind for sent in corrected] == ["VISITOR_INVITATION", "VISITOR_CALENDAR"] * 3
         spent = admin.post("/visits", json=visit_body(world.a.employee.id, START, send_invitation=True))
         assert spent.status_code == 429 and error_code(spent) == "INVITATION_LIMIT"
 

@@ -9,6 +9,9 @@ import { afterFrames, horizontalOverflow } from '../support/ui.ts'
  * The device's appearance (Phase 13) on the real pages, with the running API's data
  * (support/quality-data.ts), at the project's viewport and at 320 px:
  *
+ * - The toggle (F13-25) on a signed-out page and in the administrator's shell: a press draws the other
+ *   scheme than the one shown and keeps it across a reload, from the first frame.
+ *
  * - Dark, chosen on a device whose own scheme is light: the main pages of every kind (the signed-out
  *   pages and the pass, the dashboards, visits, the administrator's pages, reports, the e-mail texts,
  *   the platform owner's pages) have no serious or critical axe violation and no horizontal scroll,
@@ -79,6 +82,8 @@ const ADMIN: PageCheck[] = [
   { name: 'admin: audit log', path: () => '/admin/audit', ready: (page) => page.getByRole('list', { name: 'Audit events, newest first' }) },
   { name: 'reports', path: () => '/reports', ready: h1('Reports') },
   { name: 'admin: e-mail texts editor', path: () => '/admin/email-templates/VISITOR_INVITATION', ready: (page) => page.locator('[data-preview-subject]') },
+  // Phase 14: one of the host's e-mails of a visit.
+  { name: 'admin: e-mail texts editor (host)', path: () => '/admin/email-templates/HOST_VISIT_SCHEDULED', ready: (page) => page.locator('[data-preview-subject]') },
 ]
 
 const RECEPTION: PageCheck[] = [
@@ -160,6 +165,54 @@ test.describe('Dark, on a device in its light scheme', () => {
         await checkPage(page, { name: sub.name, path: () => `${base}/${sub.page}`, ready: sub.ready }, 'dark')
       })
     }
+  })
+})
+
+/** Presses the toggle in `scope` and checks the page: drawn in `scheme`, kept on the device, and so after a reload. */
+async function press(page: Page, scope: Locator, scheme: 'light' | 'dark', ready: Locator) {
+  const toggle = scope.getByRole('button', { name: 'Dark mode', exact: true })
+  await expect(toggle).toHaveAttribute('aria-pressed', String(scheme === 'light'))
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', String(scheme === 'dark'))
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-scheme'))).toBe(scheme)
+  expect(await page.evaluate(() => window.localStorage.getItem('vms.appearance'))).toBe(scheme)
+  await page.reload()
+  await expect(ready).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-scheme'))).toBe(scheme)
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(CANVAS[scheme])
+}
+
+test.describe('The toggle, pressed on a device in its light scheme', () => {
+  test.use({ colorScheme: 'light' })
+
+  test.describe('signed out', () => {
+    test.use({ storageState: { cookies: [], origins: [] } })
+    test('the toggle · signed out · a company’s sign in: Dark, kept across a reload, then Light', async ({ page }) => {
+      const check = SIGNED_OUT[1]!
+      const ready = check.ready(page, qualityData())
+      await page.goto(check.path(qualityData()))
+      await expect(ready).toBeVisible()
+      const header = page.locator('[data-public-header]')
+      await press(page, header, 'dark', ready)
+      await press(page, header, 'light', ready)
+    })
+  })
+
+  test.describe(ACCOUNTS.admin.email, () => {
+    test.use({ storageState: storageStatePath('admin') })
+    test('the toggle · admin · my visits: from the shell, Dark kept across a reload, axe, then Light', async ({ page }) => {
+      const ready = h1('My visits')(page)
+      await page.goto('/visits')
+      await expect(ready).toBeVisible()
+      // The sidebar on a desktop, the top bar below.
+      const shell = page.locator('aside:visible, header[data-app-bar]:visible').first()
+      await press(page, shell, 'dark', ready)
+      await expect(page.locator('[role="status"] .animate-spin')).toHaveCount(0)
+      const results = await new AxeBuilder({ page }).analyze()
+      expect(results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical').map((violation) => violation.id)).toEqual([])
+      expect(await horizontalOverflow(page), 'horizontal page overflow in px').toBeLessThanOrEqual(0)
+      await press(page, shell, 'light', ready)
+    })
   })
 })
 

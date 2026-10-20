@@ -1,0 +1,11 @@
+{% extends "base.txt" %}
+{# A visit taken out of the calendar of an address the visitor no longer has (D-19, B14-17): nothing of the
+   visit, no link. #}
+{% macro body(lang) %}
+{{ t(lang, "withdrawn.heading") }}
+
+{{ t(lang, "withdrawn.intro") }}
+
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

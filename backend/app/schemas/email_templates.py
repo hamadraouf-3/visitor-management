@@ -7,12 +7,16 @@ from app.schemas.common import QueryModel, RequestModel, ResponseModel, UTCDatet
 
 
 class EditableEmailKind(StrEnum):
-    """The e-mails whose texts a company may change (B11-20); the security e-mails may not (B11-21)."""
+    """The e-mails whose texts a company may change (B11-20; the host's three of a scheduled visit since
+    Phase 14, B14-2); the security e-mails may not (B11-21)."""
 
     VISITOR_INVITATION = "VISITOR_INVITATION"
     VISIT_RESCHEDULED = "VISIT_RESCHEDULED"
     VISIT_CANCELLED = "VISIT_CANCELLED"
     HOST_ARRIVAL = "HOST_ARRIVAL"
+    HOST_VISIT_SCHEDULED = "HOST_VISIT_SCHEDULED"
+    HOST_VISIT_RESCHEDULED = "HOST_VISIT_RESCHEDULED"
+    HOST_VISIT_CANCELLED = "HOST_VISIT_CANCELLED"
 
 
 class EmailScheme(StrEnum):

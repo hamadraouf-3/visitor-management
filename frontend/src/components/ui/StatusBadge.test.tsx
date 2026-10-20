@@ -42,6 +42,19 @@ describe('StatusBadge', () => {
     expect(screen.getByText(label)).toBeInTheDocument()
   })
 
+  it('words a FAILED that is only the calendar invitation’s as such, short under a heading and long on its own', () => {
+    const { container, rerender } = render(<StatusBadge type="invitation" status="FAILED" calendarFailed />)
+    expect(chip('Calendar failed')).toHaveClass('bg-danger-surface')
+    expect(container.querySelector('svg.lucide-calendar-x2, svg.lucide-calendar-x-2')).not.toBeNull()
+    rerender(<StatusBadge type="invitation" status="FAILED" calendarFailed standalone />)
+    expect(chip('Calendar invitation not delivered')).toHaveClass('bg-danger-surface')
+    // Only a FAILED invitation: any other state keeps its words.
+    rerender(<StatusBadge type="invitation" status="SENT" calendarFailed standalone />)
+    expect(screen.getByText('Invitation sent')).toBeInTheDocument()
+    rerender(<StatusBadge type="invitation" status="FAILED" calendarFailed={false} standalone />)
+    expect(screen.getByText('Invitation failed')).toBeInTheDocument()
+  })
+
   it('can show a status as history in a neutral tone, still with its icon and words', () => {
     const { container } = render(<StatusBadge type="invitation" status="SENT" tone="neutral" />)
     const badge = screen.getByText('Sent').closest('span.rounded-full')

@@ -5,7 +5,11 @@
   (`repositories.locking`). Every SCHEDULED visit the user hosts is cancelled with the reason "Host is
   no longer available" (pass revoked, visitor notified by e-mail when an invitation was requested for
   the visit, VISIT_CANCELLED audited); visits whose window already ended become NO_SHOW instead. The
-  e-mail jobs are delivered after that transaction commits.
+  user is told of each cancellation, so the entries leave their calendar: one who only lost the host
+  role (B14-2), and one being deactivated, at the moment the account stops (B14-20), within the budgets
+  of the acting administrator's host e-mails and the company's calendar e-mails (B14-15, `quota`, which
+  `UsersService` settles after its commit). The e-mail jobs are delivered after that transaction
+  commits.
 * D-17 `VisitSnapshots`: a host's new name and a department's new names (in either language) are copied
   into the snapshots of their SCHEDULED visits in the renaming transaction; checked-in and later visits
   keep theirs.
@@ -23,6 +27,7 @@ from app.models import Department, User
 from app.repositories.companies import CompanyRepository
 from app.repositories.visits import VisitRepository
 from app.security.sessions import AuthContext
+from app.services.email_quota import QuotaUnit
 from app.services.environment import ServiceEnvironment
 from app.services.no_shows import mark_if_expired, mark_no_shows
 from app.services.scoping import require_found
@@ -37,7 +42,14 @@ class HostedVisitCancellations:
         self.env = env
 
     def cancel_hosted_visits(
-        self, db: Session, *, host: User, actor: AuthContext, context: RequestContext, now: datetime
+        self,
+        db: Session,
+        *,
+        host: User,
+        actor: AuthContext,
+        context: RequestContext,
+        now: datetime,
+        quota: QuotaUnit,
     ) -> HostedVisitCancellation:
         mark_no_shows(db, host.company_id, now=now)
         company = require_found(CompanyRepository(db).get(host.company_id))
@@ -49,7 +61,7 @@ class HostedVisitCancellations:
         for visit in visits:
             if mark_if_expired(db, visit, now=now):
                 continue
-            job = lifecycle.cancel(
+            jobs += lifecycle.cancel(
                 visit,
                 company=company,
                 actor_id=actor.user_id,
@@ -58,10 +70,10 @@ class HostedVisitCancellations:
                 trigger="host_unavailable",
                 context=context,
                 now=now,
+                quota=quota,
+                host_deactivated=not host.is_active,
             )
             cancelled += 1
-            if job is not None:
-                jobs.append(job)
         return HostedVisitCancellation(cancelled=cancelled, delivery_jobs=tuple(jobs))
 
 

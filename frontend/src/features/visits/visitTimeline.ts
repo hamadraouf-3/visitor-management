@@ -90,7 +90,8 @@ export function buildVisitTimeline(visit: Visit): TimelineEvent[] {
     events.push({
       id: 'invitation',
       at: invitation.last_attempt_at,
-      title: t('timeline.invitationFailed'),
+      // Only the calendar invitation that followed it failed: the invitation, with the pass, went out.
+      title: invitation.calendar_failed ? t('timeline.calendarInvitationFailed') : t('timeline.invitationFailed'),
       detail: null,
       recipient: invitation.to_email,
       tone: 'danger',

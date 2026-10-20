@@ -5,7 +5,7 @@ import { EMPTY_BRAND } from '../../identity/brand'
 import { makeBrand } from '../../test/palettes'
 import { CompanyLogo, EMBLEM_MAX_RATIO } from './CompanyLogo'
 
-/* A company's logo where it stands (Phase 12): the right file for the surface, a plate where the logo needs one, its name without a logo. */
+/* A company's logo where it stands (Phase 12, F13-26): the right file for the surface, a plate only where the logo needs one, its name without a logo. */
 
 const BOTH = makeBrand('nova-labs', { logo: true, logoDark: true })
 const LIGHT_ONLY = makeBrand('nova-labs', { logo: true })
@@ -21,6 +21,9 @@ function load(image: HTMLElement, width: number, height: number) {
   Object.defineProperty(image, 'complete', { value: true, configurable: true })
   fireEvent.load(image)
 }
+
+/** The classes that paint a plate: a fill, or an edge of a colour. */
+const painted = (element: Element | null) => [...(element?.classList ?? [])].filter((name) => /^(scheme-dark:)?(bg-|border-[a-z])/.test(name) && !/(-transparent|^border-[xyseb])$/.test(name))
 
 /** The file the browser chose for the image does not load: the error is about that file (jsdom chooses none). */
 function failing(url: string) {
@@ -39,14 +42,30 @@ describe('CompanyLogo', () => {
       expect(container.querySelector('[data-logo-plate]')).toBeNull()
     })
 
-    it('puts the only logo, made for light surfaces, on a white plate', () => {
+    it('puts the only logo, made for light surfaces, on a white plate, in either scheme', () => {
       const { container } = render(<CompanyLogo brand={LIGHT_ONLY} name="Nova Labs" surface="shell" size="sm" />)
       const logo = screen.getByRole('img', { name: 'Nova Labs' })
       expect(logo).toHaveAttribute('src', LIGHT_ONLY.logo_url)
       expect(logo).toHaveAttribute('data-company-logo', 'light')
-      const plate = container.querySelector('[data-logo-plate]')
+      const plate = container.querySelector('[data-logo-plate=""]')
       expect(plate).toHaveClass('bg-white')
+      expect(plate).not.toHaveClass('scheme-dark:bg-transparent')
       expect(plate).toContainElement(logo)
+    })
+
+    it('lets a wide logo give way to the controls beside it, in its proportions; an emblem keeps its size', () => {
+      // A phone's top bar also holds the menu button, both switches and the account menu (F13-25).
+      const { container } = render(<CompanyLogo brand={LIGHT_ONLY} name="Nova Labs" surface="shell" size="sm" />)
+      const logo = screen.getByRole('img', { name: 'Nova Labs' })
+      load(logo, 900, 240)
+      expect(logo).toHaveClass('min-w-0', 'object-contain')
+      expect(container.querySelector('[data-logo-plate]')).toHaveClass('min-w-0')
+      load(logo, 512, 512)
+      expect(container.querySelector('img')).toHaveClass('shrink-0')
+      expect(container.querySelector('[data-logo-plate]')).toHaveClass('shrink-0')
+      // Off the shell nothing shrinks, as before.
+      const page = render(<CompanyLogo brand={LIGHT_ONLY} name="Nova Labs" surface="page" />)
+      expect(page.container.querySelector('img')).toHaveClass('shrink-0')
     })
 
     it('is the company’s name as a wordmark without a logo: never another logo', () => {
@@ -100,25 +119,41 @@ describe('CompanyLogo', () => {
   })
 
   describe('on a page', () => {
-    it('stands on a white plate with the cards’ edge, so a logo with a background of its own looks meant', () => {
+    it('stands on the page itself in the light scheme: no fill, no edge (F13-26)', () => {
       const { container } = render(<CompanyLogo brand={LIGHT_ONLY} name="Nova Labs" surface="page" size="lg" />)
-      const plate = container.querySelector('[data-logo-plate]')
-      expect(plate).toHaveClass('bg-white', 'border', 'border-border')
-      expect(plate).toContainElement(screen.getByRole('img', { name: 'Nova Labs' }))
-      // One logo: the plate carries it in the dark scheme too.
-      expect(plate).not.toHaveClass('scheme-dark:bg-transparent')
+      const room = container.querySelector('[data-logo-room]')
+      expect(room).toContainElement(screen.getByRole('img', { name: 'Nova Labs' }))
+      // Nothing painted on screen in the light scheme: the only fill and edge colour wait for the dark one.
+      expect(painted(room)).toEqual(['scheme-dark:border-border', 'scheme-dark:bg-white'])
+      expect(room).toHaveClass('border-transparent')
       expect(container.querySelector('picture')).toBeNull()
     })
 
-    it('takes the dark-surface logo in the dark scheme, without the plate there', () => {
+    it('puts a company’s only logo on a white plate with the cards’ edge in the dark scheme, in the same room as in the light one', () => {
+      const { container } = render(<CompanyLogo brand={LIGHT_ONLY} name="Nova Labs" surface="page" size="lg" />)
+      const light = container.querySelector('[data-logo-room]')!.className
       choose('dark')
+      const plate = container.querySelector('[data-logo-plate="dark-scheme"]')
+      expect(plate).toHaveAttribute('data-logo-room')
+      expect(plate).toHaveClass('scheme-dark:bg-white', 'scheme-dark:border-border')
+      // The same room either way (its padding and its edge's width): nothing moves when the scheme changes.
+      expect(plate!.className).toBe(light)
+      expect([...plate!.classList].filter((name) => name.startsWith('scheme-dark:'))).toEqual(['scheme-dark:border-border', 'scheme-dark:bg-white'])
+      expect(container.querySelector('picture')).toBeNull()
+    })
+
+    it('takes the dark-surface logo in the dark scheme, never on a plate', () => {
       const { container } = render(<CompanyLogo brand={BOTH} name="Nova Labs" surface="page" size="lg" />)
+      expect(container.querySelector('[data-logo-plate]')).toBeNull()
+      expect(painted(container.querySelector('[data-logo-room]'))).toEqual([])
+      choose('dark')
       expect(screen.getByRole('img', { name: 'Nova Labs' })).toHaveAttribute('src', BOTH.logo_url)
       const source = container.querySelector('picture source')
       expect(source).toHaveAttribute('srcset', BOTH.logo_dark_url)
       // On screen only: paper is light.
       expect(source).toHaveAttribute('media', 'screen')
-      expect(container.querySelector('[data-logo-plate="light-scheme"]')).toHaveClass('bg-white', 'scheme-dark:bg-transparent', 'scheme-dark:border-transparent')
+      expect(container.querySelector('[data-logo-plate]')).toBeNull()
+      expect(painted(container.querySelector('[data-logo-room]'))).toEqual([])
     })
 
     it('follows the device’s choice, not the device’s own scheme, and a change of it at once (Phase 13)', () => {
@@ -233,9 +268,8 @@ describe('CompanyLogo', () => {
     failing(BOTH.logo_dark_url!)
     expect(screen.getByRole('img', { name: 'Nova Labs' })).toHaveAttribute('src', BOTH.logo_url)
     expect(container.querySelector('picture')).toBeNull()
-    // The light logo stands on its white plate in the dark scheme too, as a company's only logo does.
-    expect(container.querySelector('[data-logo-plate]')).toHaveClass('bg-white')
-    expect(container.querySelector('[data-logo-plate]')).not.toHaveClass('scheme-dark:bg-transparent')
+    // The light logo stands on its white plate in the dark scheme, as a company's only logo does.
+    expect(container.querySelector('[data-logo-plate="dark-scheme"]')).toHaveClass('scheme-dark:bg-white')
     expect(container.querySelector('[data-company-wordmark]')).toBeNull()
 
     // That one failing too: the name.

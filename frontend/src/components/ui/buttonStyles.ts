@@ -23,16 +23,13 @@ export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl'
 export const ACCENT_FILL_EDGE = 'inset-ring-[1.5px] inset-ring-accent-edge'
 
 /**
- * The chosen one of a set whose choice is shown by its fill alone (the appearance's segments, a
- * menu's choice tiles; the kit's segmented `RadioGroup` adds a check mark instead). A forced-colours
- * mode (Windows' contrast themes) draws every fill as the page's own `Canvas`, so there the chosen
- * one takes the system's selection colours, `Highlight` under `HighlightText`, kept as they are
- * (`forced-color-adjust: none`: else the backplate the browser draws behind text hides the text),
- * with its focus ring in the system's text colour (on the element, or for a hidden radio inside it).
+ * The header's two switches, the language and the appearance (Phase 13, F13-25), side by side on the
+ * signed-out pages, the pass and both shells: an outlined button at least 44 px square on the surface
+ * it stands on, in that surface's tokens (the page's, or the shell's own on a coloured shell). Their
+ * state is their symbol or their letters, never their fill, so a forced-colours mode keeps it.
  */
-export const FORCED_COLORS_CHOSEN =
-  'forced-colors:forced-color-adjust-none forced-colors:border-[color:Highlight] forced-colors:bg-[color:Highlight] forced-colors:text-[color:HighlightText] ' +
-  'forced-colors:outline-[color:CanvasText] forced-colors:has-focus-visible:outline-[color:CanvasText]'
+export const SWITCH_BUTTON =
+  'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control border border-border-strong bg-surface px-3 text-fg transition-colors hover:bg-surface-muted'
 
 const base =
   'inline-flex items-center justify-center gap-2 rounded-control font-semibold whitespace-nowrap select-none ' +

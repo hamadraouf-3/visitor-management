@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     text,
@@ -79,6 +80,7 @@ class Visit(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="check_out_note",
         ),
         CheckConstraint("btrim(purpose) <> ''", name="purpose_not_blank"),
+        CheckConstraint("calendar_sequence >= 0", name="calendar_sequence_non_negative"),
     )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
@@ -138,6 +140,13 @@ class Visit(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     cancellation_reason: Mapped[str | None] = mapped_column(String(300))
 
     no_show_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # The version of the visit's calendar event (revision 0016, Phase 14, B14-6): the SEQUENCE of every
+    # iCalendar object sent about the visit. 0 at creation, one more at every new time and at the
+    # cancellation, so calendars apply the newest message and ignore an older one.
+    calendar_sequence: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
 
 
 Index(

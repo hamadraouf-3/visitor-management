@@ -1,4 +1,5 @@
 import { CalendarClock, Link2, MailPlus } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Button } from '../../components/ui/Button'
@@ -30,22 +31,24 @@ interface VisitCardProps {
 
 /**
  * Schedule, people and purpose of a visit: the schedule first, in direction C's numerals on a
- * sunken strip, then the facts.
+ * sunken strip, then the facts. `scheduleAction` (the host's "Add to my calendar", Phase 14) ends the
+ * strip, or on phones takes a row of its own under the time.
  */
-export function VisitFactsCard({ visit, timeZone }: VisitCardProps) {
+export function VisitFactsCard({ visit, timeZone, scheduleAction }: VisitCardProps & { scheduleAction?: ReactNode }) {
   const { t } = useTranslation('visits')
   const departmentName = useDepartmentName()
   return (
     <Card title={t('detail.facts.title')}>
       <div className="flex flex-col gap-5">
-        <div className="flex items-center gap-3.5 rounded-control bg-surface-sunken px-4 py-3.5">
+        <div className="flex flex-wrap items-center gap-3.5 rounded-control bg-surface-sunken px-4 py-3.5">
           <IconTile icon={CalendarClock} tone="accent" />
-          <dl className="min-w-0">
+          <dl className="min-w-0 flex-1">
             <dt className="text-meta font-medium text-fg-muted">{t('detail.facts.when')}</dt>
             <dd className="mt-0.5 font-numeric text-lg leading-snug font-semibold break-words text-fg tabular-nums">
               {formatVisitDateRange(visit.scheduled_start, visit.scheduled_end, timeZone)}
             </dd>
           </dl>
+          {scheduleAction && <div className="basis-full sm:basis-auto">{scheduleAction}</div>}
         </div>
         <FactList
           items={[
@@ -189,7 +192,14 @@ export function InvitationCard({
   return (
     <Card
       title={invitationCardTitle(visit)}
-      actions={<StatusBadge type="invitation" status={invitation.status} tone={isOriginalInvitation(visit) ? 'neutral' : undefined} />}
+      actions={
+        <StatusBadge
+          type="invitation"
+          status={invitation.status}
+          calendarFailed={invitation.calendar_failed}
+          tone={isOriginalInvitation(visit) ? 'neutral' : undefined}
+        />
+      }
     >
       <div className="flex flex-col gap-3">
         <InvitationStatusLine

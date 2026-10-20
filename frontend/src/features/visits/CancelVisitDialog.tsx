@@ -15,6 +15,7 @@ import { formatVisitDateRange } from './format'
 import { useCancelVisit } from './queries'
 import {
   CANCEL_REASON_MAX_LENGTH,
+  cancelAlwaysEmailsVisitor,
   cancelEmailsVisitor,
   cancelledMessage,
   cancelNoEmailNotice,
@@ -34,17 +35,20 @@ export interface CancelVisitDialogProps {
 /**
  * Confirms a cancellation (POST /visits/{id}/cancel): who and when, and one sentence on what it
  * does (the QR code stops working); an optional reason with its length, the visitor notified by
- * default. The choice is offered only when the server would send the email: the visitor has an
- * address and an invitation was requested for the visit (`cancelEmailsVisitor`); otherwise one
- * line says the visitor is not emailed.
+ * default. The choice is offered only when the server would follow it: the visitor has an address
+ * and an invitation was requested for the visit (`cancelEmailsVisitor`), and was not sent the
+ * visit's calendar invitation, which a cancellation always follows by e-mail (Phase 14,
+ * `cancelAlwaysEmailsVisitor`: no choice and no words then). When no e-mail can go out, one line
+ * says the visitor is not emailed.
  */
 export function CancelVisitDialog({ visit, timeZone, onClose, onCancelled }: CancelVisitDialogProps) {
   const { t } = useTranslation('visits')
   const toast = useToast()
   const cancel = useCancelVisit(visit.id)
-  const canNotify = cancelEmailsVisitor(visit)
+  const alwaysNotified = cancelAlwaysEmailsVisitor(visit)
+  const canChoose = !alwaysNotified && cancelEmailsVisitor(visit)
   const noEmailNotice = cancelNoEmailNotice(visit)
-  const [values, setValues] = useState<CancelValues>({ reason: '', notifyVisitor: canNotify })
+  const [values, setValues] = useState<CancelValues>({ reason: '', notifyVisitor: alwaysNotified || canChoose })
   const form = useFormErrors(cancel.error, { fields: { reason: 'reason' } })
   const formId = useStableId('cancel-visit')
 
@@ -85,14 +89,14 @@ export function CancelVisitDialog({ visit, timeZone, onClose, onCancelled }: Can
         <Field label={t('cancel.reason')} optional hint={characterCountLabel(values.reason, CANCEL_REASON_MAX_LENGTH)} {...form.field('reason')}>
           <Textarea rows={2} value={values.reason} onChange={(event) => setValues((current) => ({ ...current, reason: event.target.value }))} />
         </Field>
-        {canNotify ? (
+        {canChoose ? (
           <Checkbox
             label={t('cancel.notify')}
             checked={values.notifyVisitor}
             onChange={(event) => setValues((current) => ({ ...current, notifyVisitor: event.target.checked }))}
           />
         ) : (
-          <p className="text-sm font-medium text-fg-secondary">{noEmailNotice}</p>
+          noEmailNotice && <p className="text-sm font-medium text-fg-secondary">{noEmailNotice}</p>
         )}
       </form>
     </Dialog>

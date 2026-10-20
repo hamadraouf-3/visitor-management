@@ -19,7 +19,8 @@ change (D-19) either sees the new visit or is seen by it. The invitation e-mail 
 needs the visitor's e-mail address) and is delivered after the commit; a delivery failure never undoes
 the visit. A reschedule keeps the pass (D-22) and tells the visitor by e-mail when an invitation had been
 requested; a resend rotates the pass, and so does a pass reissued for the host to share (no e-mail).
-Visitor e-mails and pass replacements count against the budgets of `EmailQuota`.
+Visitor e-mails, the host's e-mails of a visit and pass replacements count against the budgets of
+`EmailQuota` (B14-15).
 """
 
 from datetime import datetime
@@ -29,12 +30,11 @@ from sqlalchemy.orm import Session
 
 from app.core import time as app_time
 from app.core.errors import Forbidden, NotFound, VisitNotEditable, VisitorEmailRequired
-from app.core.rate_limit import PolicyName
 from app.core.request_context import RequestContext
 from app.core.search import normalise_search_text, phone_query_digits
 from app.core.time import company_date_filter_bounds
 from app.email.service import DeliveryJob
-from app.models import Company, PassRevokeReason, User, Visit, VisitStatus
+from app.models import Company, EmailKind, PassRevokeReason, User, Visit, VisitStatus
 from app.repositories.departments import DepartmentRepository
 from app.repositories.locking import RowLock
 from app.repositories.users import UserRepository
@@ -49,6 +49,7 @@ from app.schemas.visits import (
     VisitListQuery,
     VisitorMatch,
     VisitPassResult,
+    VisitResendResult,
     VisitUpdate,
 )
 from app.security.permissions import Capability, has_capability, is_host
@@ -175,6 +176,18 @@ class VisitsService:
                     updated_at=now,
                 )
             )
+            # The host is told of the visit, with it as an event of the host's calendar (B14-2), whoever
+            # booked it and whether or not the visitor is invited by e-mail, within the budgets of the
+            # host's e-mails (B14-15), while calendar invitations are on (B14-27). It is delivered after the
+            # visitor's e-mails; it is reserved first (B14-15).
+            host_notice = self.lifecycle.tell_host(
+                visit,
+                EmailKind.HOST_VISIT_SCHEDULED,
+                company=company,
+                host=host,
+                quota=quota,
+                actor_id=auth.user_id,
+            )
             self._audit(
                 auth,
                 AuditAction.VISIT_CREATED,
@@ -187,6 +200,8 @@ class VisitsService:
                     "visitor_reused": resolved.reused,
                     "visitor_link_in_scope": resolved.in_scope,
                     "invitation_requested": data.send_invitation,
+                    "host_notified": host_notice.job is not None,
+                    "host_notice_limited_by": host_notice.limited_by,
                 },
             )
             issued = self.lifecycle.passes.issue(
@@ -194,16 +209,16 @@ class VisitsService:
             )
             jobs: tuple[DeliveryJob, ...] = ()
             if data.send_invitation and recipient is not None:
-                jobs = (
-                    self.lifecycle.invite(
-                        visit,
-                        issued,
-                        company=company,
-                        recipient=recipient,
-                        actor_id=auth.user_id,
-                        context=context,
-                    ),
+                jobs = self.lifecycle.invite(
+                    visit,
+                    issued,
+                    company=company,
+                    recipient=recipient,
+                    actor_id=auth.user_id,
+                    context=context,
+                    quota=quota,
                 )
+            jobs += () if host_notice.job is None else (host_notice.job,)
             payload = VisitCreateResult(
                 visit=VisitViewBuilder(self.db, Viewer.of(auth), now=now).one(visit),
                 pass_url=issued.url,
@@ -281,6 +296,8 @@ class VisitsService:
                     grace_before_minutes=company.pass_grace_before_minutes,
                     grace_after_minutes=company.pass_grace_after_minutes,
                 )
+                # A new version of the visit's calendar event (B14-6), whether or not anyone is told.
+                visit.calendar_sequence += 1
                 changed += schedule_changes
             builder = VisitViewBuilder(self.db, Viewer.of(auth), now=now)
             if not changed:
@@ -302,27 +319,34 @@ class VisitsService:
         self, auth: AuthContext, visit_id: UUID, data: VisitCancel, context: RequestContext
     ) -> Mutation[VisitOut]:
         """The visitor is told only when an invitation was requested for the visit (B24-25): a notice
-        goes out at most once per invited visit, so the invitation budget bounds these e-mails."""
+        goes out at most once per invited visit, so the invitation budget bounds these e-mails. Once the
+        visitor's calendar was sent the visit it is told whatever `notify_visitor` says (B14-16). The
+        host's e-mail counts against the budgets of `EmailQuota` (B14-15)."""
         company = begin_visit_change(self.db, auth)
-        visit, now = self._lock_manageable(auth, visit_id)
-        job = self.lifecycle.cancel(
-            visit,
-            company=company,
-            actor_id=auth.user_id,
-            reason=data.reason,
-            notify=data.notify_visitor,
-            trigger="user",
-            context=context,
-            now=now,
-        )
-        payload = VisitViewBuilder(self.db, Viewer.of(auth), now=now).one(visit)
-        self.db.commit()
-        return Mutation(payload, (job,) if job else ())
+        with self.quota.unit() as quota:
+            visit, now = self._lock_manageable(auth, visit_id)
+            jobs = self.lifecycle.cancel(
+                visit,
+                company=company,
+                actor_id=auth.user_id,
+                reason=data.reason,
+                notify=data.notify_visitor,
+                trigger="user",
+                context=context,
+                now=now,
+                quota=quota,
+            )
+            payload = VisitViewBuilder(self.db, Viewer.of(auth), now=now).one(visit)
+            self.db.commit()
+        return Mutation(payload, jobs)
 
     def resend_invitation(
         self, auth: AuthContext, visit_id: UUID, context: RequestContext
-    ) -> Mutation[VisitCreateResult]:
-        """Rotate the pass (the previous QR code stops working, D-10) and send a new invitation."""
+    ) -> Mutation[VisitResendResult]:
+        """Rotate the pass (the previous QR code stops working, D-10) and send a new invitation; or, when
+        only the calendar invitation failed (`Visit.invitation.calendar_failed`, B14-18), send the calendar
+        invitation alone again (B14-31): the visitor has the pass, which stays valid, and the response's
+        `pass_url` is null."""
         company = begin_visit_change(self.db, auth)
         with self.quota.unit() as quota:
             visit, now = self._lock_manageable(auth, visit_id)
@@ -331,6 +355,20 @@ class VisitsService:
             recipient = self.lifecycle.visitor_email(visit)
             if recipient is None:
                 raise VisitorEmailRequired()
+            if self.lifecycle.calendar_failed(visit, recipient) and not self.lifecycle.emails.sends_from(
+                recipient
+            ):
+                quota.calendar_resend(auth.user_id, visit.id, company.id)
+                calendar = self.lifecycle.resend_calendar(
+                    visit, company=company, recipient=recipient, actor_id=auth.user_id, context=context
+                )
+                resent = VisitResendResult(
+                    visit=VisitViewBuilder(self.db, Viewer.of(auth), now=now).one(visit),
+                    pass_url=None,
+                    visitor_match=VisitorMatch(reused=False),
+                )
+                self.db.commit()
+                return Mutation(resent, (calendar,))
             quota.invitations(auth.user_id, resend_of=visit.id)
 
             issued = self.lifecycle.passes.replace(
@@ -341,16 +379,22 @@ class VisitsService:
                 context=context,
                 now=now,
             )
-            job = self.lifecycle.invite(
-                visit, issued, company=company, recipient=recipient, actor_id=auth.user_id, context=context
+            jobs = self.lifecycle.invite(
+                visit,
+                issued,
+                company=company,
+                recipient=recipient,
+                actor_id=auth.user_id,
+                context=context,
+                quota=quota,
             )
-            payload = VisitCreateResult(
+            payload = VisitResendResult(
                 visit=VisitViewBuilder(self.db, Viewer.of(auth), now=now).one(visit),
                 pass_url=issued.url,
                 visitor_match=VisitorMatch(reused=False),
             )
             self.db.commit()
-        return Mutation(payload, (job,))
+        return Mutation(payload, jobs)
 
     def reissue_pass(self, auth: AuthContext, visit_id: UUID, context: RequestContext) -> VisitPassResult:
         """Rotate the pass and return its one-time URL without sending anything (B57-04): the host shares
@@ -461,18 +505,25 @@ class VisitsService:
         self, auth: AuthContext, visit: Visit, company: Company, quota: QuotaUnit, context: RequestContext
     ) -> tuple[DeliveryJob, ...]:
         """D-22: the pass stays valid; a visitor who was (to be) invited by e-mail is told the new time,
-        within the reschedule-notice budgets (`EmailQuota`). Beyond them the new time stands and only the
-        e-mail is left out."""
-        recipient = self.lifecycle.notice_recipient(visit)
-        limited_by: PolicyName | None = None
-        if recipient is not None:
-            limited_by = quota.reschedule_notice(auth.user_id, visit.id)
-        job = (
-            self.lifecycle.emails.queue_visit_rescheduled(
-                visit, company=company, recipient=recipient, host_email=self.lifecycle.host_email(visit)
-            )
-            if recipient is not None and limited_by is None
-            else None
+        and so is the host who was told of the visit (B14-2), each with their calendar event at the new
+        time where it may go. Each within its own budgets (`EmailQuota`, B14-15): the visitor's in the
+        reschedule-notice budgets, the host's in the host's e-mails, not in the visit's reschedule
+        notices, so a quick fourth correction still moves the host's calendar. Beyond a budget the new
+        time stands and that e-mail is left out; beyond the company's calendar events, or with calendar
+        invitations off to a calendar without the visit, the notice goes without its event (B14-27,
+        B14-28). The audit row says which: `visitor_notified` / `host_notified`, `calendar_sent` /
+        `host_calendar_sent`, and the budget that limited either (`notice_limited_by`,
+        `host_notice_limited_by`)."""
+        visitor = self.lifecycle.tell_visitor_of_new_time(
+            visit, company=company, quota=quota, actor_id=auth.user_id
+        )
+        host = self.lifecycle.tell_host(
+            visit,
+            EmailKind.HOST_VISIT_RESCHEDULED,
+            company=company,
+            host=self.lifecycle.host_to_tell(visit, of_a_change=True),
+            quota=quota,
+            actor_id=auth.user_id,
         )
         self._audit(
             auth,
@@ -480,12 +531,16 @@ class VisitsService:
             visit,
             context,
             {
-                "visitor_notified": job is not None,
-                "email_message_id": job.message_id if job else None,
-                "notice_limited_by": limited_by,
+                "visitor_notified": visitor.job is not None,
+                "email_message_id": visitor.job.message_id if visitor.job else None,
+                "calendar_sent": visitor.calendar,
+                "notice_limited_by": visitor.limited_by,
+                "host_notified": host.job is not None,
+                "host_calendar_sent": host.calendar,
+                "host_notice_limited_by": host.limited_by,
             },
         )
-        return (job,) if job else ()
+        return tuple(sent.job for sent in (visitor, host) if sent.job is not None)
 
     def _audit(
         self,

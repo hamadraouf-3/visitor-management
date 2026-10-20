@@ -653,6 +653,62 @@ describe('Invite visitor: success view', () => {
     expect(screen.getByRole('link', { name: 'View visit' }).className).not.toContain('bg-accent')
   })
 
+  it('says when only the calendar invitation did not arrive: the e-mail carries the pass, the resend sends both again', async () => {
+    const calendarFailed = makeVisit({ invitation: { status: 'FAILED', sent_at: null, calendar_failed: true, error: 'Mailbox full' } })
+    // No GET /visitors/{id}: no correction is offered, so the visitor is not loaded.
+    const { user, requests } = setup({
+      create: () => jsonResponse(created(calendarFailed), 201),
+      extra: { [`GET /visits/${VISIT_ID}`]: () => jsonResponse(calendarFailed) },
+    })
+    await submitInvite(user)
+
+    expect(await successShown()).toBeInTheDocument()
+    const announced = await statusLine('The calendar invitation did not reach elodie@orbit.example.')
+    expect(announced.parentElement).toHaveClass('sr-only')
+    // The alert's title; the status line, only announced, says the same.
+    const title = screen.getAllByText(/^The calendar invitation did not reach/).find((element) => !announced.contains(element)) as HTMLElement
+    expect(title).toHaveTextContent('The calendar invitation did not reach elodie@orbit.example')
+    const alert = title.closest('div.flex') as HTMLElement
+    expect(alert).not.toHaveTextContent('Invitation not delivered')
+    expect(within(alert).queryByRole('button', { name: 'Correct email and resend' })).toBeNull()
+    expect(within(alert).getByRole('button', { name: 'Resend calendar invitation' })).toBeInTheDocument()
+    expect(requests.some((request) => request.path.startsWith('/visitors/'))).toBe(false)
+
+    // The invitation e-mail carries the pass: the visit is the primary action, not copying the link.
+    expect(screen.getByRole('link', { name: 'View visit' }).className).toContain('bg-accent')
+    expect(screen.getByRole('button', { name: 'Copy link' }).className).not.toContain('bg-accent')
+  })
+
+  it('sends the calendar invitation alone again from the outcome: the pass on screen stays, nothing replaced', async () => {
+    const calendarFailed = makeVisit({ invitation: { status: 'FAILED', sent_at: null, calendar_failed: true } })
+    let current = calendarFailed
+    const { user, requests } = setup({
+      create: () => jsonResponse(created(calendarFailed), 201),
+      extra: {
+        [`GET /visits/${VISIT_ID}`]: () => jsonResponse(current),
+        [`POST /visits/${VISIT_ID}/invitation`]: () => {
+          current = makeVisit()
+          return jsonResponse({ visit: current, pass_url: null, visitor_match: { reused: false } })
+        },
+      },
+    })
+    await submitInvite(user)
+    const title = await successShown()
+
+    await user.click(screen.getByRole('button', { name: 'Resend calendar invitation' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Send the calendar invitation again?' })
+    expect(dialog).not.toHaveTextContent(/QR|pass/i)
+    await user.click(within(dialog).getByRole('button', { name: 'Resend calendar invitation' }))
+
+    expect(await screen.findByText('Sending the calendar invitation to elodie@orbit.example')).toBeInTheDocument()
+    // The pass the visitor has stays valid: its link stays on screen, with no word of a replacement.
+    expect(screen.getByRole('textbox', { name: 'Pass link' })).toHaveValue(PASS_URL)
+    expect(screen.queryByText('The visitor pass was replaced')).toBeNull()
+    await waitFor(() => expect(screen.queryByText(/^The calendar invitation did not reach/)).toBeNull())
+    await waitFor(() => expect(title).toHaveFocus())
+    expect(requests.filter((request) => request.method === 'POST' && request.path === `/visits/${VISIT_ID}/invitation`)).toHaveLength(1)
+  })
+
   it('corrects the address from the success view and withdraws the pass link the change replaced', async () => {
     const failed = makeVisit({ invitation: { status: 'FAILED', sent_at: null, to_email: 'elodie@orbit.exmaple' } })
     let corrected = false
@@ -851,5 +907,76 @@ describe('Invite visitor: success view', () => {
     // The one-time link is gone with the success view.
     expect(screen.queryByRole('textbox', { name: 'Pass link' })).toBeNull()
     expect(document.querySelector('[data-print-pass]')).toBeNull()
+  })
+})
+
+describe('Invite visitor: the host’s calendar', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('offers the host the visit for their calendar beside the way to it, and never the pass link in it', async () => {
+    const blobs: Blob[] = []
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+      blobs.push(blob as Blob)
+      return 'blob:calendar/1'
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const { user } = setup({ create: () => jsonResponse(created(makeVisit()), 201) })
+    await submitInvite(user)
+    await successShown()
+
+    const viewVisit = screen.getByRole('link', { name: 'View visit' })
+    const trigger = screen.getByRole('button', { name: 'Add to my calendar' })
+    // In the row of what comes next, after the visit.
+    expect(viewVisit.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Three buttons whose words never wrap: from `sm` the row itself wraps, or a large text size runs
+    // it past the screen's edge at 640–720 px (F14-21).
+    expect(viewVisit.parentElement).toHaveClass('sm:flex', 'sm:flex-wrap', 'gap-2')
+    expect(viewVisit.parentElement).toContainElement(trigger)
+    await user.click(trigger)
+    const items = within(await screen.findByRole('menu', { name: 'Add to my calendar' })).getAllByRole('menuitem')
+    const token = PASS_URL.split('#')[1]!
+    for (const item of items.slice(0, 2)) {
+      expect(item.getAttribute('href')).not.toContain(token)
+      expect(item.getAttribute('href')).not.toContain('/pass')
+    }
+    await user.click(items[2]!)
+    const ics = await blobs[0]!.text()
+    expect(ics).toContain(`UID:visit-${VISIT_ID}-host`)
+    expect(ics).not.toContain(token)
+    expect(ics).not.toContain('/pass')
+  })
+
+  it('opens nothing for a visit cancelled elsewhere since: the outcome shows the cancellation, and the focus goes on from its title', async () => {
+    let loads = 0
+    const cancelled = makeVisit({ status: 'CANCELLED', cancelled_at: '2026-10-05T06:11:00Z', calendar_sequence: 1 })
+    const { user } = setup({
+      create: () => jsonResponse(created(makeVisit()), 201),
+      extra: { [`GET /visits/${VISIT_ID}`]: () => jsonResponse((loads += 1) > 1 ? cancelled : makeVisit()) },
+    })
+    await submitInvite(user)
+    await successShown()
+    await waitFor(() => expect(loads).toBe(1))
+
+    await user.click(screen.getByRole('button', { name: 'Add to my calendar' }))
+    const title = await screen.findByRole('heading', { level: 1, name: 'Visit cancelled' })
+    expect(screen.queryByRole('button', { name: 'Add to my calendar' })).toBeNull()
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(title).toHaveFocus()
+  })
+
+  it('is not offered when an administrator invites for another host', async () => {
+    const forOmar = makeVisit({ host: { id: omar.id, full_name: omar.full_name, phone: omar.phone } })
+    const { user } = setup({ as: admin, create: () => jsonResponse(created(forOmar), 201), extra: { [`GET /visits/${VISIT_ID}`]: () => jsonResponse(forOmar) } })
+    await submitInvite(user)
+    await successShown()
+    expect(screen.getByRole('link', { name: 'View visit' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add to my calendar' })).toBeNull()
   })
 })

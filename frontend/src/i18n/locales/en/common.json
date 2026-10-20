@@ -38,10 +38,9 @@
     "signOutFailed": "Could not sign out"
   },
   "appearance": {
-    "label": "Appearance",
+    "darkMode": "Dark mode",
     "light": "Light",
-    "dark": "Dark",
-    "system": "System"
+    "dark": "Dark"
   },
   "roles": {
     "person": {
@@ -73,7 +72,8 @@
     "copyFailed": "Could not copy automatically. Select the text and copy it manually.",
     "showPassword": "Show password",
     "clearSearch": "Clear search",
-    "goHome": "Go to your home page"
+    "goHome": "Go to your home page",
+    "opensInNewTab": "(opens in a new tab)"
   },
   "field": {
     "optional": "(optional)",
@@ -123,6 +123,10 @@
       "PENDING": "Sending invitation",
       "SENT": "Invitation sent",
       "FAILED": "Invitation failed"
+    },
+    "calendarInvitationFailed": {
+      "short": "Calendar failed",
+      "long": "Calendar invitation not delivered"
     },
     "pass": {
       "ACTIVE": "Active",

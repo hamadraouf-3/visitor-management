@@ -3,6 +3,7 @@ import { LEGAL, makeVisit } from '../../test/fixtures'
 import type { Visit } from '../../types/api'
 import { SCHEDULE_MESSAGES } from './schedule'
 import {
+  cancelAlwaysEmailsVisitor,
   cancelEmailsVisitor,
   cancelledMessage,
   cancelNoEmailNotice,
@@ -147,6 +148,14 @@ describe('which emails a change sends', () => {
     expect(cancelNoEmailNotice(invited)).toBeNull()
     expect(cancelNoEmailNotice(notInvited)).toBe('The visitor will not be emailed.')
     expect(cancelNoEmailNotice(noAddress)).toBe('The visitor will not be emailed.')
+  })
+
+  it('always emails a cancellation to a visitor who was sent the calendar invitation: no choice and no line then', () => {
+    expect(cancelAlwaysEmailsVisitor(makeVisit({ visitor_calendar_sent: true }))).toBe(true)
+    expect(cancelAlwaysEmailsVisitor(invited)).toBe(false)
+    expect(cancelNoEmailNotice(makeVisit({ visitor_calendar_sent: true }))).toBeNull()
+    // Even with no address on file now: the server decides, and the outcome says what it did.
+    expect(cancelNoEmailNotice({ ...noAddress, visitor_calendar_sent: true })).toBeNull()
   })
 
   it('says a cancellation was emailed only when the response shows the cancellation email', () => {

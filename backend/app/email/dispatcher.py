@@ -61,6 +61,8 @@ MIN_ATTEMPT_SECONDS = 2.0  # a retry with less time left than this is not starte
 INTERRUPTED_AFTER = timedelta(minutes=5)
 INTERRUPTED_ERROR = "Sending was interrupted before it completed."
 SUPERSEDED_ERROR = "Replaced by a newer invitation."
+# A calendar event still waiting to go to an address the visitor no longer has (D-19, B14-29).
+ADDRESS_CHANGED_ERROR = "Not sent: the visitor's address changed."
 _LAST_ERROR_MAX = 500
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]+")
 

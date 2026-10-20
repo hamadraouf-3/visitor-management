@@ -1,5 +1,5 @@
 import { Ban, ExternalLink, Pencil, Send, UserPlus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert } from '../../components/ui/Alert'
 import { Avatar } from '../../components/ui/Avatar'
@@ -9,6 +9,7 @@ import { TextWithEmails } from '../../components/ui/EmailText'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { backLinkState } from '../../hooks/useBackLink'
+import { useNow } from '../../hooks/useNow'
 import { useDepartmentName } from '../../i18n/departmentName'
 import { useCompanyName } from '../../i18n/useLanguage'
 import { paths } from '../../paths'
@@ -16,11 +17,20 @@ import type { Me, VisitCreateResult } from '../../types/api'
 import { focusPageHeading, isFocusLost } from '../../utils/focus'
 import { textWithParts } from '../../utils/text'
 import { EditVisitorDialog } from '../visitors/EditVisitorDialog'
+import { AddToCalendar } from './AddToCalendar'
 import { CancelVisitDialog } from './CancelVisitDialog'
 import { FactList } from './FactList'
 import { formatVisitDateRange } from './format'
+import { offersHostCalendar } from './hostCalendar'
 import { InvitationStatusLine } from './InvitationStatusLine'
-import { invitationFailedTitle, inviteSuccessTitle, passIsOnlyChannel, reusedVisitorMismatch, type TypedVisitor } from './invitationText'
+import {
+  calendarInvitationFailed,
+  invitationFailedTitle,
+  inviteSuccessTitle,
+  passIsOnlyChannel,
+  reusedVisitorMismatch,
+  type TypedVisitor,
+} from './invitationText'
 import { PassActions } from './PassActions'
 import { ResendInvitationDialog } from './ResendInvitationDialog'
 import { useCorrectableVisitor } from './useCorrectableVisitor'
@@ -59,19 +69,28 @@ export function InviteSuccess({ result, typedVisitor, me, onInviteAnother }: Inv
   const [passUrl, setPassUrl] = useState<string | null>(result.pass_url)
   const [passChange, setPassChange] = useState<PassChange | null>(null)
   const [dialog, setDialog] = useState<'resend' | 'correct-email' | 'cancel' | null>(null)
+  const now = useNow()
 
   const cancelled = visit.status === 'CANCELLED'
   const failed = invitation.status === 'FAILED' && !cancelled
   const mismatch = cancelled ? null : reusedVisitorMismatch(typedVisitor, result.visitor_match.reused, visit)
   // Not after an inline reuse (D-05, B24-15): the address is the one the match was made on,
   // and the existing record must not be loaded into a form on the spot (§7.5 "reveals nothing").
-  const correctable = useCorrectableVisitor(visit, failed && !result.visitor_match.reused)
+  // Nor when only the calendar invitation failed: the invitation reached that address.
+  const correctable = useCorrectableVisitor(visit, failed && !calendarInvitationFailed(invitation) && !result.visitor_match.reused)
 
   // The form this view replaces had focus; continue from the outcome (the page title). After a
   // cancellation from here, the button that opened the dialog is gone: continue there again.
   useEffect(() => {
     if (!cancelled || isFocusLost()) focusPageHeading()
   }, [cancelled])
+  // The failure's alert goes once the failure is over (a resend, a correction): its focus, if it had
+  // it, goes on from the page's title.
+  const failedBefore = useRef(failed)
+  useEffect(() => {
+    if (failedBefore.current && !failed && isFocusLost()) focusPageHeading()
+    failedBefore.current = failed
+  }, [failed])
 
   const checkAgain = () => {
     restartPolling()
@@ -122,7 +141,7 @@ export function InviteSuccess({ result, typedVisitor, me, onInviteAnother }: Inv
                   )}
                   {canResend && (
                     <Button variant="secondary" icon={<Send aria-hidden="true" />} onClick={() => setDialog('resend')}>
-                      {openCorrection ? t('failure.resendSame') : t('failure.resend')}
+                      {calendarInvitationFailed(invitation) ? t('failure.resendCalendar') : openCorrection ? t('failure.resendSame') : t('failure.resend')}
                     </Button>
                   )}
                 </div>
@@ -187,7 +206,9 @@ export function InviteSuccess({ result, typedVisitor, me, onInviteAnother }: Inv
 
         {shownPassUrl && <PassActions passUrl={shownPassUrl} visit={visit} companyName={companyName} timeZone={timeZone} />}
 
-        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row">
+        {/* Three buttons whose words never wrap: at a large text size they are wider than a small
+            tablet's row, and go on to a second one instead of past the screen's edge. */}
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:flex-wrap">
           <ButtonLink
             to={paths.visit(visit.id)}
             state={backLinkState({ to: paths.myVisits, label: t('backToMyVisits'), owner: me.user.id })}
@@ -196,6 +217,7 @@ export function InviteSuccess({ result, typedVisitor, me, onInviteAnother }: Inv
           >
             {t('inviteSuccess.viewVisit')}
           </ButtonLink>
+          {offersHostCalendar(visit, me.user.id, now) && <AddToCalendar visit={visit} me={me} />}
           <Button variant={cancelled ? 'primary' : 'secondary'} icon={<UserPlus aria-hidden="true" />} onClick={onInviteAnother}>
             {t('inviteSuccess.inviteAnother')}
           </Button>
@@ -209,8 +231,11 @@ export function InviteSuccess({ result, typedVisitor, me, onInviteAnother }: Inv
           onCorrectEmail={openCorrection}
           onResent={(resent) => {
             setDialog(null)
-            setPassUrl(resent.pass_url)
-            setPassChange({ kind: 'resent' })
+            // Only the calendar invitation went again (`pass_url` null): the pass on screen stays the one.
+            if (resent.pass_url) {
+              setPassUrl(resent.pass_url)
+              setPassChange({ kind: 'resent' })
+            }
             restartPolling()
           }}
         />

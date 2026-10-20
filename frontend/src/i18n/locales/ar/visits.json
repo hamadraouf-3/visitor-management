@@ -66,6 +66,9 @@
     "summaryNoEmail": "ليس لدى الزائر بريد إلكتروني.",
     "failedTitleTo": "لم تصل الدعوة إلى {{email}}",
     "failedTitle": "لم تصل الدعوة",
+    "calendarFailedTitleTo": "لم تصل دعوة التقويم إلى {{email}}",
+    "calendarFailedTitle": "لم تصل دعوة التقويم",
+    "statusCalendarFailed": "لم تصل دعوة التقويم إلى {{recipient}}.",
     "checkAgain": "تحقّق مرة أخرى"
   },
   "inviteSuccess": {
@@ -165,6 +168,7 @@
     "reason": "السبب: {{reason}}",
     "invitationSent": "أُرسلت الدعوة",
     "invitationFailed": "تعذّر إرسال الدعوة",
+    "calendarInvitationFailed": "لم تصل دعوة التقويم",
     "checkedIn": "سُجّل الدخول",
     "checkedInBy": "سُجّل الدخول بواسطة {{name}}",
     "checkedOut": "سُجّل الخروج",
@@ -347,7 +351,8 @@
   "failure": {
     "correctAndResend": "تصحيح البريد وإعادة الإرسال",
     "resendSame": "إعادة الإرسال إلى العنوان نفسه",
-    "resend": "إعادة إرسال الدعوة"
+    "resend": "إعادة إرسال الدعوة",
+    "resendCalendar": "إعادة إرسال دعوة التقويم"
   },
   "backToName": "العودة إلى {{name}}",
   "walkInBadge": "بدون موعد",
@@ -361,6 +366,10 @@
   },
   "resend": {
     "titleFailed": "إرسال الدعوة مرة أخرى؟",
+    "titleCalendar": "إرسال دعوة التقويم مرة أخرى؟",
+    "calendarSendingTo": "جارٍ إرسال دعوة التقويم إلى {{email}}",
+    "calendarSending": "جارٍ إرسال دعوة التقويم",
+    "notNow": "ليس الآن",
     "title": "إعادة إرسال الدعوة؟",
     "keep": "الإبقاء على الدعوة الحالية",
     "lastFailed": "تعذّر إرسال آخر دعوة إلى {{email}}.",
@@ -382,5 +391,11 @@
     "noHost": "لا يوجد مضيف نشط بهذا الاسم.",
     "noDepartment": "بدون قسم",
     "inactiveDepartment": "{{name}} (غير نشط)"
+  },
+  "calendar": {
+    "add": "أضف إلى تقويمي",
+    "google": "تقويم Google",
+    "outlook": "Outlook",
+    "file": "تقويم Apple وغيره (ملف ics)"
   }
 }

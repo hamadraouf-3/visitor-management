@@ -2,6 +2,7 @@ import { Menu as MenuIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation } from 'react-router'
+import { AppearanceToggle } from '../appearance/AppearanceToggle'
 import { Drawer } from '../components/ui/Drawer'
 import type { NavEntry } from '../features/types'
 import { useMediaQuery } from '../hooks/useMediaQuery'
@@ -20,11 +21,11 @@ export interface ShellFrameProps {
    * scheme, where a company's shell is the deep teal).
    */
   shellTheme: 'theme-shell' | 'theme-shell-deep' | 'theme-shell-platform'
-  /** The page is dark from edge to edge (`data-surface="dark"`, F10-29). */
+  /** The page is dark from edge to edge (`data-surface="dark"`, F10-29): the appearance toggle says dark there. */
   darkSurface?: boolean
   /** The lockup at the head of the sidebar and the drawer (`md`) and in the top bar (`sm`). */
   renderLockup: (size: 'sm' | 'md') => ReactNode
-  /** The language switch (sidebar head on desktops, top bar below). */
+  /** The language switch (sidebar head on desktops, top bar below), with the appearance toggle (Phase 13) on its inline-start side. */
   languageSwitch: ReactNode
   /** The account menu: direction C's user block at the sidebar's foot, a compact trigger in the top bar. */
   renderUserMenu: (placement: 'bar' | 'sidebar') => ReactNode
@@ -36,10 +37,11 @@ export interface ShellFrameProps {
  * 12), shared by the company app (`AppLayout`) and the platform owner's area (Phase 11):
  *
  * - Desktop (lg+): a fixed sidebar on the inline-start side (left in English, right in Arabic): the
- *   lockup and the language switch, the grouped navigation, and the user block at its foot; no top
- *   bar (it would hold nothing else).
+ *   appearance toggle and the language switch in its top inline-end corner with the lockup under
+ *   them, the grouped navigation, and the user block at its foot; no top bar (it would hold nothing
+ *   else).
  * - Tablet/mobile: a sticky top bar with a menu button that opens the navigation in a modal drawer
- *   of the same colour, the lockup, the language switch and the account menu.
+ *   of the same colour, the lockup, the appearance toggle, the language switch and the account menu.
  *
  * Everything on the shell takes its colours from the shell's tokens, so it follows the shell's ink:
  * white on a dark shell, the dark ink on a company's light one.
@@ -78,9 +80,15 @@ export function ShellFrame({ entries, shellTheme, darkSurface = false, renderLoc
 
       {/* The shell ends at a line (`shell-edge`) only where its colour would blend into the canvas: a near-white company's. */}
       <aside className={cn(shellTheme, 'fixed inset-y-0 start-0 z-30 hidden w-64 flex-col border-e border-shell-edge bg-shell text-fg lg:flex print:hidden')}>
-        <div className="flex min-h-20 items-center justify-between gap-3 ps-5 pe-4 pt-4 pb-2">
-          {renderLockup('md')}
-          {desktop && languageSwitch}
+        {/* The two switches in its top inline-end corner, as on every page; the identity under them, with the sidebar's whole width. */}
+        <div className="flex flex-col gap-2 ps-5 pe-4 pt-4 pb-2">
+          {desktop && (
+            <div data-shell-switches="" className="flex justify-end gap-2">
+              <AppearanceToggle darkSurface={darkSurface} />
+              {languageSwitch}
+            </div>
+          )}
+          <div className="flex min-h-12 items-center">{renderLockup('md')}</div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{entries.length > 0 && <Navigation entries={entries} />}</div>
         {desktop && <div className="p-3">{renderUserMenu('sidebar')}</div>}
@@ -92,7 +100,8 @@ export function ShellFrame({ entries, shellTheme, darkSurface = false, renderLoc
         {!desktop && (
           <header
             data-app-bar=""
-            className={cn(shellTheme, 'sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-shell-edge bg-shell px-3 text-fg sm:px-5 print:hidden')}
+            // Below 384 px a little less room around and between its controls: the lockup keeps what is left, and shrinks to it.
+            className={cn(shellTheme, 'sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-shell-edge bg-shell px-3 text-fg max-[24rem]:gap-1.5 max-[24rem]:px-2 sm:px-5 print:hidden')}
           >
             {entries.length > 0 && (
               <button
@@ -106,7 +115,8 @@ export function ShellFrame({ entries, shellTheme, darkSurface = false, renderLoc
               </button>
             )}
             {renderLockup('sm')}
-            <div className="ms-auto flex items-center gap-2">
+            <div data-shell-switches="" className="ms-auto flex shrink-0 items-center gap-2 max-[24rem]:gap-1.5">
+              <AppearanceToggle darkSurface={darkSurface} />
               {languageSwitch}
               {renderUserMenu('bar')}
             </div>

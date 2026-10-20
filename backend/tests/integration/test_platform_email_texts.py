@@ -128,7 +128,7 @@ def test_the_platform_owner_reads_what_the_company_s_administrator_reads(
     admin.patch(f"/email-templates/{KIND}", json={"en": {"heading": "The administrator's heading"}})
     listed = platform.get(base)
     assert listed.status_code == 200 and listed.json() == admin.get("/email-templates").json()
-    assert len(listed.json()) == 4
+    assert len(listed.json()) == 7  # the host's three since Phase 14 (B14-2)
     assert platform.get(f"{base}/{KIND}").json() == admin.get(f"/email-templates/{KIND}").json()
     assert _overrides(platform.get(f"{base}/{KIND}"))["heading"]["en"] == "The administrator's heading"
     # Another company's texts are its own.
@@ -431,13 +431,14 @@ def test_a_real_invitation_uses_the_texts_the_platform_owner_saved(
     assert saved.status_code == 200, saved.text
     host: Api = signed_in(make_client, world.a.employee)
     create_visit(host, world.a.employee.id, TEST_START + timedelta(hours=2), send_invitation=True)
-    invitation = email_provider.sent[-1]
+    [invitation] = [sent for sent in email_provider.sent if sent.kind == "VISITOR_INVITATION"]
     assert invitation.subject.startswith("See you at Alpha |")
     assert "Tea &amp; coffee are ready, " in invitation.html and "Tea & coffee are ready, " in invitation.text
     # Another company's invitations keep the product's texts.
     other: Api = signed_in(make_client, world.b.employee)
     create_visit(other, world.b.employee.id, TEST_START + timedelta(hours=2), send_invitation=True)
-    assert email_provider.sent[-1].subject.startswith("Your visit to Bravo on ")
+    assert email_provider.sent[-3].kind == "VISITOR_INVITATION"
+    assert email_provider.sent[-3].subject.startswith("Your visit to Bravo on ")
 
 
 def test_the_texts_of_a_deactivated_company_can_still_be_prepared(

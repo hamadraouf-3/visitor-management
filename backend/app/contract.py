@@ -100,6 +100,8 @@ RESPONSES: dict[str, Any] = {
     "BrandPalette": brand.BrandPalette,
     "CompanyBrand": brand.CompanyBrand,
     "PublicCompanyBrand": brand.PublicCompanyBrand,
+    # Phase 14 (docs/decisions/phase-14-backend.md, B14-31): POST /visits/{id}/invitation
+    "VisitResendResult": visits.VisitResendResult,
 }
 
 REQUESTS: dict[str, Any] = {

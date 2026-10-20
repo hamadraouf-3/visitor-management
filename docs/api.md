@@ -505,11 +505,13 @@ audited as `RATE_LIMITED` with the policy name in `metadata.policy`.
 | `reset_password_ip` / `reset_password_prefix` | 20 / 200 (`RATE_LIMIT_RESET_PER_IP`, `..._PER_PREFIX`) | 15 min | IP / /48 | `POST /auth/reset-password` (every attempt) | 429 |
 | `scan_per_user` | 120 (`RATE_LIMIT_SCAN_PER_MINUTE`) | 1 min | user | `POST /reception/scan`, QR check-in, QR check-out (every attempt) | 429 |
 | `attendance_refusals_per_user` | 30 (`RATE_LIMIT_ATTENDANCE_REFUSALS_PER_MINUTE`) | 1 min | user | MANUAL/OVERRIDE check-in, MANUAL/CORRECTED check-out, walk-ins (only refused attempts count) | 429 |
-| `invitations_per_user_day` | 50 (`INVITATION_DAILY_LIMIT`) | 24 h | user | `POST /visits` with `send_invitation`, `POST /visits/{id}/invitation`, e-mail change in `PATCH /visitors/{id}` (one per re-invited visit) | 429 `INVITATION_LIMIT`; an e-mail change that could never fit answers 422 on `email` instead |
+| `invitations_per_user_day` | 50 (`INVITATION_DAILY_LIMIT`) | 24 h | user | `POST /visits` with `send_invitation`, `POST /visits/{id}/invitation`, e-mail change in `PATCH /visitors/{id}` (one per re-invited visit, and one per withdrawal from the old address's calendar while the budget has room, B14-17) | 429 `INVITATION_LIMIT`; an e-mail change that could never fit answers 422 on `email` instead (a withdrawal is never refused) |
 | `invitation_resends_per_visit` | 3 (`RATE_LIMIT_RESENDS_PER_VISIT_HOUR`) | 1 h | visit | `POST /visits/{id}/invitation` (429 `INVITATION_LIMIT`), `POST /visits/{id}/pass` (429 `RATE_LIMITED`) | 429 |
 | `user_email_refusals_per_user` / `..._per_company` | 10 / 20 (`RATE_LIMIT_USER_EMAIL_REFUSALS_PER_HOUR`, `..._PER_COMPANY_PER_HOUR`) | 1 h | administrator / company | `POST /users` refused with `USER_EMAIL_UNAVAILABLE` | 429 for every `POST /users` of that administrator or company |
-| `reschedule_notices_per_user_day` / `..._per_visit` | 50 / 3 (`RESCHEDULE_NOTICE_DAILY_LIMIT`, `RATE_LIMIT_RESCHEDULE_NOTICES_PER_VISIT_HOUR`) | 24 h / 1 h | user / visit | `PATCH /visits/{id}` with new times | no error: the change is saved, the e-mail is left out |
+| `reschedule_notices_per_user_day` / `..._per_visit` | 50 / 3 (`RESCHEDULE_NOTICE_DAILY_LIMIT`, `RATE_LIMIT_RESCHEDULE_NOTICES_PER_VISIT_HOUR`) | 24 h / 1 h | user / visit | `PATCH /visits/{id}` with new times (the visitor's notice only; the host's is in `host_visit_notices_per_user_day`, B14-15) | no error: the change is saved, the e-mail is left out |
 | `host_arrivals_per_user_day` | 500 (`HOST_ARRIVAL_DAILY_LIMIT`) | 24 h | checking-in user | check-ins and walk-ins | no error: the check-in succeeds, the host e-mail is left out |
+| `host_visit_notices_per_user_day` | 200 (`HOST_VISIT_NOTICE_DAILY_LIMIT`) | 24 h | acting user | the host's e-mails of scheduled visits (`HOST_VISIT_*`) that creating, rescheduling and cancelling visits, and deactivating a host or removing the host role, send (B14-15) | no error: the change is made, the host's e-mail is left out (`host_notice_limited_by`) |
+| `calendar_emails_per_company_day` | 500 (`CALENDAR_EMAIL_COMPANY_DAILY_LIMIT`) | 24 h | company | every calendar event the e-mails carry: `VISITOR_CALENDAR`, `VISIT_RESCHEDULED`, `VISIT_CANCELLED`, `HOST_VISIT_*` (B14-15, B14-28); the calendar invitation sent again alone (B14-31) | no error: the change is made. An e-mail that is only the event (a calendar invitation, the host's notice of a new visit) is left out; a notice of a new time goes without its event (`*_notified` true, `calendar_sent` / `host_calendar_sent` false, `notice_limited_by` / `host_notice_limited_by` this policy); an event that takes the visit out of a calendar (a cancellation, a withdrawal from an old address) is never left out and counts while there is room. The calendar invitation sent again alone: 429 `INVITATION_LIMIT` |
 | `password_notices_per_user` | 5 (fixed) | 1 h | user | password change and reset | no error: the "password changed" e-mail is left out |
 | `stale_check_out_empty_runs` | 1 (fixed) | per company-local day | user | `POST /reception/check-out-stale` that checks out nobody | no error: only the first such run of the day is audited |
 | `template_test_sends_per_user` | 5 (`RATE_LIMIT_TEMPLATE_TEST_SENDS_PER_HOUR`) | 1 h | administrator, or platform account | `POST /email-templates/{kind}/test`, `POST /platform/companies/{id}/email-templates/{kind}/test` | 429 `RATE_LIMITED` |
@@ -572,7 +574,7 @@ snapshot.
 | `ScanWarning.code` | `OUTSIDE_SCHEDULED_TIME`, `OVERSTAYED` |
 | `check_in_options` | `MANUAL`, `OVERRIDE` |
 | `Language` | `ar`, `en` (Arabic is the product's default) |
-| `EditableEmailKind` (Phase 11) | `VISITOR_INVITATION`, `VISIT_RESCHEDULED`, `VISIT_CANCELLED`, `HOST_ARRIVAL` |
+| `EditableEmailKind` (Phase 11; the last three since Phase 14) | `VISITOR_INVITATION`, `VISIT_RESCHEDULED`, `VISIT_CANCELLED`, `HOST_ARRIVAL`, `HOST_VISIT_SCHEDULED`, `HOST_VISIT_RESCHEDULED`, `HOST_VISIT_CANCELLED` |
 | `TemplateField` (Phase 11) | `subject`, `heading`, `greeting`, `intro`, `button`, `closing`, `footer_note` |
 
 The Phase 11 schemas (`PlatformMe`, `PlatformCompany`, `PlatformCompanyAdmin`, `PlatformCompanyCreated`,
@@ -653,7 +655,9 @@ e-mail).
 
 **`VisitCancel`** (`VisitCancelRequest`) — the whole body is optional. `reason?` (≤ 300, nullable),
 `notify_visitor?` (default `true`; a visitor is e-mailed only if an invitation was requested for the
-visit).
+visit; ignored when `Visit.visitor_calendar_sent` is true: the visitor is then always e-mailed, so that
+the event leaves the visitor's calendar, B14-16, and that e-mail carries no `reason` when
+`notify_visitor` is false, B14-32).
 
 **`CheckInRequest`** — discriminated by `method`:
 `{"method":"QR","pass_token":"<scanner input, ≤ 4096>"}` |
@@ -698,8 +702,9 @@ Message        { message }                                   // ForgotPasswordRe
 
 Me             { user: { id, full_name, email, phone | null, roles: Role[], department: DepartmentRef | null,
                          must_change_password, preferred_language: Language | null },
-                 company: { id, name, name_ar | null, slug, timezone, default_language: Language,
-                            brand: CompanyBrand } }      // Phase 12: slug, brand (§10.12)
+                 company: { id, name, name_ar | null, slug, address | null, address_ar | null, timezone,
+                            default_language: Language, brand: CompanyBrand } }
+                 // Phase 12: slug, brand (§10.12); Phase 14: address, address_ar
 User           { id, full_name, email, phone | null, roles: Role[], department: DepartmentRef | null,
                  is_active, must_change_password, last_login_at | null, created_at, updated_at,
                  cancelled_visits? }                         // only in PATCH /users/{id}, when visits were cancelled
@@ -728,12 +733,21 @@ Visit {
   is_overdue,                // CHECKED_IN and now > scheduled_end
   is_stale,                  // CHECKED_IN and checked in before the company-local today
   created_by: UserRef, created_at, updated_at,
-  invitation: { status, to_email | null, attempts, last_attempt_at | null, sent_at | null, error | null },
+  calendar_sequence,         // Phase 14: the version of the visit's calendar events (B14-6)
+  visitor_calendar_sent,     // the visitor's calendar holds the visit (the last event its address was
+                             // sent is a REQUEST, B14-26): its cancellation is always e-mailed (B14-16)
+  invitation: { status, to_email | null, attempts, last_attempt_at | null, sent_at | null, error | null,
+                calendar_failed },
+                             // FAILED also when the calendar invitation that followed the latest
+                             // invitation failed while the invitation went out: then calendar_failed is
+                             // true and the other fields are the calendar invitation's (B14-18)
   last_notice: { kind, status, to_email, sent_at | null, error | null } | null,
   pass: { status, issued_at | null, revoke_reason | null },
   permissions: { can_edit, can_cancel, can_resend, can_check_in, can_check_out }
 }
 VisitCreateResult { visit: Visit, pass_url, visitor_match: { reused } }   // pass_url shown once
+VisitResendResult { visit: Visit, pass_url | null, visitor_match: { reused } }
+                                     // null: only the calendar invitation was sent again (B14-31)
 VisitPassResult   { visit: Visit, pass_url }
 
 ScanResult     { result, visit: Visit, warnings: { code, message }[], actions: { check_in, check_out } }
@@ -894,7 +908,9 @@ Revokes the current session; clears the session and CSRF cookies (the device coo
 
 **200** `Me`. Allowed while a password change is required, so the client can tell. Since Phase 12
 `Me.company` carries the company's `slug` and its `brand` (`CompanyBrand`, [§10.12](#1012-a-companys-identity)):
-the identity the application shows from the first answer after sign-in.
+the identity the application shows from the first answer after sign-in. Since Phase 14 also its `address`
+and `address_ar` (show `address_ar` in Arabic when it is set, else `address`, and the other way round), the
+location of the calendar events the application offers (phase-14-backend.md B14-13).
 
 #### `POST /api/v1/auth/change-password` — session
 
@@ -1060,7 +1076,13 @@ of the company (`details.visitor_id` only for callers who read every visitor). A
 
 Body `VisitorUpdate`. **200** `Visitor`. Name and company changes update the snapshots of the visitor's
 SCHEDULED visits. An e-mail change revokes the active passes of the visitor's SCHEDULED visits and sends
-each a new invitation with a new pass to the new address; clearing the e-mail only revokes them.
+each a new invitation with a new pass to the new address; clearing the e-mail only revokes them. Either
+way, each visit whose event the old address's calendar holds is first taken out of that calendar: a
+`VISITOR_CALENDAR` message to the old address whose `CANCEL` names nothing of the visit, with
+`calendar_sequence` one higher, and the new address's calendar invitation one higher still (Phase 14,
+B14-17, B14-30). A REQUEST still waiting to go to the old address is closed (FAILED, B14-29). A new
+address that is another spelling of the same mailbox (letter case, a `+tag`, Gmail's dots) loses nothing:
+no withdrawal, and its calendar invitation updates the entry.
 
 - **403** `FORBIDDEN` (readable but not editable by this EMPLOYEE)
 - **404**
@@ -1098,7 +1120,12 @@ Query (`VisitListQuery`):
 #### `POST /api/v1/visits` — `CREATE_VISIT`
 
 Body `VisitCreate`. Creates a SCHEDULED visit and always issues a pass; queues the invitation e-mail when
-`send_invitation` is true (delivered after the response; the visit is kept even if delivery fails).
+`send_invitation` is true, followed by its calendar invitation (`VISITOR_CALENDAR`, the visit as an event of
+the visitor's calendar, without the pass), and always the host's notice of the visit (`HOST_VISIT_SCHEDULED`,
+with the host's event) (delivered after the response, in that order; the visit is kept even if delivery
+fails). Phase 14, [phase-14-backend.md](decisions/phase-14-backend.md) B14-1. The calendar invitation and
+the host's notice are left out beyond their budgets (`calendar_emails_per_company_day`,
+`host_visit_notices_per_user_day`, B14-15).
 **201** `VisitCreateResult`: `pass_url` (`{QR_BASE_URL}/pass?c=<slug>#<token>` since Phase 12) is returned **only here and
 never again**; `visitor_match.reused` tells whether an existing visitor record was linked.
 
@@ -1109,7 +1136,7 @@ never again**; `visitor_match.reused` tells whether an existing visitor record w
   (checked before the host is looked up, so the answer says nothing about that user)
 - **429** `INVITATION_LIMIT` (`invitations_per_user_day`)
 - **503** `SERVICE_BUSY` (a concurrent change kept moving the matched visitor's e-mail)
-- Audit: `VISIT_CREATED`, `PASS_ISSUED`, `INVITATION_QUEUED`, later `INVITATION_SENT` / `INVITATION_FAILED`; `VISITOR_CREATED` for an inline new visitor.
+- Audit: `VISIT_CREATED` (`host_notified`, `host_notice_limited_by`), `PASS_ISSUED`, `INVITATION_QUEUED` (`calendar_sent`, `notice_limited_by`), later `INVITATION_SENT` / `INVITATION_FAILED`; `VISITOR_CREATED` for an inline new visitor.
 
 #### `GET /api/v1/visits/{visit_id}` — `READ_VISITS`
 
@@ -1119,19 +1146,26 @@ never again**; `visitor_match.reused` tells whether an existing visitor record w
 
 Body `VisitUpdate`. Only SCHEDULED visits. A schedule change recomputes the pass window with the
 current grace settings and **keeps the pass**; the visitor is e-mailed a "rescheduled" notice only if
-an invitation was requested for the visit (and the notice budgets allow). **200** `Visit`.
+an invitation was requested for the visit (within the reschedule budgets), and the host (when active and
+told of the visit) a `HOST_VISIT_RESCHEDULED` (within the host's e-mails' budget, not the reschedule
+budgets, B14-15); each carries its calendar event at the new time. A new time raises `calendar_sequence`
+by one. **200** `Visit`.
 
 - **403** `FORBIDDEN` (readable but not owned)
 - **404**
 - **409** `VISIT_NOT_EDITABLE`
 - **422** schedule rules, `department_id`
-- Audit `VISIT_UPDATED` (changed field names), `VISIT_RESCHEDULED`.
+- Audit `VISIT_UPDATED` (changed field names), `VISIT_RESCHEDULED` (`visitor_notified`, `email_message_id`, `calendar_sent`, `notice_limited_by`: the visitor's notice; `host_notified`, `host_calendar_sent`, `host_notice_limited_by`: the host's). A notice goes without its event beyond the company's calendar events, or with calendar invitations switched off to a calendar that does not hold the visit (B14-27, B14-28).
 
 #### `POST /api/v1/visits/{visit_id}/cancel` — `MANAGE_OWN_VISITS`
 
 Optional body `VisitCancel`. Cancels a SCHEDULED visit, revokes its pass, and e-mails the visitor when
-`notify_visitor` is true **and** an invitation was requested for the visit. **200** `Visit` (see
-`last_notice` for the notice's delivery).
+`notify_visitor` is true **and** an invitation was requested for the visit, and always when the visitor's
+calendar was sent the visit (`visitor_calendar_sent`, B14-16); the host, when active and told of the
+visit, gets `HOST_VISIT_CANCELLED` whatever `notify_visitor` says (within the host's e-mails' budget).
+Both carry the cancellation of their calendar event; `calendar_sequence` is raised by one. **200**
+`Visit` (see `last_notice` for the visitor's notice). Audit `VISIT_CANCELLED` (`visitor_notified`,
+`host_notified`, `host_notice_limited_by`, …).
 
 - **403**, **404**
 - **409** `INVALID_STATE_TRANSITION` (not SCHEDULED)
@@ -1139,12 +1173,20 @@ Optional body `VisitCancel`. Cancels a SCHEDULED visit, revokes its pass, and e-
 #### `POST /api/v1/visits/{visit_id}/invitation` — `MANAGE_OWN_VISITS`
 
 Resends the invitation: **rotates the pass** (the previous QR code stops working), closes any invitation
-of the visit still PENDING, and sends a new invitation. **200** `VisitCreateResult` with the new one-time
-`pass_url`.
+of the visit still PENDING, and sends a new invitation, followed by its calendar invitation (the same event,
+its current version, where it may go). **200** `VisitResendResult` with the new one-time `pass_url`.
+
+When only the calendar invitation failed (`visit.invitation.calendar_failed` true: the invitation went
+out), it sends **the calendar invitation alone** again instead (Phase 14, B14-31): the same version of
+the visitor's event with a new `DTSTAMP`; the pass is not rotated, no invitation is sent, and `pass_url`
+is **null**. It counts as one of the visit's hourly resends, of the user's daily invitations and of the
+company's calendar events, all or none, and is sent with calendar invitations switched off too (that
+calendar was sent the visit). Audit `INVITATION_QUEUED` with `pass_id` null and `calendar_sent` true.
 
 - **403**, **404**
 - **409** `VISIT_NOT_EDITABLE`, `VISITOR_EMAIL_REQUIRED`
-- **429** `INVITATION_LIMIT` (`invitations_per_user_day`, `invitation_resends_per_visit`)
+- **429** `INVITATION_LIMIT` (`invitations_per_user_day`, `invitation_resends_per_visit`; for the calendar
+  invitation alone also `calendar_emails_per_company_day`)
 
 #### `POST /api/v1/visits/{visit_id}/pass` — `MANAGE_OWN_VISITS`
 
@@ -1312,17 +1354,19 @@ in the window); summary rows carry `deferred: true`.
 ### 10.10 A company's e-mail texts
 
 Phase 11 (B11-20 … B11-31). A company's administrators (`ADMINISTER`; every other role 403 `FORBIDDEN`)
-replace, per language, some words of the four visit e-mails. `{kind}` is one of `VISITOR_INVITATION`,
-`VISIT_RESCHEDULED`, `VISIT_CANCELLED`, `HOST_ARRIVAL`; any other value, `PASSWORD_RESET` and
-`PASSWORD_CHANGED` included, answers 404 `NOT_FOUND` (the security e-mails keep the product's words).
+replace, per language, some words of the seven visit e-mails. `{kind}` is one of `VISITOR_INVITATION`,
+`VISIT_RESCHEDULED`, `VISIT_CANCELLED`, `HOST_ARRIVAL` and, since Phase 14 (B14-2), the host's
+`HOST_VISIT_SCHEDULED`, `HOST_VISIT_RESCHEDULED`, `HOST_VISIT_CANCELLED`; any other value, `PASSWORD_RESET`,
+`PASSWORD_CHANGED` and `VISITOR_CALENDAR` (it takes the invitation's words, B14-10) included, answers 404
+`NOT_FOUND` (the security e-mails keep the product's words).
 
 Editable fields (`max_length` in characters; "one line" refuses line breaks and tabs):
 
 | Field | Kinds | Lines | Max | Required variable | Product's text (`default`) |
 |---|---|---|---|---|---|
-| `subject` | all | one | 150 | `company` (visitor kinds), `visitor_name` (HOST_ARRIVAL); `purpose` is not allowed | the catalog subject; a visitor e-mail's subject is "<lead language> \| <other language>", each half from its own language's text |
+| `subject` | all | one | 150 | `company` (visitor kinds), `visitor_name` (HOST_ARRIVAL, HOST_VISIT_*); `purpose` is not allowed | the catalog subject; a visitor e-mail's subject is "<lead language> \| <other language>", each half from its own language's text |
 | `heading` | all | one | 150 | | the heading |
-| `greeting` | all | one | 150 | | "Hello {visitor_name}," (HOST_ARRIVAL: "Hello {host_name},") |
+| `greeting` | all | one | 150 | | "Hello {visitor_name}," (HOST_ARRIVAL, HOST_VISIT_*: "Hello {host_name},") |
 | `intro` | all | many | 1000 | | the first paragraph |
 | `button` | VISITOR_INVITATION | one | 40 | | "Open my visitor pass" |
 | `closing` | all | many | 1000 | | "" (an extra paragraph when set) |
@@ -1334,6 +1378,7 @@ Variables (the allow-list of the kind; `{name}` in a text):
 |---|---|
 | VISITOR_INVITATION, VISIT_RESCHEDULED, VISIT_CANCELLED | `visitor_name`, `company`, `host_name`, `date`, `time` (the visit's time range), `timezone`, `department`, `purpose` |
 | HOST_ARRIVAL | `host_name`, `visitor_name`, `visitor_company`, `company`, `date` (the visit's date), `time` (the check-in time), `timezone`, `purpose` |
+| HOST_VISIT_SCHEDULED, HOST_VISIT_RESCHEDULED, HOST_VISIT_CANCELLED | `host_name`, `visitor_name`, `visitor_company`, `company`, `date`, `time` (the visit's time range), `timezone`, `department`, `purpose` |
 
 Rules: plain text only; CRLF/CR become LF and white space at both ends is removed; an empty or `null`
 text returns the field to the product's text. Values are escaped and kept in their own writing direction in
@@ -1359,7 +1404,7 @@ visitor e-mail) stays on one line in the HTML part (B11-47), and a `closing` is 
 
 #### `GET /api/v1/email-templates` — `ADMINISTER`
 
-**200** `EmailTemplate[]`, the four kinds in the order above:
+**200** `EmailTemplate[]`, the seven kinds in the order above:
 
 ```json
 {
@@ -1443,7 +1488,8 @@ base-uri 'none'; form-action 'none'; frame-ancestors 'self'; sandbox`, `X-Frame-
 #### `POST /api/v1/email-templates/{kind}/test` — `ADMINISTER`
 
 Body as the preview; `scheme` has no effect here: the test e-mail is the e-mail as it is sent, with its
-light design and its dark one (B13-5). Sends that rendering to the **caller's own address** (there is no
+light design and its dark one (B13-5), but **without a calendar event** (Phase 14, B14-14): its visit
+exists nowhere, and an invitation would put it into the caller's calendar. Sends that rendering to the **caller's own address** (there is no
 recipient field),
 with "[Test] " before the subject, or «[رسالة تجريبية] » when `language` is `ar` (UX review, B12-25; it was
 «[تجربة] »). The subject is built for the room the prefix leaves, so the prefix never costs it its end

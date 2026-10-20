@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import EmailKind, EmailStatus, sql_in_list
+from app.models.enums import EmailKind, EmailStatus, EventMethod, sql_in_list
 
 
 class EmailMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -35,6 +35,7 @@ class EmailMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(f"status IN ({sql_in_list(EmailStatus)})", name="status_valid"),
         CheckConstraint("attempts >= 0", name="attempts_non_negative"),
         CheckConstraint("(status = 'SENT') = (sent_at IS NOT NULL)", name="sent_at_set"),
+        CheckConstraint(f"calendar_method IN ({sql_in_list(EventMethod)})", name="calendar_method_valid"),
     )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
@@ -54,6 +55,9 @@ class EmailMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_error: Mapped[str | None] = mapped_column(String(500))  # sanitized, never provider internals
     last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The iTIP method of the calendar event the message carried, NULL when it carried none (revision 0017,
+    # Phase 14, B14-26): whether a calendar was sent the visit's event, or had it taken out.
+    calendar_method: Mapped[str | None] = mapped_column(String(8))
 
 
 Index("ix_email_messages_visit_id_created_at", EmailMessage.visit_id, EmailMessage.created_at)

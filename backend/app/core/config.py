@@ -280,6 +280,12 @@ class Settings(BaseSettings):
     # E-mails delivered at the same time (`email.dispatcher`): deliveries wait for one of these slots,
     # never for the worker threads requests use, so a provider that hangs delays only e-mail.
     email_delivery_concurrency: int = Field(default=4, ge=1, le=32)
+    # Calendar invitations (Phase 14, B14-27). Off: no NEW entry in anyone's calendar (no visitor's
+    # calendar invitation, no host's notice of a new visit, no event attached for a calendar that does not
+    # hold the visit), while the calendars that already hold a visit's event are still sent its new time
+    # and its removal, so switching it off leaves no wrong entry behind. A release gate keeps it off on
+    # production until the sending mailbox is a dedicated one whose domain has SPF, DKIM and DMARC.
+    calendar_invitations_enabled: bool = True
 
     rate_limit_enabled: bool = True
     rate_limit_login_per_ip_email: int = Field(default=5, ge=1)
@@ -323,6 +329,16 @@ class Settings(BaseSettings):
     # "Your visitor has arrived" e-mails to hosts per user who checks visitors in (or registers walk-ins)
     # and 24 hours. Beyond it the check-in still succeeds; only the e-mail is left out.
     host_arrival_daily_limit: int = Field(default=500, ge=1)
+    # The host's e-mails of a scheduled visit (a new visit, its new time, its cancellation; Phase 14,
+    # B14-15) that a user's actions send, per user and 24 hours, whoever the hosts are. Beyond it the
+    # visit is still created, moved or cancelled; only the host's e-mail is left out.
+    host_visit_notice_daily_limit: int = Field(default=200, ge=1)
+    # The e-mails that carry a visit as a calendar event (the visitor's calendar invitation, new time and
+    # cancellation, the host's three), per company and 24 hours (B14-15): every company's e-mails leave
+    # through the one sending mailbox (EMAIL_FROM), whose provider caps a day's messages. Beyond it the
+    # change is still made and the e-mail is left out, except one that takes a visit out of a visitor's
+    # calendar, which is never left out.
+    calendar_email_company_daily_limit: int = Field(default=500, ge=1)
     # Test e-mails of a company's edited texts (POST /email-templates/{kind}/test, B11-29), always to the
     # administrator's own address, per administrator and hour.
     rate_limit_template_test_sends_per_hour: int = Field(default=5, ge=1, le=100)

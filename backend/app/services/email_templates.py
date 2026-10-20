@@ -489,7 +489,11 @@ class EmailTemplatesService:
         draft: Mapping[Language, EmailTemplateTexts | None],
         context: RequestContext,
     ) -> TestSend:
-        prepared = self._prepare(editor, kind, language, draft, subject_prefix=TEST_SUBJECT_PREFIX[language])
+        # No calendar event (B14-1): the sample visit exists nowhere, and an invitation would put it into
+        # the editor's calendar.
+        prepared = self._prepare(
+            editor, kind, language, draft, subject_prefix=TEST_SUBJECT_PREFIX[language], calendar=False
+        )
         policy = self.policies.template_test_sends_per_user
         decision = self.limiter.hit(policy, editor.test_budget_key)
         if not decision.allowed:
@@ -525,8 +529,10 @@ class EmailTemplatesService:
         *,
         subject_prefix: str = "",
         scheme: EmailScheme | None = None,
+        calendar: bool = True,
     ) -> PreparedEmail:
-        """The rendered e-mail: as it is sent (a test e-mail), or one design alone (a preview)."""
+        """The rendered e-mail: as it is sent (a test e-mail, without the calendar event: `calendar`), or
+        one design alone (a preview)."""
         spec = _kind(kind)
         design: Scheme | None = None if scheme is None else scheme.value
         company = editor.company(self.db)
@@ -569,6 +575,7 @@ class EmailTemplatesService:
                     overrides=texts,
                     subject_prefix=subject_prefix,
                     scheme=design,
+                    calendar=calendar,
                 )
             case EmailKind.VISIT_CANCELLED:
                 return self.emails.prepare_visit_cancelled(
@@ -579,6 +586,7 @@ class EmailTemplatesService:
                     overrides=texts,
                     subject_prefix=subject_prefix,
                     scheme=design,
+                    calendar=calendar,
                 )
             case EmailKind.HOST_ARRIVAL:
                 return self.emails.prepare_host_arrival(
@@ -589,6 +597,23 @@ class EmailTemplatesService:
                     overrides=texts,
                     subject_prefix=subject_prefix,
                     scheme=design,
+                )
+            case (
+                EmailKind.HOST_VISIT_SCHEDULED
+                | EmailKind.HOST_VISIT_RESCHEDULED
+                | EmailKind.HOST_VISIT_CANCELLED
+            ):
+                return self.emails.prepare_host_visit(
+                    visit,
+                    kind=spec.kind,
+                    company=sample_company,
+                    host_name=host.full_name,
+                    host_language=language.value,
+                    reason=SAMPLE_REASON[language] if spec.kind == EmailKind.HOST_VISIT_CANCELLED else None,
+                    overrides=texts,
+                    subject_prefix=subject_prefix,
+                    scheme=design,
+                    calendar=calendar,
                 )
         raise NotFound()  # pragma: no cover - every editable kind is matched above
 

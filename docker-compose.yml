@@ -257,8 +257,10 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=64m
-      # The entrypoint renders /etc/nginx/templates/vms.conf.template here at every start.
-      - /etc/nginx/conf.d:size=1m
+      # The entrypoint renders /etc/nginx/templates/vms.conf.template here at every start, as nginx
+      # (uid 101). mode=1777: Docker 29 on Linux mounts the tmpfs root-owned 0755, where that render
+      # fails (found on the first production host, 2026-10-14).
+      - /etc/nginx/conf.d:size=1m,mode=1777
     cap_drop:
       - ALL
     security_opt:

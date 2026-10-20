@@ -55,7 +55,8 @@ class VisitHost(ResponseModel):
 
 
 class VisitInvitation(ResponseModel):
-    """Latest VISITOR_INVITATION e-mail of the visit."""
+    """Latest VISITOR_INVITATION e-mail of the visit, or the failure of the calendar invitation that
+    followed it (Phase 14, B14-18)."""
 
     status: InvitationStatus
     to_email: str | None
@@ -63,6 +64,10 @@ class VisitInvitation(ResponseModel):
     last_attempt_at: UTCDatetime | None
     sent_at: UTCDatetime | None
     error: str | None
+    # True exactly when `status` is FAILED because the calendar invitation that followed the latest
+    # invitation failed while the invitation itself went out or is on its way (B14-18): the visitor has
+    # the pass without the event. The other fields are then the calendar invitation's. False otherwise.
+    calendar_failed: bool
 
 
 NoticeKind = Literal["VISIT_CANCELLED", "VISIT_RESCHEDULED"]
@@ -125,6 +130,13 @@ class Visit(ResponseModel):
     created_by: UserRef
     created_at: UTCDatetime
     updated_at: UTCDatetime
+    # The version of the visit's calendar events (Phase 14, B14-6): the SEQUENCE every iCalendar object
+    # sent about the visit carries. 0 at creation, one more at every new time and at the cancellation.
+    calendar_sequence: int
+    # Whether the visitor's calendar was sent the visit (B14-16): the calendar invitation that followed
+    # the latest invitation went to the visitor's address. Its cancellation then reaches the visitor
+    # whatever `notify_visitor` says (VisitCancel), so the event leaves the visitor's calendar.
+    visitor_calendar_sent: bool
     invitation: VisitInvitation
     last_notice: VisitNotice | None
     # "pass" is a Python keyword: exposed under that name through the alias.
@@ -145,6 +157,16 @@ class VisitorMatch(ResponseModel):
 class VisitCreateResult(ResponseModel):
     visit: Visit
     pass_url: str  # shown exactly once; never retrievable later
+    visitor_match: VisitorMatch
+
+
+class VisitResendResult(ResponseModel):
+    """POST /visits/{id}/invitation: the visit, and the new pass's one-time URL; null when only the
+    calendar invitation was sent again (it alone had failed, `VisitInvitation.calendar_failed`, B14-31),
+    and the pass the visitor has stays valid."""
+
+    visit: Visit
+    pass_url: str | None  # shown exactly once; never retrievable later
     visitor_match: VisitorMatch
 
 
@@ -230,6 +252,8 @@ class VisitUpdate(RequestModel):
 
 class VisitCancel(RequestModel):
     reason: OptionalReason300 = None
+    # Not asked for a visit the visitor's calendar was sent (`Visit.visitor_calendar_sent`, B14-16): its
+    # cancellation always reaches the visitor, so that the event leaves the calendar.
     notify_visitor: bool = True
 
 

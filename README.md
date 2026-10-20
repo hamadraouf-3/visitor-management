@@ -66,7 +66,10 @@ design in depth, see [docs/architecture.md](docs/architecture.md), and for the H
    sends the server only the company's name in the link (to show that company's logo and colours), never
    the token. The host sees the same pass
    link **once**, right after creating the visit (*Copy link*, *Show QR code*, *Print pass*), in case
-   the e-mail does not arrive.
+   the e-mail does not arrive. A short second e-mail follows the invitation with the visit for the
+   visitor's calendar (Google Calendar, Outlook, Apple Calendar), and the host gets one with the visit for
+   theirs; a new time moves both entries and a cancellation removes them. No calendar entry holds the
+   pass link ([§10](#10-e-mail-provider-configuration), Phase 14).
 4. **Reception scans the pass** (`/reception`, *Scan* tab). The tablet camera, a handheld scanner or a
    pasted link all work. The server validates the pass and answers *ready*, *already checked in*,
    *expired*, *not yet valid*, *replaced*, *cancelled*, *completed*, *host no longer active* or
@@ -187,12 +190,12 @@ installed app and the lockup under the Mawdoo3 logo say so (since Phase 12 a com
 company's identity instead, [§1.5](#15-a-companys-own-identity)). The design is direction C ("Bold Modern") in mawdoo3.com's colours: a teal
 `#188086` sidebar with the white logo, a light content area with slate text, turquoise `#27b5bb` and
 yellow `#f7b916` accents behind dark text, big KPI numerals, and a dark reception tablet. Each device
-chooses its **appearance**: «تلقائي» / System (the default: the device's own colour scheme, followed
-live), «فاتح» / Light or «داكن» / Dark, in the account menu, the platform owner's account menu and beside
-the language switch on the signed-out pages and the visitor's pass (Phase 13,
-[phase-13-frontend.md](docs/decisions/phase-13-frontend.md)). The choice is kept on the device, for every
-company and the platform owner's area; a page is drawn in it from its first frame. The reception screen
-is dark under System, as it always was, and follows an explicit Light or Dark. Screens carry no explanatory notes: only errors,
+has its **appearance**: the device's own colour scheme, followed live, until the person presses the
+appearance toggle, «الوضع الداكن» / "Dark mode" (a sun or a moon beside the language switch, on the
+signed-out pages, the visitor's pass and in both shells); a press keeps the other scheme, light or dark
+(Phase 13, [phase-13-frontend.md](docs/decisions/phase-13-frontend.md)). The choice is kept on the
+device, for every company and the platform owner's area; a page is drawn in it from its first frame. The
+reception screen is dark until a choice, as it always was, and follows an explicit light or dark. Screens carry no explanatory notes: only errors,
 validation, data, and one short line before an irreversible action. Every colour pair is
 contrast-tested to WCAG AA ([docs/development.md](docs/development.md) §2.5).
 
@@ -546,6 +549,9 @@ refuses values above ten times their default. The two bucket caps have a product
 | `RESCHEDULE_NOTICE_DAILY_LIMIT` | `50` | rescheduling e-mails per user / 24 h (beyond it, the change is saved without an e-mail) |
 | `RATE_LIMIT_RESCHEDULE_NOTICES_PER_VISIT_HOUR` | `3` | rescheduling e-mails per visit / hour (the same) |
 | `HOST_ARRIVAL_DAILY_LIMIT` | `500` | "your visitor has arrived" e-mails per checking-in user / 24 h. Set it above the busiest desk account's daily check-ins. |
+| `HOST_VISIT_NOTICE_DAILY_LIMIT` | `200` | the host's e-mails of scheduled visits (a new visit, its new time, its cancellation) that one user's actions send / 24 h, whoever the hosts are (beyond it, the change is made without the host's e-mail) |
+| `CALENDAR_EMAIL_COMPANY_DAILY_LIMIT` | `500` | calendar events (the visitor's calendar invitation, new time and cancellation, the host's three) per company / 24 h. Beyond it the change is made: a calendar invitation and the host's notice of a new visit are left out, a notice of a new time goes without its event, and a cancellation that takes the visit out of a calendar is always sent. Keep the companies' budgets together, with the invitations and the other e-mails, below the sending mailbox's daily cap (Gmail 500, Google Workspace 2,000). |
+| `CALENDAR_INVITATIONS_ENABLED` | `true` | `false`: no new calendar entry (no calendar invitation, no host's notice of a new visit, no event for a calendar that does not hold the visit); calendars that hold a visit still get its new time and its removal. **Keep `false` on production** until the sending mailbox is a dedicated one with SPF, its own DKIM and DMARC (`deploy/env/backend.env.example` has it false; production-readiness §15 E). |
 | `RATE_LIMIT_TEMPLATE_TEST_SENDS_PER_HOUR` | `5` | test e-mails of a company's edited e-mail texts, to the administrator's own address, per administrator / hour (1–100); the platform owner's test e-mails count per platform account |
 | `RATE_LIMIT_PUBLIC_BRAND_PER_IP` **G** | `600` | requests of the public identity endpoints (a company's name, brand, images and manifest, read by its sign-in and pass pages without a session) per client address / min; every request counts, whatever the answer |
 | `RATE_LIMIT_PUBLIC_BRAND_PER_PREFIX` **G** | `6000` | the same per IPv6 /48 |
@@ -778,11 +784,14 @@ interpolation, so the repository's development `.env` cannot leak into it.
 
 ## 10. E-mail provider configuration
 
-The system sends seven kinds of e-mail: `VISITOR_INVITATION` (with the inline QR code),
-`VISIT_RESCHEDULED`, `VISIT_CANCELLED`, `HOST_ARRIVAL`, `PASSWORD_RESET`, `PASSWORD_CHANGED` and
-`PLATFORM_ACTION_NOTICE` (to a company's other administrators when the platform owner adds an
-administrator or sends one a reset link). Each message is a row in `email_messages` (`PENDING` → `SENT` or
-`FAILED`). The rendered body is not stored, because it can contain a pass link.
+The system sends eleven kinds of e-mail: `VISITOR_INVITATION` (with the inline QR code),
+`VISITOR_CALENDAR` (the short e-mail that follows every invitation with the visit for the visitor's
+calendar), `VISIT_RESCHEDULED`, `VISIT_CANCELLED`, `HOST_VISIT_SCHEDULED`, `HOST_VISIT_RESCHEDULED` and
+`HOST_VISIT_CANCELLED` (the host's: a new visit, its new time, its cancellation), `HOST_ARRIVAL`,
+`PASSWORD_RESET`, `PASSWORD_CHANGED` and `PLATFORM_ACTION_NOTICE` (to a company's other administrators
+when the platform owner adds an administrator or sends one a reset link). Each message is a row in
+`email_messages` (`PENDING` → `SENT` or `FAILED`). The rendered body is not stored, because it can contain
+a pass link.
 
 **What a message looks like.** Every e-mail is in Arabic and English and is **the company's own**
 ([§1.5](#15-a-companys-own-identity)): its logo as an inline image (`cid:brand-logo`) on a white header, or
@@ -822,18 +831,78 @@ Mawdoo3 logo on the teal header).
   check-in waits for it). The preview of a company's e-mail texts shows either design alone (`scheme`).
   The worst e-mail the texts and values allow stays below 95 KiB, clear of Gmail's clipping at about
   102 KB.
+- **Calendars** (Phase 14, [phase-14-backend.md](docs/decisions/phase-14-backend.md)). The visit goes into
+  the visitor's and the host's calendars (Google Calendar, Outlook, Apple Calendar) as a calendar
+  invitation in the e-mail (iCalendar, an iTIP `REQUEST`), with no connection to anyone's calendar.
+  - **The visitor**: every invitation is followed by a short e-mail, `VISITOR_CALENDAR`, that carries
+    the event; the invitation itself carries none, because Outlook keeps the text of the e-mail that
+    carries an event in the calendar entry, and the pass link must not end up in a calendar. The notice
+    of a new time carries the event moved (same `UID`, a higher `SEQUENCE`), the notice of a cancellation
+    a `CANCEL`. A visitor whose pass the host shares himself, and a walk-in, get nothing, as before.
+  - **A cancelled visit always leaves the visitor's calendar**: once the visitor's calendar holds the
+    visit (its calendar invitation or a notice of a new time put it there), the cancellation is e-mailed
+    whatever "Notify the visitor" says, without the reason, which was not meant for the visitor (the
+    visit says so, `visitor_calendar_sent`, and the app does not offer the choice then). Each e-mail
+    records the event it carried (`email_messages.calendar_method`, revision `0017`).
+  - **A visitor's new address**: the old address's calendar loses the visit (a `VISITOR_CALENDAR` message
+    whose `CANCEL` names nothing of the visit), one version newer, before the new address is invited
+    one version newer still; a calendar invitation still waiting to go to the old address is not sent.
+    Removing the address does the same. Another spelling of the same mailbox (letter case, a `+tag`,
+    Gmail's dots) loses nothing: its new invitation updates the entry.
+  - **The host** gets `HOST_VISIT_SCHEDULED` for every scheduled visit booked for them, then
+    `HOST_VISIT_RESCHEDULED` and `HOST_VISIT_CANCELLED`, each with the host's own event (another `UID`),
+    while the account is active, and the cancellations a deactivation causes. The host's event is
+    private (`CLASS:PRIVATE`): a colleague who sees the host's calendar sees the time taken. A company
+    edits their words like the other visit e-mails.
+  - **Budgets**: the host's e-mails count per user whose action sends them (`HOST_VISIT_NOTICE_DAILY_LIMIT`)
+    and every calendar event per company (`CALENDAR_EMAIL_COMPANY_DAILY_LIMIT`), since every company's
+    e-mails leave through the one sending mailbox. Beyond them the visit is still created, moved or
+    cancelled: an e-mail that is only the event (a calendar invitation, the host's notice of a new visit)
+    is left out, a notice of a new time goes without its event, and a cancellation that takes the visit
+    out of a calendar is always sent; the audit log says what was left out.
+  - **The switch** (`CALENDAR_INVITATIONS_ENABLED`, false on production until the release gate): off, no
+    calendar gets a new entry, and the e-mails go as before; the calendars that already hold a visit
+    still get its new time and its removal, so switching it off leaves no wrong entry.
+  - A calendar invitation that fails shows as a failed invitation, under *Needs attention*, marked as
+    the calendar invitation's (`invitation.calendar_failed`: the visitor has the pass); resending then
+    sends the calendar invitation alone again, and the pass stays as it is. It is put right too by a later
+    notice of a new time that reaches the calendar. A host's e-mail that fails stays in the e-mail log.
+  - The event says when (in UTC), where (the company's address), who and what for; **never a link or a
+    token**. The organizer is `EMAIL_FROM`'s address under the company's name; the recipient is asked for
+    no reply (`RSVP=FALSE`, which Outlook honours; Gmail still offers Yes / No / Maybe, and those answers
+    reach `EMAIL_FROM`'s mailbox).
+  - `EMAIL_FROM`'s own address, in any spelling that reaches it (letter case, a `+tag`, Gmail's dots), is
+    never sent an event: it organizes them all, and a calendar does not add an invitation to its own
+    organizer.
+  - **Before calendar events go to production** (until then `CALENDAR_INVITATIONS_ENABLED=false`):
+    `EMAIL_FROM` must be **a dedicated mailbox that hosts nobody** (no person's mailbox, and no address
+    of one), and its domain must publish SPF and DMARC and sign its mail with **its own DKIM key** (Admin
+    console → Gmail → Authenticate email), so that `From`, the envelope sender and the organizer are one
+    authenticated address. The release gate is [production-readiness.md](docs/production-readiness.md)
+    §15 E.
+  - **In the app** ([phase-14-frontend.md](docs/decisions/phase-14-frontend.md)): the host of a scheduled
+    visit that has not ended also has "Add to my calendar" on the visit page and after booking it: Google
+    Calendar's and Outlook on the web's (Microsoft 365) new-event forms, and an `.ics` file for Apple
+    Calendar and the rest, built in the browser from the visit as it is when the menu opens (fetched
+    again). The file is the host's e-mailed event (same `UID` and `SEQUENCE`), so the e-mails that follow
+    move or remove it; a link makes an entry of its own, and is at most 2,000 characters (the file carries
+    everything). No pass link in any of them. The visitor's pass page has no such control.
 
 | Provider | Use | Behaviour |
 |---|---|---|
-| `outbox` | development and the E2E suite | Writes each message to `EMAIL_OUTBOX_DIR` as `<id>.json` (`message_id`, `kind`, `to`, `subject`, `pass_url`, `reset_url`, `created_at`), `<id>.html`, `<id>.txt` and inline images `<id>-<cid>.png` (the logo is `<id>-brand-logo.png`, the logo for the dark design `<id>-brand-logo-dark.png` when the company has one, an invitation's QR code `<id>-visitor-pass-qr.png`). These files contain live pass and reset links: keep them inside `backend/var/` (git-ignored). |
-| `resend` | production (recommended) | `POST https://api.resend.com/emails` with the API key as a bearer token. The logo and the QR code are inline attachments referenced as `cid:`. The `Idempotency-Key` is derived from the message's ID (`vms-email-<id>`), so a retry cannot send it twice. 429, 5xx and timeouts are retried; other 4xx fail at once. |
-| `smtp` | production with your own mail server, or a quick start with Gmail | Python's `smtplib` over TLS (465, `ssl`) or STARTTLS (587), with the server's certificate checked against `SMTP_HOST`. Text and HTML alternatives, the logo and the QR code as inline images in a `multipart/related` part, referenced as `cid:` (Gmail, Outlook and Apple Mail show them inside the message). Connection failures, timeouts and 4xx replies are retried; 5xx replies and a refused sign-in fail at once. Retries carry the same `Message-ID` (`vms-email-<id>@<sender's domain>`). |
+| `outbox` | development and the E2E suite | Writes each message to `EMAIL_OUTBOX_DIR` as `<id>.json` (`message_id`, `kind`, `to`, `subject`, `pass_url`, `reset_url`, `created_at`, `calendar`: `{method, uid, sequence}` of the calendar event, or `null`), `<id>.html`, `<id>.txt`, inline images `<id>-<cid>.png` (the logo is `<id>-brand-logo.png`, the logo for the dark design `<id>-brand-logo-dark.png` when the company has one, an invitation's QR code `<id>-visitor-pass-qr.png`) and the calendar event `<id>.ics` when the message carries one. These files contain live pass and reset links: keep them inside `backend/var/` (git-ignored). |
+| `resend` | production (recommended) | `POST https://api.resend.com/emails` with the API key as a bearer token. The logo and the QR code are inline attachments referenced as `cid:`. The `Idempotency-Key` is derived from the message's ID (`vms-email-<id>`), so a retry cannot send it twice. 429, 5xx and timeouts are retried; other 4xx fail at once. **A calendar event can only be an attachment** (`invite.ics`, content type plain `text/calendar`: Resend's documentation names no parameters for it, and the object names its method itself): Resend's API has no way to add it as an alternative part. Gmail and Apple Mail read it as an invitation; Outlook shows the file to open, and does not move or remove the entry by itself on a new time or a cancellation. |
+| `smtp` | production with your own mail server, or a quick start with Gmail | Python's `smtplib` over TLS (465, `ssl`) or STARTTLS (587), with the server's certificate checked against `SMTP_HOST`. Text and HTML alternatives, the logo and the QR code as inline images in a `multipart/related` part, referenced as `cid:` (Gmail, Outlook and Apple Mail show them inside the message). A calendar event is the last alternative, `text/calendar; method=REQUEST` (or `CANCEL`), and the same object as an `invite.ics` attachment: the tree Google Calendar sends and Outlook processes. Connection failures, timeouts and 4xx replies are retried; 5xx replies and a refused sign-in fail at once. Retries carry the same `Message-ID` (`vms-email-<id>@<sender's domain>`). |
 | `memory` | backend tests only | keeps messages in memory |
 
 **The sender.** The address of `EMAIL_FROM` is what every message is sent from. With Resend it is on
 your verified domain; with Gmail it is the signed-in Gmail address. Its display name
 (`Mawdoo3 Visitors <address>` by default; see [§5.4](#54-names)) shows on the test message only: a
-company's e-mails are sent under the company's own name, from that same address.
+company's e-mails are sent under the company's own name, from that same address. It is also the
+organizer of every calendar event (Phase 14): give the system a mailbox of its own, not a person's, since
+a host whose address it is gets the host's e-mails without the event, and Gmail sends the answers to the
+invitations (Yes / No / Maybe) there. For calendar events this is a release condition (see
+"Calendars" above).
 
 **Switching to Resend (production):**
 
@@ -1217,6 +1286,31 @@ and drawn ahead of the requests that send them; the worst e-mail is 96,782 bytes
 screenshots before and after: 392 byte for byte the same, the rest the light emblems' new header. 10 of
 10 fixes taken out one at a time made a test fail ([phase-13-backend.md](docs/decisions/phase-13-backend.md),
 "After the review").
+
+**Phase 14 (2026-10-19), the backend (calendar invitations), on the same machine:** `ruff`, `ruff format`,
+`mypy` clean; `pytest` 4,635 passed, 12 skipped and 1 failed in the default order (the load-sensitive
+timing check of a test-only route, which passed 3 of 3 alone and in the run before), and 4,636 passed and 12 skipped with `--committed-first`; the
+contract snapshot regenerated; `deploy/verify` 46 OK; the release tree clean. Every calendar object the
+tests write is read back by an independent parser (`icalendar`, a test-only dependency); the messages are
+parsed as a real SMTP server (aiosmtpd) receives them. 34 of 34 safeguards taken out one at a time made a
+test fail. 12 of the new e-mails screenshot in Chromium and WebKit, light and dark, at 600 and 375 pixels
+(96 pages, none wider than its window). No real e-mail was sent: the check in Gmail and Outlook is the
+release's ([phase-14-backend.md](docs/decisions/phase-14-backend.md), production-readiness L-29).
+
+**Phase 14, after its review (2026-10-20, B14-15 to B14-25):** `ruff`, `ruff format`, `mypy` clean;
+`pytest` 4,688 passed and 12 skipped in the default order (the run before failed one Phase 11 test
+whenever a generated temporary password started with "x"; fixed); the contract snapshot regenerated
+(`Visit.visitor_calendar_sent`, `VisitInvitation.calendar_failed`); `deploy/verify` 46 OK; the release
+tree clean. 28 of 28 fixes taken out one at a time made a test fail. The new withdrawal e-mail
+screenshot in Chromium and WebKit, light and dark, at 600 and 375 pixels (32 pages, none wider than its
+window).
+
+**Phase 14, after its verification (2026-10-20, B14-26 to B14-34):** `ruff`, `ruff format`, `mypy` clean;
+`pytest` 4,727 passed and 12 skipped in the default order (the run before failed only the load-sensitive
+timing check of a test-only route, which passed 3 of 3 alone); the contract snapshot regenerated
+(`VisitResendResult`); `deploy/verify` 46 OK; the release tree clean. 16 of 16 fixes taken out one at a time
+made a test fail; the verifiers' probes pass (one, which assumed a withdrawal that B14-30 removes, prints
+the new behaviour).
 
 Run in an equivalent form only: `npm run dev` and `npm run preview` themselves. The same Vite
 configuration was started with `npx vite --port …` and `npx vite preview --outDir …` on other ports,

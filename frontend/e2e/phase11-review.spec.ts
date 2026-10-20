@@ -435,7 +435,7 @@ test.describe('companies (L13, L14, L16)', () => {
 
 const adminMe = (language: Language): Me => ({
   user: { id: uuid('00', 1), full_name: 'Lina Haddad', email: 'lina.haddad@example.com', phone: null, roles: ['SYSTEM_ADMIN'], department: null, must_change_password: false, preferred_language: language },
-  company: { id: uuid('00', 2), name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED },
+  company: { id: uuid('00', 2), name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED, address: null, address_ar: null },
 })
 
 function preview(language: Language): EmailPreview {

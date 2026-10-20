@@ -58,7 +58,7 @@ const publicBrand = (company: MockCompany, darkLogo: boolean): PublicCompanyBran
 
 const meOf = (company: MockCompany, language: Language, darkLogo: boolean): Me => ({
   user: { id: uuid('00', 1), full_name: 'Lina Haddad', email: 'lina.haddad@example.com', phone: null, roles: ['SYSTEM_ADMIN', 'EMPLOYEE'], department: null, must_change_password: false, preferred_language: language },
-  company: { id: company.id, name: company.name, name_ar: company.name_ar, slug: company.slug, timezone: 'Asia/Amman', default_language: 'en', brand: brandOf(company, darkLogo) },
+  company: { id: company.id, name: company.name, name_ar: company.name_ar, slug: company.slug, timezone: 'Asia/Amman', default_language: 'en', brand: brandOf(company, darkLogo), address: null, address_ar: null },
 })
 
 const platformMe = (language: Language): PlatformMe => ({ admin: { id: uuid('9a', 1), full_name: 'Platform Owner', email: 'platform@demo.local', must_change_password: false, preferred_language: language } })

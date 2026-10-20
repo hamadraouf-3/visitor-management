@@ -51,7 +51,7 @@ export const publicBrandOf = (company: MockCompany, files: MockFiles = {}): Publ
 export function meOf(company: MockCompany, language: Language, files: MockFiles = {}, roles: Role[] = ['SYSTEM_ADMIN', 'EMPLOYEE', 'RECEPTIONIST']): Me {
   return {
     user: { id: uuid('00', 1), full_name: 'Lina Haddad', email: 'lina.haddad@example.com', phone: null, roles, department: null, must_change_password: false, preferred_language: language },
-    company: { id: COMPANY_ID, name: company.name, name_ar: company.name_ar, slug: company.slug, timezone: 'Asia/Amman', default_language: 'en', brand: brandOf(company, files) },
+    company: { id: COMPANY_ID, name: company.name, name_ar: company.name_ar, slug: company.slug, timezone: 'Asia/Amman', default_language: 'en', brand: brandOf(company, files), address: null, address_ar: null },
   }
 }
 
@@ -109,8 +109,10 @@ export function mockVisit(index: number, name: string, company: string | null, s
     created_by: actor,
     created_at: iso(-600),
     updated_at: iso(-600),
-    invitation: { status: 'NOT_SENT', to_email: null, attempts: 0, last_attempt_at: null, sent_at: null, error: null },
+    invitation: { status: 'NOT_SENT', to_email: null, attempts: 0, last_attempt_at: null, sent_at: null, error: null, calendar_failed: false },
     last_notice: null,
+    calendar_sequence: 0,
+    visitor_calendar_sent: false,
     pass: { status: 'ACTIVE', issued_at: iso(-600), revoke_reason: null },
     permissions: { can_edit: true, can_cancel: true, can_resend: true, can_check_in: false, can_check_out: false },
   }

@@ -109,10 +109,13 @@ test.describe('reception: passes that cannot simply be checked in', () => {
     const dialog = employee.page.getByRole('alertdialog', { name: 'Cancel this visit?' })
     const reason = 'The meeting moved online'
     await dialog.getByRole('textbox', { name: /^Reason/ }).fill(reason)
-    await expect(dialog.getByRole('checkbox', { name: 'Notify the visitor by email' })).toBeChecked()
+    // The visitor was sent the visit's calendar invitation: the cancellation always tells them (Phase 14), so
+    // there is no choice to make.
+    await expect(dialog.getByRole('checkbox')).toHaveCount(0)
     const cancel = waitForApi(employee.page, 'POST', `/visits/${created.visit.id}/cancel`)
     await dialog.getByRole('button', { name: 'Cancel visit' }).click()
     expect((await cancel).status()).toBe(200)
+    await expect(employee.page.getByText('The visitor is being notified by email.')).toBeVisible()
     await expect(employee.page.getByText('This visit was cancelled')).toBeVisible()
     const cancelled = await host.visit(created.visit.id)
     expect(cancelled).toMatchObject({ status: 'CANCELLED', cancellation_reason: reason, pass: { status: 'REVOKED', revoke_reason: 'VISIT_CANCELLED' } })

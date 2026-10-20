@@ -201,6 +201,8 @@ def test_scopes_follow_what_the_keys_are_derived_from() -> None:
         "reschedule_notices_per_user_day": bounded,
         "reschedule_notices_per_visit": bounded,
         "host_arrivals_per_user_day": bounded,
+        "host_visit_notices_per_user_day": bounded,  # the acting user (B14-15)
+        "calendar_emails_per_company_day": bounded,  # companies (B14-15)
         "template_test_sends_per_user": bounded,  # administrators (B11-29)
         "public_brand_ip": network,  # the public identity endpoints (B12-9)
         "public_brand_prefix": network,

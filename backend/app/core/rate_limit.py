@@ -77,6 +77,8 @@ class PolicyName(StrEnum):
     RESCHEDULE_NOTICES_PER_USER_DAY = "reschedule_notices_per_user_day"
     RESCHEDULE_NOTICES_PER_VISIT = "reschedule_notices_per_visit"
     HOST_ARRIVALS_PER_USER_DAY = "host_arrivals_per_user_day"
+    HOST_VISIT_NOTICES_PER_USER_DAY = "host_visit_notices_per_user_day"
+    CALENDAR_EMAILS_PER_COMPANY_DAY = "calendar_emails_per_company_day"
     TEMPLATE_TEST_SENDS_PER_USER = "template_test_sends_per_user"
     PUBLIC_BRAND_IP = "public_brand_ip"
     PUBLIC_BRAND_PREFIX = "public_brand_prefix"
@@ -190,6 +192,8 @@ class RatePolicies:
     reschedule_notices_per_user_day: RatePolicy
     reschedule_notices_per_visit: RatePolicy
     host_arrivals_per_user_day: RatePolicy
+    host_visit_notices_per_user_day: RatePolicy
+    calendar_emails_per_company_day: RatePolicy
     template_test_sends_per_user: RatePolicy
     public_brand_ip: RatePolicy
     public_brand_prefix: RatePolicy
@@ -337,6 +341,19 @@ class RatePolicies:
             ),
             host_arrivals_per_user_day=RatePolicy(
                 PolicyName.HOST_ARRIVALS_PER_USER_DAY, settings.host_arrival_daily_limit, 24 * 60 * 60
+            ),
+            # Not in §7.3 (Phase 14, B14-15): the host's e-mails of scheduled visits per acting user and
+            # day, and the e-mails carrying a visit's calendar event per company and day (keyed by the
+            # company: every company's e-mails share the one sending mailbox).
+            host_visit_notices_per_user_day=RatePolicy(
+                PolicyName.HOST_VISIT_NOTICES_PER_USER_DAY,
+                settings.host_visit_notice_daily_limit,
+                24 * 60 * 60,
+            ),
+            calendar_emails_per_company_day=RatePolicy(
+                PolicyName.CALENDAR_EMAILS_PER_COMPANY_DAY,
+                settings.calendar_email_company_daily_limit,
+                24 * 60 * 60,
             ),
             # Not in §7.3 (B11-29): test e-mails of a company's edited texts, to the administrator's own
             # address, per administrator and hour.

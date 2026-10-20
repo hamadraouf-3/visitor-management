@@ -1,6 +1,7 @@
 import {
   Ban,
   CalendarClock,
+  CalendarX2,
   CircleMinus,
   Clock,
   LogOut,
@@ -93,6 +94,16 @@ export const INVITATION_STATUS_LONG_LABELS: Readonly<Record<InvitationStatus, st
   get FAILED() {
     return i18n.t('status.invitationLong.FAILED')
   },
+}
+
+/**
+ * An invitation FAILED only because the calendar invitation that followed it did not arrive
+ * (`calendar_failed`, Phase 14): the invitation itself, and the pass in it, went out. Its own words
+ * ("Calendar failed" under an "Invitation" heading, "Calendar invitation not delivered" on its own)
+ * and a calendar's icon, so it never reads as a visitor without a pass.
+ */
+export function calendarInvitationFailedMeta(standalone: boolean): StatusMeta {
+  return meta(() => i18n.t(standalone ? 'status.calendarInvitationFailed.long' : 'status.calendarInvitationFailed.short'), 'danger', CalendarX2)
 }
 
 export const PASS_STATUS_META: Record<PassStatus, StatusMeta> = {

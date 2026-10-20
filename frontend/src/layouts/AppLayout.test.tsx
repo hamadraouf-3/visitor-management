@@ -31,6 +31,20 @@ function appBar(): HTMLElement {
   return bar
 }
 
+/** The appearance toggle and the language switch in a shell (F13-25): side by side, the toggle first, one look. */
+function switchesIn(scope: HTMLElement): HTMLElement {
+  const toggle = within(scope).getByRole('button', { name: 'Dark mode' })
+  const language = within(scope).getByRole('button', { name: 'العربية' })
+  // Side by side, the toggle first in the reading order, as on the signed-out pages.
+  expect(toggle.nextElementSibling).toBe(language)
+  expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  // The language switch's own size and look: 44 px at least, its outline on the shell's surface.
+  const look = ['min-h-11', 'min-w-11', 'rounded-control', 'border', 'border-border-strong', 'bg-surface', 'text-fg']
+  expect(toggle).toHaveClass(...look)
+  expect(language).toHaveClass(...look)
+  return toggle
+}
+
 /** An administrator of a company with these files of an identity (Phase 12), and this colour. */
 function meWithLogos(files: { logo?: boolean; logoDark?: boolean; color?: string }, roles: Parameters<typeof makeMe>[0] = ['SYSTEM_ADMIN']): Me {
   const me = makeMe(roles)
@@ -38,7 +52,7 @@ function meWithLogos(files: { logo?: boolean; logoDark?: boolean; color?: string
 }
 
 describe('AppLayout', () => {
-  it('names the company in the account menu, with the appearance, change password and sign out', async () => {
+  it('names the company in the account menu, with change password and sign out', async () => {
     mockApi({ 'GET /auth/me': () => jsonResponse(makeMe(['SYSTEM_ADMIN'])), ...adminDashboardRoutes() })
     const { user } = renderRoutes(routes, { initialEntries: ['/admin'] })
     await screen.findByRole('heading', { level: 1, name: 'Admin dashboard' })
@@ -47,28 +61,44 @@ describe('AppLayout', () => {
 
     const menu = screen.getByRole('menu', { name: 'Account menu for Lina Haddad' })
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Change password', 'Sign out'])
-    // The device's appearance first (Phase 13): a group of three choices, System chosen until the device chooses.
-    const appearance = within(menu).getByRole('group', { name: 'Appearance' })
-    expect(within(appearance).getAllByRole('menuitemradio').map((item) => [item.textContent, item.getAttribute('aria-checked')])).toEqual([
-      ['Light', 'false'],
-      ['Dark', 'false'],
-      ['System', 'true'],
-    ])
+    // The appearance is the toggle beside the language switch (F13-25): nothing of it in the menu.
+    expect(within(menu).queryByRole('group')).toBeNull()
+    expect(within(menu).queryByRole('menuitemradio')).toBeNull()
+    expect(within(menu).queryByRole('separator')).toBeNull()
     // The account summary is shown above the menu, outside role="menu": roles and the company.
     expect(screen.getByText('Administrator')).toBeVisible()
     expect(within(menu).queryByText('Administrator')).toBeNull()
     const company = document.querySelector('[data-user-company]')
     expect(company).toHaveTextContent('Acme Holdings')
     expect(menu).not.toContainElement(company as HTMLElement)
-    expect(within(menu).getByRole('menuitemradio', { name: 'Light' })).toHaveFocus()
-
-    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
     expect(within(menu).getByRole('menuitem', { name: 'Change password' })).toHaveFocus()
+
     await user.keyboard('{ArrowDown}')
     expect(within(menu).getByRole('menuitem', { name: 'Sign out' })).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('menu')).toBeNull()
     expect(screen.getByRole('button', { name: 'Account menu for Lina Haddad' })).toHaveFocus()
+  })
+
+  it('puts the appearance toggle on the language switch’s inline-start side, the same button: in the top bar and in the sidebar’s head', async () => {
+    mockApi({ 'GET /auth/me': () => jsonResponse(makeMe(['SYSTEM_ADMIN'])), ...adminDashboardRoutes() })
+    const { unmount } = renderRoutes(routes, { initialEntries: ['/admin'] })
+    await screen.findByRole('heading', { level: 1, name: 'Admin dashboard' })
+    // The phone's top bar: menu button, lockup, then the toggle, the language switch and the account menu.
+    const toggle = switchesIn(appBar())
+    expect(toggle.parentElement?.lastElementChild).toContainElement(screen.getByRole('button', { name: 'Account menu for Lina Haddad' }))
+    unmount()
+
+    stubDesktop()
+    mockApi({ 'GET /auth/me': () => jsonResponse(makeMe(['SYSTEM_ADMIN'])), ...adminDashboardRoutes() })
+    renderRoutes(routes, { initialEntries: ['/admin'] })
+    await screen.findByRole('heading', { level: 1, name: 'Admin dashboard' })
+    const sidebar = screen.getByRole('complementary')
+    switchesIn(sidebar)
+    // In the sidebar's top inline-end corner, the company's identity under them.
+    const switches = sidebar.querySelector('[data-shell-switches]')!
+    expect(switches).toHaveClass('justify-end')
+    expect(switches.compareDocumentPosition(within(sidebar).getByText('Acme Holdings')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('heads the top bar with the company’s identity, its name as a wordmark without a logo, and never the product’s', async () => {
@@ -391,5 +421,30 @@ describe('AppLayout', () => {
     // System: dark by design, as before, on a device in its light scheme too (jsdom's is light).
     expect(container.querySelector('[data-surface="dark"]')).not.toBeNull()
     expect(appBar()).toHaveClass('theme-shell-deep')
+  })
+
+  it('on the dark screen the toggle says dark until a choice: a press draws it light, the next dark (F13-25)', async () => {
+    const tree: RouteObject[] = [
+      {
+        path: '/',
+        Component: RootLayout,
+        children: [{ Component: RequireAuth, children: [{ element: <AppLayout navigation={navigation} />, children: [{ path: 'dark', handle: DARK_SURFACE_HANDLE, element: <h1>Dark screen</h1> }] }] }],
+      },
+    ]
+    mockApi({ 'GET /auth/me': () => jsonResponse(makeMe(['RECEPTIONIST'])) })
+    const { container, user } = renderRoutes(tree, { initialEntries: ['/dark'] })
+    await screen.findByRole('heading', { level: 1, name: 'Dark screen' })
+    // Nothing chosen, a device in its light scheme (jsdom's): the page's scheme is light, but what is shown is dark.
+    expect(document.documentElement.getAttribute('data-scheme')).not.toBe('dark')
+    const toggle = within(appBar()).getByRole('button', { name: 'Dark mode' })
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    await user.click(toggle)
+    expect(window.localStorage.getItem('vms.appearance')).toBe('light')
+    expect(container.querySelector('[data-surface]')).toBeNull()
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await user.click(toggle)
+    expect(window.localStorage.getItem('vms.appearance')).toBe('dark')
+    expect(container.querySelector('[data-surface="dark"]')).not.toBeNull()
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
   })
 })

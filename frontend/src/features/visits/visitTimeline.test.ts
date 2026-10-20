@@ -15,6 +15,15 @@ describe('buildVisitTimeline', () => {
   it('reports a failed invitation at its last attempt and leaves out one still being sent', () => {
     const failed = makeVisit({ invitation: { status: 'FAILED', sent_at: null, last_attempt_at: '2026-10-05T06:10:05Z' } })
     expect(buildVisitTimeline(failed)[1]).toMatchObject({ id: 'invitation', title: 'Invitation could not be sent', tone: 'danger' })
+    // Only the calendar invitation that followed it failed: said as such, at its attempt, to its address.
+    const calendarFailed = makeVisit({ invitation: { status: 'FAILED', sent_at: null, last_attempt_at: '2026-10-05T06:10:09Z', calendar_failed: true } })
+    expect(buildVisitTimeline(calendarFailed)[1]).toMatchObject({
+      id: 'invitation',
+      at: '2026-10-05T06:10:09Z',
+      title: 'Calendar invitation not delivered',
+      recipient: 'elodie@orbit.example',
+      tone: 'danger',
+    })
 
     const pending = makeVisit({ invitation: { status: 'PENDING', sent_at: null, last_attempt_at: null, attempts: 0 } })
     expect(buildVisitTimeline(pending).map((event) => event.id)).toEqual(['created'])

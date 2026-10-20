@@ -170,7 +170,7 @@ def test_an_override_s_author_belongs_to_its_company(connection: Connection, wor
 
 # The newest revision: where a refused downgrade leaves the database (the whole downgrade is one
 # transaction), and where `upgrade head` brings it.
-HEAD = "0015"
+HEAD = "0017"
 COMPANY_ID = "00000000-0000-0000-0000-000000000001"
 NEW_COMPANY = "INSERT INTO companies (id, name, slug, timezone) VALUES (:id, :name, :slug, 'UTC')"
 NEW_OVERRIDE = (

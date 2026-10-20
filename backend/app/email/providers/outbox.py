@@ -2,9 +2,11 @@
 production by configuration validation).
 
 Files per message (contract §9): `<message_id>.html`, `<message_id>.txt`, inline images
-`<message_id>-<cid>.png`, and `<message_id>.json` with
-`{message_id, kind, to, subject, created_at, pass_url, reset_url}`. The JSON file is written last, so a
-reader that sees it can rely on the other files being complete.
+`<message_id>-<cid>.png`, the calendar event a visit e-mail carries as `<message_id>.ics` (Phase 14,
+B14-7), and `<message_id>.json` with
+`{message_id, kind, to, subject, created_at, pass_url, reset_url, calendar}`, where `calendar` is
+`{method, uid, sequence}` of that event, or null. The JSON file is written last, so a reader that sees it
+can rely on the other files being complete.
 """
 
 import json
@@ -61,6 +63,9 @@ class OutboxProvider:
             _atomic_write(self.directory / f"{stem}.txt", email.text.encode("utf-8"))
             for image in email.inline_images:
                 _atomic_write(self.directory / f"{stem}-{image.content_id}.png", image.content)
+            calendar = email.calendar
+            if calendar is not None:
+                _atomic_write(self.directory / f"{stem}.ics", calendar.content)
             metadata = {
                 "message_id": stem,
                 "kind": email.kind.value,
@@ -69,6 +74,11 @@ class OutboxProvider:
                 "created_at": self._clock().isoformat().replace("+00:00", "Z"),
                 "pass_url": email.pass_url,
                 "reset_url": email.reset_url,
+                "calendar": (
+                    {"method": calendar.method, "uid": calendar.uid, "sequence": calendar.sequence}
+                    if calendar is not None
+                    else None
+                ),
             }
             _atomic_write(self.directory / f"{stem}.json", json.dumps(metadata, indent=2).encode("utf-8"))
         except OSError as exc:

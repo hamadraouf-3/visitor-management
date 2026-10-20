@@ -41,6 +41,10 @@ class MeCompany(ResponseModel):
     name: str  # the English (or only) name
     name_ar: str | None  # shown instead of `name` when the interface is in Arabic
     slug: str  # the company's own sign-in page is /c/<slug> (B12-11)
+    # The company's address, the location of its visits' calendar events (Phase 14, B14-8): `address_ar`
+    # is shown in Arabic when it is set, `address` in English, each falling back to the other.
+    address: str | None
+    address_ar: str | None
     timezone: str
     default_language: Language
     brand: CompanyBrand  # its logo, icon, colour and palette (B12-11)

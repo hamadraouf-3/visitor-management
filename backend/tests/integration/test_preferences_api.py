@@ -66,6 +66,8 @@ def test_the_me_payload_carries_the_company_languages(make_client, factory: Fact
         "name": "Mawdoo3",
         "name_ar": "موضوع",
         "slug": company.slug,
+        "address": None,
+        "address_ar": None,
         "timezone": "Asia/Amman",
         "default_language": "ar",
         "brand": no_brand(),

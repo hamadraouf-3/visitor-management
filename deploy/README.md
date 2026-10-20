@@ -125,7 +125,7 @@ Requirements: Docker Engine 24+ with Compose v2.24+ (BuildKit named build contex
 
 | Task | Command | When |
 |---|---|---|
-| Upgrade | `git pull && docker compose build && docker compose up -d` (take a backup first; `migrate` runs before the new API starts) | each release |
+| Upgrade | the procedure below ("Upgrading a running deployment"): backup, build, `migrate` while the old API serves, then the API and the frontend | each release |
 | E-mail check | `docker compose run --rm --no-deps backend python -m app.cli send-test-email --to <address>` | after changing the e-mail settings |
 | Backup | `scripts/backup.sh --compose --out-dir /srv/vms-backups --retention-days 14` | cron, see below |
 | Restore drill | `scripts/restore.sh --compose --file /srv/vms-backups/vms-<stamp>.dump --target-db vms_restore_test`, then drop it | quarterly |
@@ -134,6 +134,91 @@ Requirements: Docker Engine 24+ with Compose v2.24+ (BuildKit named build contex
 | Certificate renewal | replace `deploy/tls/tls.crt` / `tls.key`, then `docker compose exec frontend nginx -s reload` | before expiry |
 | Header drift check (CI) | `node deploy/verify/check_nginx_headers.mjs` | every change of either header list |
 | Release hygiene (CI) | `python3 deploy/verify/check_release_tree.py`: fails on development artefacts (e-mail outbox files, raw pass/reset links), cookies, private keys, `.env` files or database archives among the files `git add -A` would commit. Full checklist: `docs/decisions/phase-9-deploy.md` | every push; before every release tag |
+
+**Upgrading a running deployment** (each release; the auditor's runbook of Phase 14, B14-34). Every
+`docker compose` command reads the env files, which are mode 600 and owned by the account that wrote
+them (root on a server set up with `sudo`): run them as that account, with `sudo` below.
+
+1. **The new tree.** From a checkout, write the release as LF text whatever the checkout's settings (a
+   Windows checkout with `core.autocrlf=true` turns the shell scripts' line ends into CRLF, which the
+   containers cannot run):
+
+   ```sh
+   git -c core.autocrlf=input archive --format=tar --output=vms-<tag>.tar <tag>
+   ```
+
+   Unpack it next to the running tree and copy it over with `rsync --delete`, protecting what the
+   release does not carry: the secrets, the certificate, local tooling, any root `.env` and Compose
+   override files. Run it with `--dry-run` first and read the list of deletions:
+
+   ```sh
+   rsync -a --delete --dry-run \
+     --filter='protect /deploy/env/*.env' --filter='protect /deploy/tls/***' \
+     --filter='protect /.local/***' --filter='protect /.env' --filter='protect /*override*.y*ml' \
+     vms-<tag>/ /opt/vms/
+   ```
+
+   Then the same command without `--dry-run`.
+
+   Never `chown -R` or `chmod -R` over the tree: `deploy/tls/tls.key` must stay mode 640, group 101
+   (nginx), and `deploy/tls/` mode 750 (§1, step 2).
+2. **A backup**, and the images to go back to:
+
+   ```sh
+   sudo scripts/backup.sh --compose --out-dir /srv/vms-backups
+   sudo docker tag vms-backend:local vms-backend:previous
+   sudo docker tag vms-frontend:local vms-frontend:previous
+   ```
+
+3. **Build** while the old containers keep serving. On a small VM (2 GB of memory or less) the
+   frontend's build can run out of memory; add a temporary swap file for it and remove it afterwards:
+
+   ```sh
+   sudo fallocate -l 2G /swapfile.build && sudo chmod 600 /swapfile.build \
+     && sudo mkswap /swapfile.build && sudo swapon /swapfile.build
+   sudo docker compose build
+   sudo swapoff /swapfile.build && sudo rm /swapfile.build
+   ```
+
+4. **Migrate first, while the old API serves.** A plain `docker compose up -d` would stop every API
+   container before it runs `migrate` (the API depends on it), so the site would be down for the whole
+   migration. Run it on its own instead (Phase 14's revisions, `0016` and `0017`, leave the running
+   API working on the migrated schema; read a release's upgrade note below before relying on that for
+   another):
+
+   ```sh
+   sudo docker compose run --rm migrate
+   ```
+
+   It fails, and changes nothing, if a table's lock is not granted within 5 seconds (revisions `0016`
+   and `0017`, B14-23); run it again once the long transaction that held it (a report, a backup) has
+   ended.
+5. **The API, then the frontend**, without running `migrate` again, then a plain `up -d`, which finds
+   everything up to date:
+
+   ```sh
+   sudo docker compose up -d --no-deps backend backend-reception backend-reports
+   sudo docker compose up -d --no-deps frontend
+   sudo docker compose up -d
+   sudo docker compose ps -a
+   ```
+
+6. **Verify**: the smoke test (§1, step 5) and, after a change of the e-mail settings, `send-test-email`.
+
+**Rolling back** to the previous release keeps the database as it is (revisions `0016` and `0017` only
+add columns with a default or none, and widen CHECKs, which the previous release's API reads and writes
+as before). The previous images cannot run `migrate`: their Alembic does not know the database's
+revision and fails, which a plain `up -d` would wait for. Put the previous images back and start the
+services without it:
+
+```sh
+sudo docker tag vms-backend:previous vms-backend:local
+sudo docker tag vms-frontend:previous vms-frontend:local
+sudo docker compose up -d --no-build --no-deps backend backend-reception backend-reports frontend
+```
+
+Do not downgrade the schema to go back: the downgrades refuse while the log holds what the older schema
+cannot (B14-11), and restoring the backup of step 2 loses everything written since.
 
 **Upgrading from a release before Phase 10.** `migrate` applies revision `0011`: three language
 columns, without rewriting a table. Every existing company becomes Arabic by default and has no Arabic
@@ -156,6 +241,24 @@ product; pass and reset links carry `?c=<slug>`, and links sent before the upgra
 settings have safe defaults and need no line in `backend.env` (`RATE_LIMIT_PUBLIC_BRAND_PER_IP`,
 `RATE_LIMIT_PUBLIC_BRAND_PER_PREFIX`, `RATE_LIMIT_BRAND_CHANGES_PER_HOUR`; the repository's `.env.example`
 describes them). A downgrade to `0014` refuses while any company has a colour or an image.
+
+**Upgrading to Phase 14 (calendar invitations).** `migrate` applies revision `0016`: the e-mail kinds of
+the host's three e-mails and of the visitor's calendar invitation (the CHECKs on `email_messages` and
+`email_template_overrides`) and `visits.calendar_sequence`, an integer with a constant default, so no
+table is rewritten. Then revision `0017`: `email_messages.calendar_method`, a nullable column (the event
+each e-mail carried; the rows before it are marked by their kind, B14-26). The CHECKs on `email_messages`
+and `visits` are added `NOT VALID` and then validated, which reads each of the two tables once. Each
+revision waits at most **5 seconds** for a table's lock (`lock_timeout`): while a long transaction holds
+one (a long report, a backup being taken), it fails and leaves the database exactly as it was; run
+`migrate` again once that transaction has ended. Three new settings: `HOST_VISIT_NOTICE_DAILY_LIMIT` and
+`CALENDAR_EMAIL_COMPANY_DAILY_LIMIT` have safe defaults and need no line in `backend.env`;
+**`CALENDAR_INVITATIONS_ENABLED=false`** must be in it (`deploy/env/backend.env.example` has it), and is
+a **release gate**: keep it false until `EMAIL_FROM` is a mailbox of the system's own that hosts nobody
+and its domain publishes SPF, signs with its own DKIM key and has DMARC
+(`docs/production-readiness.md` §15 E). While it is false no calendar gets a new entry; the e-mails are
+sent as before. A downgrade to `0016` drops the new column; one to `0015` refuses while an e-mail of the
+new kinds is in the log, a company has a text of a host's e-mail, or a scheduled visit's event has a
+version above 0.
 
 **A deployment of Phase 12 from before its security review (B12-18 to B12-20).** Rebuild **both** images
 once more; there is no migration and no new setting. The nginx image carries the change that matters

@@ -901,6 +901,8 @@ Source: `backend/app/core/rate_limit.py`.
 | `invitation_resends_per_visit` (resend and pass reissue) | 3 / hour | `RATE_LIMIT_RESENDS_PER_VISIT_HOUR` | — |
 | `reschedule_notices_per_user_day` / `…_per_visit` | 50 / 24 h; 3 / hour (change kept, e-mail left out) | `RESCHEDULE_NOTICE_DAILY_LIMIT` / `RATE_LIMIT_RESCHEDULE_NOTICES_PER_VISIT_HOUR` | — |
 | `host_arrivals_per_user_day` | 500 / 24 h (check-in kept, e-mail left out) | `HOST_ARRIVAL_DAILY_LIMIT` | — |
+| `host_visit_notices_per_user_day` (the host's e-mails of scheduled visits, per acting user, Phase 14) | 200 / 24 h (change kept, e-mail left out) | `HOST_VISIT_NOTICE_DAILY_LIMIT` | — |
+| `calendar_emails_per_company_day` (calendar events the e-mails carry, per company, Phase 14) | 500 / 24 h (change kept; a calendar invitation left out, a notice sent without its event; a removal always sent) | `CALENDAR_EMAIL_COMPANY_DAILY_LIMIT` | — |
 | `password_notices_per_user` | 5 / hour (fixed) | — | — |
 | `stale_check_out_empty_runs` | 1 audit row per user and company-local day for an empty bulk check-out (fixed; not a refusal) | — | — |
 | `template_test_sends_per_user` (test e-mails of a company's texts, to the administrator's own address) | 5 / hour | `RATE_LIMIT_TEMPLATE_TEST_SENDS_PER_HOUR` | ≤ 100 (field bound) |
@@ -1167,6 +1169,67 @@ places are held by `deploy/verify/test_api_instances.py` (the location's directi
 only `PUT`) and, on a deployment, by `deploy/verify/smoke_test.py` (an upload nobody is signed in for is
 answered before its body arrives, and eight of them in a row keep no place).
 
+### 10.5 Calendar invitations (Phase 14)
+
+The visit e-mails carry the visit as a calendar event (iCalendar, an iTIP REQUEST or CANCEL;
+[phase-14-backend.md](decisions/phase-14-backend.md)). Calendars are synchronised to phones and computers,
+shared and delegated far more widely than one e-mail, and the pass link is a bearer credential, so:
+
+- **No link and no token in any calendar data** (B14-4): an event says when, where (the company's
+  address), who and what for, and "show your visitor pass at reception"; it holds no URL at all. Tests
+  look for the token, `/pass`, `?c=` and `http` in every event and in the e-mails that carry one.
+- **The pass's own e-mail carries no event** (B14-10). Outlook makes the e-mail that carries an event the
+  body of the calendar entry ([MS-STANOICAL] V0346: "Outlook uses the first 'text/html' child of a
+  'multipart/alternative' parent to replace the DESCRIPTION property"), so an invitation with an event
+  would have put the pass link, its address and the QR code into Outlook calendars. The visitor's event
+  comes in a short e-mail of its own (`VISITOR_CALENDAR`) that holds no link and no QR code; the notices
+  of a new time and of a cancellation never held the pass link.
+- **Values are text.** The writer escapes every value (backslash, semicolon, comma, line breaks), removes
+  control and direction-control characters, folds lines on octets, and makes a name in `CN` safe as a
+  sender's display name is (no quote, angle bracket, backslash or `@` in any compatibility form, B12-20):
+  a visitor's name or a purpose cannot add a property, a parameter or an attendee. An address goes into
+  `mailto:` with its domain in IDNA form and its local part percent-encoded where a URI may not carry it.
+  Carets in a `CN` are doubled (RFC 6868), so a name cannot spell a line break or a quote for a reader
+  that decodes them.
+- **The organizer is the deployment's sending address** (`EMAIL_FROM`), the same as `From` and the
+  envelope, under the company's name: a company cannot make an event come from another address. Each
+  event has exactly one attendee, the recipient, asked for no reply (`RSVP=FALSE`). The sending mailbox
+  itself is never sent an event, in any spelling of its address (letter case, a `+tag`, Gmail's dots;
+  B14-21). On production that mailbox must host nobody and its domain sign with its own DKIM: a release
+  gate (production-readiness §15 E, B14-24).
+- **The host's event is private** (`CLASS:PRIVATE`, B14-19): a colleague who sees a host's shared
+  calendar is shown the time taken, not who visits (Outlook; Google's handling is unverified).
+- **E-mail volume is bounded** (B14-15, B14-28): the host's e-mails per acting user and day, the calendar
+  events per company and day (one sending mailbox serves every company, and a provider that stops it for
+  the day stops every company's invitations). Beyond them the change is made, audited: an e-mail that is
+  only the event is left out, a notice goes without its event. The events that take a visit out of a
+  calendar are never left out, and each follows a counted event.
+- **A switch keeps calendar e-mails off** (`CALENDAR_INVITATIONS_ENABLED`, B14-27) until the sending
+  mailbox is a dedicated one whose domain authenticates it (SPF, its own DKIM, DMARC): an unauthenticated
+  sender of invitations is what spoofing looks like, to filters and to people. Off, no calendar gets a
+  new entry; the calendars that hold a visit are still kept right.
+- **A visitor's former address loses the event** (D-19, B14-17): it is sent a CANCEL that uninvites it,
+  naming nothing of the visit (no description, no location, a summary "Visit"), with replies never routed
+  to the host; a REQUEST still waiting to go there is not sent (B14-29). A cancelled visit always leaves
+  the visitor's calendar (B14-16), and the cancellation sent for that reason alone carries no reason
+  text, which the canceller did not mean for the visitor (B14-32).
+- **`UID`s name nobody** (`visit-<visit id>-visitor`, `visit-<visit id>-host`; RFC 7986 §5.3).
+- **Test e-mails carry no event** (B14-14): a sample visit is not put into an administrator's calendar.
+- **The app's "Add to my calendar"** (F14-1 … F14-6) builds the host's event in the browser from the
+  visit and the company only, never from a pass: no pass link or token in Google's or Outlook's link or in
+  the `.ics`, whose name holds the visit's day and nothing about the people. The links open in a new tab
+  without an opener or a referrer. Offered to the visit's host only.
+
+What is not prevented: Gmail offers Yes / No / Maybe whatever `RSVP` says, so a recipient's answer reaches
+`EMAIL_FROM`'s mailbox (a calendar REPLY: the recipient's address, their answer, the event; no link);
+an event added to a calendar keeps what it said when it was sent (a purpose changed later stays as it
+was in the calendar until the next new time); a host whose e-mail address changes keeps the event at the
+old address; an e-mail left out by a budget leaves that calendar as it was.
+
+*Held by.* `tests/unit/test_email_calendar.py`, `tests/unit/test_smtp.py`, `tests/unit/test_resend.py`,
+`tests/integration/test_visit_calendars.py`, `tests/integration/test_smtp_delivery.py`; in the app
+`features/visits/hostCalendar.test.ts`, `pages/InviteVisitorPage.test.tsx` and `e2e/flows/calendar.spec.ts`.
+
 ---
 
 ## 11. Security headers and caching
@@ -1213,8 +1276,9 @@ styles, fonts, icons and the wasm are served from the application's origin; no r
 
 The page's colour scheme is set before its first paint by a classic script in `<head>` (Phase 13): it is
 a file of the build, `/appearance.js`, not inline code, so the policy needs no `'unsafe-inline'`, hash or
-nonce for it. It reads one `localStorage` key (`vms.appearance`: `light`, `dark` or `system`; anything
-else counts as `system`) and writes one attribute on the root element and the `color-scheme` meta;
+nonce for it. It reads one `localStorage` key (`vms.appearance`: `light` or `dark`, which the appearance
+toggle writes; `system`, which an earlier build wrote, and anything else count as no choice) and writes
+one attribute on the root element and the `color-scheme` meta;
 nothing of a person, a session or a company. It is served like every other file of the build (`no-cache`,
 the headers of this section, `application/javascript` under `nosniff`) and precached by the service
 worker; `deploy/verify/smoke_test.py` checks its type and caching.
@@ -1918,6 +1982,7 @@ and the recommendations in §7. In short:
 | Platform owner, after the review (2026-10-13) | The platform owner can still add itself an administrator of a company: it is made visible (an e-mail to the company's other administrators, both audit trails), not impossible, and a notice does not reach an administrator whose mailbox the platform owner controls. A temporary password typed by the operator has no failure budget of its own. A company's text whose rendering exceeds twice its limit is cut, not refused | The notices and audit rows (B11-43); generated passwords for recovery ([§3.7](#37-the-platform-owner-phase-11)); the preview shows the cut (B11-40) |
 | A company's identity (Phase 12) | A company's name is the sender's display name of its e-mails: "Your Bank" is not refused, and a company's own administrators can rename it. Whether a slug names an active company is public (600 questions a minute per address). The image check does not decode pixels: what a logo shows is the platform owner's responsibility. *(Since Phase 13 an e-mail's logo is an opaque copy on a white plate, which reads where a mail client forces a dark background, and is a few KiB: drawn by the server once per logo and process, ahead of the requests that send it, in about 2 s of one processor for the largest an upload may be; 3.7 s for a 16-bit one stored before uploads were limited to 8 bits, B13-7.)* After a logo changes, an address without the current version can show the old image for up to 60 seconds | Companies are created by the platform owner; the sender's name cannot delimit, carry or read as an address, and the address is always the deployment's ([§10.4](#104-a-companys-identity-uploads-the-colour-and-the-public-endpoints-phase-12)); SPF, DKIM and DMARC of the sending domain are unaffected; the budgets of [§9.2](#92-budgets-and-their-settings); the upload page prepares small files |
 | A company's identity, after the review (2026-10-13) | The review's three findings are closed (B12-18 to B12-20). What stays: a name that misleads by what it says, and characters that only resemble `@` without being a compatibility form of it; someone signed in to the platform can keep one of the eight upload places for up to 30 seconds per request; a flood of requests nobody is signed in for can take places for the milliseconds each needs; the count per address tells IPv6 addresses apart in full; over HTTP/1.1 a request refused before its body was read may see the connection reset instead of the answer; a refused upload's own file (at most 512 KiB) stays in memory until the garbage collector next runs, as every refused request body does | No review of names (the platform owner sees them in the list of companies); the upload's time limit and the hourly budget of brand changes; the site's count beside the per-address one; browsers speak HTTP/2 to nginx; [§11.3](#113-nginx-proxy-and-tls-behaviour) |
+| Calendar invitations (Phase 14) | Gmail sends recipients' answers (Yes / No / Maybe) to `EMAIL_FROM`'s mailbox whatever `RSVP` says; one sending mailbox organizes every company's events, so abuse reported against it affects all of them; an event already in a calendar keeps what it said, and a host's at a former address of the host stays there; a budget that leaves an e-mail out leaves that calendar as it was; Resend carries the event as an attachment only (Outlook does not apply a new time or a cancellation by itself) | No link or token in any event, and none in the e-mail that carries one (§10.5); the host's event private; a visitor's former address loses the event; per-user and per-company budgets (B14-15); a sending mailbox that is nobody's host, signed with its domain's DKIM: a release gate (production-readiness §15 E) |
 | SMTP (Phase 10) | No idempotency key: a retry after a final reply lost in transit can deliver a second copy (same `Message-ID`, same pass); Gmail through App Passwords only (no OAuth2); the system's trusted certificates only; DKIM, SPF and DMARC are the sending domain's (S10-9) | Resend (idempotent) or the organisation's mail server for production; a dedicated sending account whose App Password is revoked on rotation ([§12.1](#121-inventory)) |
 
 Known limits from the deployment (`phase-9-deploy.md`): nginx error-log lines can quote a request line

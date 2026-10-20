@@ -69,6 +69,12 @@ export interface Me {
     default_language: Language
     /** The company's identity: its logos and colour (Phase 12). */
     brand: CompanyBrand
+    /**
+     * The company's address (Phase 14: a calendar event's location); null when unset. The Arabic UI uses
+     * `address_ar`, else `address`; the English UI `address`, else `address_ar`.
+     */
+    address: string | null
+    address_ar: string | null
   }
 }
 
@@ -240,7 +246,7 @@ export interface Visit {
   created_by: UserRef
   created_at: string
   updated_at: string
-  /** Latest VISITOR_INVITATION email. */
+  /** Latest VISITOR_INVITATION email, or the failure of the calendar invitation that followed it. */
   invitation: {
     status: InvitationStatus
     to_email: string | null
@@ -248,6 +254,13 @@ export interface Visit {
     last_attempt_at: string | null
     sent_at: string | null
     error: string | null
+    /**
+     * FAILED because the calendar invitation that followed the latest invitation failed, while the
+     * invitation itself went out or is still being sent (Phase 14, B14-18): `to_email`, `attempts`,
+     * `last_attempt_at` and `error` are then the calendar invitation's. False for any other state; a
+     * resend clears it.
+     */
+    calendar_failed: boolean
   }
   /**
    * Latest VISIT_CANCELLED / VISIT_RESCHEDULED email to the visitor, or null when none was
@@ -261,6 +274,17 @@ export interface Visit {
     error: string | null
   } | null
   pass: { status: PassStatus; issued_at: string | null; revoke_reason: PassRevokeReason | null }
+  /**
+   * The SEQUENCE of the visit's calendar events (Phase 14): 0 when created, one more at each reschedule
+   * and at the cancellation.
+   */
+  calendar_sequence: number
+  /**
+   * Whether the visitor was sent the visit's calendar invitation (Phase 14, `VISITOR_CALENDAR`). Then a
+   * cancellation always e-mails them, and so removes the visit from their calendar, whatever
+   * `notify_visitor` says (the owner's decision).
+   */
+  visitor_calendar_sent: boolean
   permissions: {
     can_edit: boolean
     can_cancel: boolean
@@ -293,6 +317,17 @@ export interface VisitCreateResult {
   visit: Visit
   /** One-time pass link (`{QR_BASE_URL}/pass#<token>`); never retrievable again. */
   pass_url: string
+  visitor_match: { reused: boolean }
+}
+
+/**
+ * POST /visits/{id}/invitation: the visit, and the new pass's one-time link; null when only the calendar
+ * invitation was sent again (it alone had failed, `invitation.calendar_failed`, B14-31): the pass the
+ * visitor has stays valid.
+ */
+export interface VisitResendResult {
+  visit: Visit
+  pass_url: string | null
   visitor_match: { reused: boolean }
 }
 
@@ -472,8 +507,19 @@ export interface PlatformAuditLog {
 
 /* Phase 11: a company's e-mail texts (B11-20 … B11-31) ---------------------------------------- */
 
-/** The e-mails whose texts a company may change; the security e-mails may not (B11-21). */
-export type EmailTemplateKind = 'VISITOR_INVITATION' | 'VISIT_RESCHEDULED' | 'VISIT_CANCELLED' | 'HOST_ARRIVAL'
+/**
+ * The e-mails whose texts a company may change; the security e-mails may not (B11-21). The `HOST_VISIT_*`
+ * kinds (Phase 14) tell the host of a scheduled visit, created, moved or cancelled, and carry the host's
+ * calendar event.
+ */
+export type EmailTemplateKind =
+  | 'VISITOR_INVITATION'
+  | 'VISIT_RESCHEDULED'
+  | 'VISIT_CANCELLED'
+  | 'HOST_ARRIVAL'
+  | 'HOST_VISIT_SCHEDULED'
+  | 'HOST_VISIT_RESCHEDULED'
+  | 'HOST_VISIT_CANCELLED'
 
 /** An editable text of an e-mail; which kind has which is the template's `fields`. */
 export type EmailTemplateFieldName = 'subject' | 'heading' | 'greeting' | 'intro' | 'button' | 'closing' | 'footer_note'

@@ -2,9 +2,16 @@
 
 A page of visits is assembled with a fixed number of queries whatever its size: the users the visits
 refer to (current names, the host's current phone and activity), the latest invitation e-mail, the
-latest cancellation/reschedule notice and the current pass of every visit (the active one, otherwise the
-last issued), and each visitor's current e-mail address (needed to resend) and phone (the evacuation
-list, B57-72).
+e-mails that carried the visitor's event (Phase 14, B14-16, B14-18, B14-26), the latest
+cancellation/reschedule notice and the current pass of every visit (the active one, otherwise the last
+issued), and each visitor's current e-mail address (needed to resend) and phone (the evacuation list,
+B57-72).
+
+The invitation a visit shows is its latest invitation e-mail, or, when that one went out (or is on its
+way) and the calendar invitation that followed it to the visitor's address FAILED, that failure (B14-18):
+the visitor has the pass without the event, and the host's resend sends both again, as for a failed
+invitation. `visitor_calendar_sent`: the visitor's calendar holds the visit (B14-16, B14-26).
+
 Snapshot fields (visitor, host name, department names in both languages) come from the visit row itself
 (D-17).
 
@@ -23,7 +30,7 @@ from sqlalchemy.orm import Session
 
 from app.models import EmailKind, EmailStatus, Visit
 from app.models.enums import CheckInMethod, CheckOutMethod, PassRevokeReason, VisitStatus
-from app.repositories.email_messages import EmailMessageRepository, LatestEmail
+from app.repositories.email_messages import VISITOR_EVENT_KINDS, EmailMessageRepository, LatestEmail
 from app.repositories.passes import CurrentPass, PassRepository
 from app.repositories.users import UserRepository, UserSummary
 from app.repositories.visitors import VisitorContact, VisitorRepository
@@ -45,6 +52,7 @@ from app.schemas.visits import (
 )
 from app.security.sessions import AuthContext
 from app.services import visit_rules
+from app.services.calendar_state import failed_calendar_invitation, holds_event, messages_to
 from app.services.visit_rules import Caller
 
 
@@ -96,10 +104,18 @@ def notice_view(message: LatestEmail | None) -> VisitNotice | None:
     )
 
 
-def invitation_view(message: LatestEmail | None) -> VisitInvitation:
+def invitation_view(message: LatestEmail | None, *, calendar_failed: bool = False) -> VisitInvitation:
+    """`message`: the visit's latest invitation, or the calendar invitation that followed it and failed
+    (`calendar_failed`, B14-18)."""
     if message is None:
         return VisitInvitation(
-            status="NOT_SENT", to_email=None, attempts=0, last_attempt_at=None, sent_at=None, error=None
+            status="NOT_SENT",
+            to_email=None,
+            attempts=0,
+            last_attempt_at=None,
+            sent_at=None,
+            error=None,
+            calendar_failed=False,
         )
     status = _INVITATION_STATUS[message.status]
     return VisitInvitation(
@@ -109,6 +125,7 @@ def invitation_view(message: LatestEmail | None) -> VisitInvitation:
         last_attempt_at=message.last_attempt_at,
         sent_at=message.sent_at,
         error=message.last_error if status != "SENT" else None,
+        calendar_failed=calendar_failed,
     )
 
 
@@ -160,6 +177,7 @@ class VisitViewBuilder:
         users = UserRepository(self.db).summaries(company_id, user_ids)
         messages = EmailMessageRepository(self.db)
         invitations = messages.latest_invitations(company_id, visit_ids)
+        events = messages.event_messages(company_id, visit_ids, VISITOR_EVENT_KINDS)
         notices = messages.latest_notices(company_id, visit_ids)
         passes = PassRepository(self.db).current_for_visits(company_id, visit_ids)
         contacts = VisitorRepository(self.db).contacts(company_id, {visit.visitor_id for visit in visits})
@@ -168,11 +186,16 @@ class VisitViewBuilder:
         views = []
         for visit in visits:
             contact = contacts.get(visit.visitor_id)
+            invitation = invitations.get(visit.id)
+            # What the visitor's calendar was sent of the visit (B14-16, B14-18, B14-26).
+            sent = messages_to(events, visit.id, contact.email if contact is not None else None)
             view = self._view(
                 visit,
                 parts=parts,
                 day=day,
-                invitation=invitations.get(visit.id),
+                invitation=invitation,
+                failed_calendar=failed_calendar_invitation(sent, invitation),
+                visitor_calendar_sent=holds_event(sent),
                 notice=notices.get(visit.id),
                 visitor_pass=passes.get(visit.id),
                 visitor_has_email=contact is not None and contact.email is not None,
@@ -187,11 +210,20 @@ class VisitViewBuilder:
         parts: _SharedParts,
         day: visit_rules.CompanyDay,
         invitation: LatestEmail | None,
+        failed_calendar: LatestEmail | None,
+        visitor_calendar_sent: bool,
         notice: LatestEmail | None,
         visitor_pass: CurrentPass | None,
         visitor_has_email: bool,
     ) -> VisitOut:
+        """`failed_calendar`: the calendar invitation that followed `invitation` and failed, when nothing
+        put the event in the visitor's calendar since (`calendar_state.failed_calendar_invitation`);
+        `visitor_calendar_sent`: the visitor's calendar holds the visit (`calendar_state.holds_event`)."""
         now = day.now
+        # The visitor has the pass without the event (B14-18): the visit shows the calendar invitation's
+        # failure, and says that it is that one's.
+        if failed_calendar is not None:
+            invitation = failed_calendar
         status = visit.status
         host = parts.users.get(visit.host_id)
         flags = visit_rules.visit_permissions(
@@ -241,7 +273,13 @@ class VisitViewBuilder:
             created_by=parts.user(visit.created_by_id),
             created_at=visit.created_at,
             updated_at=visit.updated_at,
-            invitation=invitation_view(invitation) if invitation is not None else parts.not_sent,
+            calendar_sequence=visit.calendar_sequence,
+            visitor_calendar_sent=visitor_calendar_sent,
+            invitation=(
+                invitation_view(invitation, calendar_failed=failed_calendar is not None)
+                if invitation is not None
+                else parts.not_sent
+            ),
             last_notice=notice_view(notice),
             pass_=VisitPass(
                 status=visit_rules.pass_status(

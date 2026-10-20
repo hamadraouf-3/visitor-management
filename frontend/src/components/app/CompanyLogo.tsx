@@ -11,8 +11,9 @@ export interface CompanyLogoProps {
   /**
    * Where it stands. `shell`: the coloured shell: the dark-surface logo where the shell is dark, else
    * the logo on a white plate. `page`: a light page (sign-in, errors, the visitor pass), dark in the
-   * dark colour scheme: the logo on its plate, or the dark-surface logo there. `paper`: print, always
-   * the logo for light surfaces.
+   * dark colour scheme: the logo on the page itself, and in the dark scheme the dark-surface logo, or
+   * the logo on a white plate for a company without one. `paper`: print, always the logo for light
+   * surfaces, on the paper itself.
    */
   surface: 'shell' | 'page' | 'paper'
   /** `sm` the phone and tablet top bar, `md` the sidebar and the drawer, `lg` the public pages. */
@@ -45,14 +46,18 @@ const IMAGE = {
 
 /** The white plate under a logo for light surfaces, where the surface is not one: its shape per size. */
 const PLATE = { sm: 'rounded-[0.5rem] px-1.5 py-1', md: 'rounded-item px-2 py-1.5', lg: 'rounded-control px-3 py-2' } as const
-/**
- * The plate of a light page (sign-in, the visitor's pass, an error page): white with the cards' own
- * edge on the grey canvas, so a logo with a background of its own (a photograph, a scan) stands as
- * squarely as a transparent one.
- */
-const PAGE_PLATE = { sm: 'rounded-[0.5rem] px-2 py-1.5', md: 'rounded-item px-3 py-2', lg: 'rounded-[0.875rem] px-4 py-3' } as const
 /** In the dark colour scheme (on screen) a company's own logo for dark surfaces needs no plate: the plate lets go of its fill there. */
 const PLATE_GONE_IN_DARK = 'scheme-dark:border-transparent scheme-dark:bg-transparent'
+/**
+ * The logo's room on a light page (sign-in, the visitor's pass, an error page). In the light scheme
+ * the logo stands on the page itself, as the company drew it: no fill, no edge (Phase 13, F13-26).
+ * Only a logo for light surfaces drawn on the dark page (the dark scheme, a company without a logo for
+ * dark surfaces) gets a plate there: white, with the cards' edge. The room is the same in both schemes,
+ * so nothing moves when the scheme changes but the logo itself.
+ */
+const PAGE_ROOM = { sm: 'rounded-[0.5rem] px-2 py-1.5', md: 'rounded-item px-3 py-2', lg: 'rounded-[0.875rem] px-4 py-3' } as const
+/** The page's plate, in the dark colour scheme only (on screen: paper is light). */
+const PAGE_PLATE_IN_DARK = 'scheme-dark:border-border scheme-dark:bg-white'
 
 const WORDMARK = {
   shell: {
@@ -106,6 +111,8 @@ export function CompanyLogo({ brand, name, surface, size = 'md', shellTone = 'da
     const ratio = element.naturalWidth / element.naturalHeight
     setShape((current) => (current && current.source === source && current.ratio === ratio ? current : { source, ratio }))
   }
+  // On the shell a wide logo gives way to the controls beside it (a phone's top bar): it shrinks, in its proportions. An emblem keeps its size; its name gives way.
+  const fit = surface === 'shell' && !emblem ? 'min-w-0' : 'shrink-0'
   const image = (src: string, variant: 'light' | 'dark', sizes: string) => (
     <img
       // A file the browser already holds is measured as it is placed; any other when it has loaded.
@@ -123,7 +130,7 @@ export function CompanyLogo({ brand, name, surface, size = 'md', shellTone = 'da
         const address = shown && dark !== null && shown === new URL(dark, event.currentTarget.baseURI).href ? dark : src
         setFailed((current) => (current.includes(address) ? current : [...current, address]))
       }}
-      className={cn('block h-auto w-auto shrink-0 object-contain select-none', sizes)}
+      className={cn('block h-auto w-auto object-contain select-none', fit, sizes)}
     />
   )
   /**
@@ -139,19 +146,24 @@ export function CompanyLogo({ brand, name, surface, size = 'md', shellTone = 'da
 
   let mark: ReactNode = null
   if (surface === 'shell' && shellTone === 'dark' && dark) {
-    mark = <span className="inline-flex shrink-0">{image(dark, 'dark', IMAGE.shell[size])}</span>
+    mark = <span className={cn('inline-flex', fit)}>{image(dark, 'dark', IMAGE.shell[size])}</span>
   } else if (surface === 'shell' && light) {
     // On a colour that is not white the logo for light surfaces stands on its plate, whether that colour
     // is dark or light: a company's colour is its logo's, and a logo drawn on its own colour disappears.
     const swaps = shellTone === 'light' && dark !== null
     mark = (
-      <span data-logo-plate={swaps ? 'light-scheme' : ''} className={cn('inline-flex shrink-0 bg-white', PLATE[size], swaps && PLATE_GONE_IN_DARK)}>
+      <span data-logo-plate={swaps ? 'light-scheme' : ''} className={cn('inline-flex bg-white', fit, PLATE[size], swaps && PLATE_GONE_IN_DARK)}>
         {swaps ? eitherScheme(light, dark, IMAGE.plate[size]) : image(light, 'light', IMAGE.plate[size])}
       </span>
     )
   } else if (surface === 'page' && light) {
+    // `data-logo-plate="dark-scheme"`: the plate is drawn in the dark scheme only; a company with a logo for dark surfaces never has one here.
     mark = (
-      <span data-logo-plate={dark ? 'light-scheme' : ''} className={cn('inline-flex shrink-0 border border-border bg-white', PAGE_PLATE[size], dark && PLATE_GONE_IN_DARK)}>
+      <span
+        data-logo-plate={dark ? undefined : 'dark-scheme'}
+        data-logo-room=""
+        className={cn('inline-flex shrink-0 border border-transparent', PAGE_ROOM[size], !dark && PAGE_PLATE_IN_DARK)}
+      >
         {dark ? eitherScheme(light, dark, IMAGE.page[size]) : image(light, 'light', IMAGE.page[size])}
       </span>
     )

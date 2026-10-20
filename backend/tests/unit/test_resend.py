@@ -12,7 +12,7 @@ from pydantic import SecretStr
 
 from app.core.config import Settings
 from app.email.logos import light_rendition
-from app.email.providers.base import EmailDeliveryError, InlineImage, OutgoingEmail
+from app.email.providers.base import CalendarPart, EmailDeliveryError, InlineImage, OutgoingEmail
 from app.email.providers.resend import RESEND_EMAILS_URL, ResendProvider
 from app.email.rendering import EmailRenderer
 from app.email.service import (
@@ -242,3 +242,40 @@ def test_a_real_invitation_carries_its_qr_code_and_the_company_s_logo_inline() -
     assert base64.b64decode(logo["content"]) == light_rendition(COMPANY_LOGO).content
     for content_id in attachments:
         assert f'src="cid:{content_id}"' in payload["html"]
+
+
+@pytest.mark.parametrize("method", ["REQUEST", "CANCEL"])
+def test_a_calendar_event_is_an_ics_attachment(method: str) -> None:
+    """B14-7: Resend's API has no way to add a text/calendar alternative, so the event goes as
+    `invite.ics` beside the inline images, the object as written. Its content type is the plain media
+    type (B14-22): Resend documents no parameters, and the object names its method itself."""
+    content = b"BEGIN:VCALENDAR\r\nMETHOD:" + method.encode() + b"\r\nEND:VCALENDAR\r\n"
+    calendar = CalendarPart(method=method, uid="visit-x-visitor", sequence=1, content=content)
+    provider, seen = _provider(lambda request: httpx.Response(200, json={"id": "abc"}))
+    provider.send(_email(calendar=calendar, kind=EmailKind.VISITOR_CALENDAR, pass_url=None))
+    attachments = json.loads(seen[0].content)["attachments"]
+    assert [attachment["filename"] for attachment in attachments] == ["visitor-pass-qr.png", "invite.ics"]
+    invite = attachments[1]
+    assert invite == {
+        "filename": "invite.ics",
+        "content": base64.b64encode(content).decode("ascii"),
+        "content_type": "text/calendar",
+    }
+    assert f"METHOD:{method}".encode() in base64.b64decode(invite["content"])
+    # No content_id: an attachment, not an inline part of the HTML.
+    assert "content_id" not in invite
+
+
+def test_a_calendar_event_alone_is_the_only_attachment() -> None:
+    calendar = CalendarPart(method="REQUEST", uid="u", sequence=0, content=b"BEGIN:VCALENDAR\r\n")
+    payload = ResendProvider.payload(_email(inline_images=(), calendar=calendar))
+    assert [attachment["filename"] for attachment in payload["attachments"]] == ["invite.ics"]
+    assert "attachments" not in ResendProvider.payload(_email(inline_images=()))
+
+
+def test_an_event_with_an_unknown_method_is_not_sent() -> None:
+    calendar = CalendarPart(method="PUBLISH", uid="u", sequence=0, content=b"BEGIN:VCALENDAR\r\n")
+    provider, seen = _provider(lambda request: httpx.Response(200, json={"id": "abc"}))
+    with pytest.raises(EmailDeliveryError, match="unknown method") as caught:
+        provider.send(_email(calendar=calendar))
+    assert caught.value.transient is False and seen == []

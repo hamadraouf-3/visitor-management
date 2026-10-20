@@ -1,12 +1,11 @@
 import { ChevronDown, ChevronsUpDown, KeyRound, LogOut, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getErrorMessage } from '../../api/client'
-import { useAppearanceMenuGroup } from '../../appearance/useAppearance'
 import { BrandLockup } from '../../components/app/BrandLockup'
 import { BrandLogo } from '../../components/app/BrandLogo'
 import { LanguageSwitchButton } from '../../components/app/LanguageSwitcher'
 import { Avatar } from '../../components/ui/Avatar'
-import { Menu, type MenuEntry } from '../../components/ui/Menu'
+import { Menu, type MenuItem } from '../../components/ui/Menu'
 import { useToast } from '../../components/ui/toastContext'
 import { LANGUAGES } from '../../i18n'
 import { useProductName } from '../../i18n/useLanguage'
@@ -40,7 +39,8 @@ export function PlatformTag({ surface = 'shell', compact = false, className }: {
 /**
  * The lockup of the platform's shell: the product's lockup with the "Platform" label, under it in the
  * sidebar and the drawer, beside it in the top bar. On phones the bar shows the logo and the label (the
- * product's name is read, not shown): the label, the language switch and the account menu must fit 320 px.
+ * product's name is read, not shown): the label, the appearance toggle, the language switch and the
+ * account menu must fit 320 px, so below 384 px the logo is a little smaller.
  */
 export function PlatformLockup({ size }: { size: 'sm' | 'md' }) {
   const productName = useProductName()
@@ -53,10 +53,10 @@ export function PlatformLockup({ size }: { size: 'sm' | 'md' }) {
     )
   }
   return (
-    <span className="ms-1 inline-flex min-w-0 items-center gap-2">
+    <span className="ms-1 inline-flex min-w-0 items-center gap-2 max-[24rem]:gap-1.5">
       <BrandLockup surface="shell" size="sm" className="max-sm:hidden" />
       <span className="inline-flex sm:hidden">
-        <BrandLogo variant="white" decorative className="h-[1.375rem]" />
+        <BrandLogo variant="white" decorative className="h-[1.375rem] max-[24rem]:h-[1.125rem]" />
         <span className="sr-only">{productName}</span>
       </span>
       <PlatformTag compact />
@@ -83,21 +83,16 @@ export interface PlatformUserMenuProps {
   placement?: 'bar' | 'sidebar'
 }
 
-/**
- * The platform owner's account block and menu (the device's appearance, change password, sign out), as
- * the company shell's `UserMenu`: the appearance is one choice per device, for both areas (Phase 13).
- */
+/** The platform owner's account block and menu (change password, sign out), as the company shell's `UserMenu`. */
 export function PlatformUserMenu({ admin, placement = 'bar' }: PlatformUserMenuProps) {
   const { t, i18n } = useTranslation('platform')
   const signOut = usePlatformSignOut()
   const toast = useToast()
-  const appearance = useAppearanceMenuGroup()
   const inSidebar = placement === 'sidebar'
   // An account named by its role's own words (the demo account is «مالك المنصة»): the menu says them once (UX review L11).
   const namedByRole = LANGUAGES.some((language) => sameWords(admin.full_name, i18n.t('account.role', { ns: 'platform', lng: language })))
 
-  const items: MenuEntry[] = [
-    appearance,
+  const items: MenuItem[] = [
     { id: 'change-password', label: t('account.changePassword'), icon: KeyRound, to: paths.platformChangePassword },
     {
       id: 'sign-out',
@@ -151,7 +146,8 @@ export function PlatformUserMenu({ admin, placement = 'bar' }: PlatformUserMenuP
           ) : (
             <>
               <span className="hidden max-w-48 truncate sm:inline">{admin.full_name}</span>
-              <ChevronDown aria-hidden="true" className="size-4 text-fg-muted" />
+              {/* Below 384 px the avatar alone (a 44 px target): the bar also holds both switches. */}
+              <ChevronDown aria-hidden="true" className="size-4 text-fg-muted max-[24rem]:hidden" />
             </>
           )}
         </>

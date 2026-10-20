@@ -1,0 +1,20 @@
+{% extends "base.txt" %}
+{# The visitor's calendar invitation (Phase 14, B14-10): no pass link, no QR code. #}
+{% macro body(lang) %}
+{{ edited(lang, "heading") or t(lang, "invitation.heading", company=company_name[lang]) }}
+
+{{ t(lang, "label.date") }}: {{ times[lang].date }}
+{{ t(lang, "label.time") }}: {{ times[lang].time }} ({{ times[lang].timezone }})
+{{ t(lang, "label.host") }}: {{ host_name | isolate(lang) }}
+{% if department_name[lang] %}
+{{ t(lang, "label.department") }}: {{ department_name[lang] | isolate(lang) }}
+{% endif %}
+{% if company_address[lang] %}
+{{ t(lang, "label.address") }}: {{ company_address[lang] | isolate(lang) }}
+{% endif %}
+
+{{ t(lang, "calendar.attached") }}
+
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

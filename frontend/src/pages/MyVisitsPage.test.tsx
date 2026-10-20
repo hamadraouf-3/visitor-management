@@ -311,6 +311,25 @@ describe('My visits', () => {
     expect(await screen.findByRole('button', { name: 'Correct email and resend' })).toBeInTheDocument()
   })
 
+  it('lists a visit whose calendar invitation did not arrive as such among those that need attention', async () => {
+    const calendarFailed = makeVisit({
+      id: 'a1b2c3d4-0000-4000-8000-000000000013',
+      visitor: { id: 'v3', full_name: 'Sara Ahmad', company_name: null },
+      invitation: { status: 'FAILED', sent_at: null, calendar_failed: true },
+    })
+    setup({ initialEntry: '/visits?tab=attention', visits: () => jsonResponse(page([calendarFailed, failedVisit])) })
+    const table = await screen.findByRole('table', { name: 'Visits that need attention' })
+    // The Invitation column takes "Calendar failed" whole where the table is fixed (from 1280 px): 160 px (F14-27).
+    expect(within(table).getByRole('columnheader', { name: 'Invitation' })).toHaveClass('xl:w-40')
+    const [calendarRow, failedRow] = within(table).getAllByRole('row').slice(1)
+    // Short under the "Invitation" column, long where the row stands on its own (phones); never "Failed".
+    expect(within(calendarRow!).getByText('Calendar failed')).toBeInTheDocument()
+    expect(within(calendarRow!).getByText('Calendar invitation not delivered')).toBeInTheDocument()
+    expect(within(calendarRow!).queryByText('Failed')).toBeNull()
+    expect(within(failedRow!).getByText('Failed')).toBeInTheDocument()
+    expect(within(failedRow!).getByText('Invitation failed')).toBeInTheDocument()
+  })
+
   it('offers "Invite visitor" in the header', async () => {
     setup()
     await screen.findByRole('heading', { level: 1, name: 'My visits' })

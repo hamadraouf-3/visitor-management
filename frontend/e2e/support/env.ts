@@ -84,6 +84,9 @@ export function backendEnv(): NodeJS.ProcessEnv {
     // change them): the suite reuses one session per seeded account (storage states), so it stays
     // below every per-account and per-IP budget.
     ...RATE_LIMIT_DEFAULTS,
+    // The calendar e-mails (Phase 14) are on, as by default; production starts with them off (its
+    // deploy template). Set here so a developer's `.env` cannot turn off what the suite checks.
+    CALENDAR_INVITATIONS_ENABLED: 'true',
     LOG_LEVEL: 'INFO',
     LOG_JSON: 'true',
     SEED_COMPANY_TIMEZONE: 'Asia/Amman',

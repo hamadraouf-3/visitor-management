@@ -78,9 +78,16 @@ def test_create_visit_with_inline_visitor(host: Api, world: World, db: Session, 
     token = pass_token(result["pass_url"])
     stored = db.scalars(select(VisitorPass).where(VisitorPass.visit_id == visit["id"])).one()
     assert stored.token_hash == hash_token(token) and token not in stored.token_hash
-    # The invitation was delivered after the commit (background task) and carries the same pass URL.
-    [sent] = email_provider.sent
-    assert sent.to == "dana.guest@example.com" and sent.pass_url == result["pass_url"]
+    # The invitation was delivered after the commit (background task) and carries the same pass URL;
+    # its calendar invitation followed it (B14-10), and the host was told of the visit (B14-2).
+    sent, calendar, host_notice = email_provider.sent
+    assert [email.kind for email in email_provider.sent] == [
+        "VISITOR_INVITATION",
+        "VISITOR_CALENDAR",
+        "HOST_VISIT_SCHEDULED",
+    ]
+    assert sent.to == calendar.to == "dana.guest@example.com" and sent.pass_url == result["pass_url"]
+    assert calendar.pass_url is None and host_notice.to == world.a.employee.email
     assert refreshed(db, EmailMessage, sent.message_id).status == "SENT"
     for action in ("VISITOR_CREATED", "VISIT_CREATED", "PASS_ISSUED", "INVITATION_QUEUED", "INVITATION_SENT"):
         assert audit_rows(db, action), action
@@ -101,9 +108,11 @@ def test_pass_is_created_even_without_an_invitation(
         "last_attempt_at": None,
         "sent_at": None,
         "error": None,
+        "calendar_failed": False,
     }
     assert visit["permissions"]["can_resend"] is False  # no e-mail address to send to
-    assert email_provider.sent == []
+    # The visitor is sent nothing; the host is told of the visit (B14-2).
+    assert [email.kind for email in email_provider.sent] == ["HOST_VISIT_SCHEDULED"]
     assert db.scalars(select(VisitorPass).where(VisitorPass.visit_id == visit["id"])).one().revoked_at is None
 
 
@@ -201,8 +210,10 @@ def test_an_administrator_may_invite_on_behalf_of_any_active_host(
     assert visit["created_by"]["id"] == str(administrator.id)
     assert visit["department"]["id"] == str(world.a.finance.id)  # the host's department, as before
     assert visit["permissions"]["can_edit"] is True
-    # The invitation says who booked it on the host's behalf (B57-02).
-    [invitation] = email_provider.sent
+    # The invitation says who booked it on the host's behalf (B57-02), and so does the host's notice.
+    invitation, _calendar, host_notice = email_provider.sent
+    assert invitation.kind == "VISITOR_INVITATION" and host_notice.kind == "HOST_VISIT_SCHEDULED"
+    assert host_notice.to == colleague.email and "Office Manager" in host_notice.text
     assert "Office Manager" in invitation.text and "Colleague Host" in invitation.text
     # The host owns it too (D-02).
     detail = signed_in(make_client, colleague).get(f"/visits/{visit['id']}").json()
@@ -609,10 +620,17 @@ def test_reschedule_keeps_the_pass_and_tells_the_visitor(
     passes = db.scalars(select(VisitorPass).where(VisitorPass.visit_id == visit_id)).all()
     assert len(passes) == 1 and passes[0].token_hash == hash_token(pass_token(created["pass_url"]))
     kinds = [email.kind for email in email_provider.sent]
-    assert kinds == ["VISITOR_INVITATION", "VISIT_RESCHEDULED"]
-    assert "existing QR code remains valid" in email_provider.sent[-1].text
+    assert kinds == [
+        "VISITOR_INVITATION",
+        "VISITOR_CALENDAR",
+        "HOST_VISIT_SCHEDULED",
+        "VISIT_RESCHEDULED",
+        "HOST_VISIT_RESCHEDULED",
+    ]
+    notice = email_provider.sent[3]
+    assert "existing QR code remains valid" in notice.text
     # No QR code (the raw token is never stored), and no logo: this company has none (B12-12).
-    assert email_provider.sent[-1].inline_images == ()
+    assert notice.inline_images == ()
     assert audit_rows(db, "VISIT_UPDATED", entity_id=visit["id"])[-1].meta == {
         "changed_fields": ["scheduled_start", "scheduled_end"]
     }
@@ -631,16 +649,22 @@ def test_reschedule_notices_are_limited_per_visit(
     host: Api, world: World, db: Session, email_provider: MemoryProvider
 ) -> None:
     """Repeated reschedules of one visit cannot bury its visitor in e-mail: 3 notices per visit and hour
-    (B24-70); later reschedules are still saved, only without a notice."""
+    (B24-70); later reschedules are still saved, only without a notice. The host's notices are not in
+    that budget (B14-15): every quick correction still moves the host's calendar."""
     visit_id = create_visit(host, world.a.employee.id, START, send_invitation=True)["visit"]["id"]
     email_provider.clear()
     for minutes in range(1, 6):
         _move_end(host, visit_id, minutes)
-    assert [email.kind for email in email_provider.sent] == ["VISIT_RESCHEDULED"] * 3
+    assert [email.kind for email in email_provider.sent] == [
+        "VISIT_RESCHEDULED",
+        "HOST_VISIT_RESCHEDULED",
+    ] * 3 + ["HOST_VISIT_RESCHEDULED"] * 2
     rows = audit_rows(db, "VISIT_RESCHEDULED", entity_id=visit_id)
     assert [row.meta["visitor_notified"] for row in rows] == [True, True, True, False, False]
+    assert [row.meta["host_notified"] for row in rows] == [True] * 5
     assert rows[-1].meta["notice_limited_by"] == "reschedule_notices_per_visit"
     assert rows[0].meta["notice_limited_by"] is None
+    assert {row.meta["host_notice_limited_by"] for row in rows} == {None}
 
 
 def test_reschedule_notices_are_limited_per_user(
@@ -654,11 +678,15 @@ def test_reschedule_notices_are_limited_per_user(
         email_provider.clear()
         for visit_id in visits:
             _move_end(host, visit_id, 30)
-    assert len(email_provider.sent) == 2
+    assert [email.kind for email in email_provider.sent] == [
+        "VISIT_RESCHEDULED",
+        "HOST_VISIT_RESCHEDULED",
+    ] * 2 + ["HOST_VISIT_RESCHEDULED"]
     last = audit_rows(db, "VISIT_RESCHEDULED", entity_id=visits[-1])[-1].meta
     assert (
         last["visitor_notified"] is False and last["notice_limited_by"] == "reschedule_notices_per_user_day"
     )
+    assert last["host_notified"] is True and last["host_notice_limited_by"] is None
 
 
 def test_reschedule_notices_do_not_spend_the_invitation_budget(
@@ -669,16 +697,22 @@ def test_reschedule_notices_do_not_spend_the_invitation_budget(
         _move_end(host, visit_id, 15)
         refused = host.post("/visits", json=visit_body(world.a.employee.id, START, send_invitation=True))
     assert refused.status_code == 429 and error_code(refused) == "INVITATION_LIMIT"
-    assert [email.kind for email in email_provider.sent] == ["VISITOR_INVITATION", "VISIT_RESCHEDULED"]
+    assert [email.kind for email in email_provider.sent] == [
+        "VISITOR_INVITATION",
+        "VISITOR_CALENDAR",
+        "HOST_VISIT_SCHEDULED",
+        "VISIT_RESCHEDULED",
+        "HOST_VISIT_RESCHEDULED",
+    ]
 
 
-def test_reschedule_without_requested_invitation_sends_nothing(
+def test_reschedule_without_requested_invitation_tells_only_the_host(
     host: Api, world: World, email_provider: MemoryProvider
 ) -> None:
     visit_id = create_visit(host, world.a.employee.id, START)["visit"]["id"]
     end = START + timedelta(hours=4)
     assert host.patch(f"/visits/{visit_id}", json={"scheduled_end": end.isoformat()}).status_code == 200
-    assert email_provider.sent == []
+    assert [email.kind for email in email_provider.sent] == ["HOST_VISIT_SCHEDULED", "HOST_VISIT_RESCHEDULED"]
 
 
 def test_update_purpose_and_department(host: Api, world: World, db: Session) -> None:
@@ -756,14 +790,17 @@ def test_cancel_revokes_the_pass_and_notifies(
         "revoke_reason": "VISIT_CANCELLED",
     }
     assert not any(visit["permissions"].values())
-    cancelled_mail = email_provider.sent[-1]
+    cancelled_mail, host_mail = email_provider.sent[-2:]
     assert cancelled_mail.kind == "VISIT_CANCELLED" and "Meeting moved online" in cancelled_mail.text
+    assert host_mail.kind == "HOST_VISIT_CANCELLED" and "Meeting moved online" in host_mail.text
     assert audit_rows(db, "PASS_REVOKED")[-1].meta["reason"] == "VISIT_CANCELLED"
     assert audit_rows(db, "VISIT_CANCELLED", entity_id=visit["id"])[-1].meta == {
         "trigger": "user",
         "reason_given": True,
         "visitor_notified": True,
         "email_message_id": str(cancelled_mail.message_id),
+        "host_notified": True,
+        "host_notice_limited_by": None,
     }
 
 
@@ -773,11 +810,13 @@ def test_cancel_without_body_or_notification(
     first = create_visit(host, world.a.employee.id, START, send_invitation=True)["visit"]["id"]
     email_provider.clear()
     assert host.post(f"/visits/{first}/cancel").status_code == 200  # no body: notify by default
-    assert [email.kind for email in email_provider.sent] == ["VISIT_CANCELLED"]
+    assert [email.kind for email in email_provider.sent] == ["VISIT_CANCELLED", "HOST_VISIT_CANCELLED"]
     second = create_visit(host, world.a.employee.id, START, send_invitation=True)["visit"]["id"]
     email_provider.clear()
     assert host.post(f"/visits/{second}/cancel", json={"notify_visitor": False}).status_code == 200
-    assert email_provider.sent == []
+    # The visitor's calendar was sent the visit: a cancelled visit always leaves it (B14-16), and the
+    # host's calendar entry goes either way (B14-2).
+    assert [email.kind for email in email_provider.sent] == ["VISIT_CANCELLED", "HOST_VISIT_CANCELLED"]
 
 
 def test_cancel_tells_only_visitors_who_were_invited(
@@ -791,7 +830,7 @@ def test_cancel_tells_only_visitors_who_were_invited(
         response = host.post(f"/visits/{visit_id}/cancel", json={"reason": "x" * 300, "notify_visitor": True})
         assert response.status_code == 200
         assert audit_rows(db, "VISIT_CANCELLED", entity_id=visit_id)[-1].meta["visitor_notified"] is False
-    assert email_provider.sent == []
+    assert {email.kind for email in email_provider.sent} == {"HOST_VISIT_SCHEDULED", "HOST_VISIT_CANCELLED"}
 
 
 def test_history_is_not_rewritten_by_later_changes(host: Api, world: World, make_client) -> None:
@@ -834,7 +873,13 @@ def test_resend_rotates_the_pass(
     ).all()
     assert [p.revoke_reason for p in passes] == ["ROTATED", None]
     assert passes[1].token_hash == hash_token(pass_token(result["pass_url"]))
-    assert [email.pass_url for email in email_provider.sent] == [created["pass_url"], result["pass_url"]]
+    invitations = [email for email in email_provider.sent if email.kind == "VISITOR_INVITATION"]
+    assert [email.pass_url for email in invitations] == [created["pass_url"], result["pass_url"]]
+    # Each invitation is followed by its calendar invitation (B14-10), the same event both times.
+    calendars = [email.calendar for email in email_provider.sent if email.kind == "VISITOR_CALENDAR"]
+    assert [(event.method, event.uid, event.sequence) for event in calendars if event is not None] == [
+        ("REQUEST", f"visit-{visit_id}-visitor", 0)
+    ] * 2
     assert result["visit"]["invitation"]["status"] == "PENDING"
     assert host.get(f"/visits/{visit_id}").json()["invitation"]["status"] == "SENT"
 

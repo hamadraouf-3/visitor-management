@@ -16,6 +16,7 @@ import { PageSpinner } from '../../components/ui/Spinner'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { LoadErrorAlert } from '../../components/ui/LoadErrorAlert'
 import { useBackLink, type BackLink } from '../../hooks/useBackLink'
+import { useNow } from '../../hooks/useNow'
 import { useStableId } from '../../hooks/useStableId'
 import { useCompanyName } from '../../i18n/useLanguage'
 import { paths } from '../../paths'
@@ -23,10 +24,12 @@ import type { Me, Visit } from '../../types/api'
 import { formatDateAtTime } from '../../utils/datetime'
 import { focusPageHeading, isFocusLost } from '../../utils/focus'
 import { EditVisitorDialog } from '../visitors/EditVisitorDialog'
+import { AddToCalendar } from './AddToCalendar'
 import { CancelVisitDialog } from './CancelVisitDialog'
 import { EditVisitDialog } from './EditVisitDialog'
 import { InvitationStatusLine } from './InvitationStatusLine'
-import { cancellationNoticeText, invitationFailedTitle } from './invitationText'
+import { calendarInvitationFailed, cancellationNoticeText, invitationFailedTitle } from './invitationText'
+import { offersHostCalendar } from './hostCalendar'
 import { IssuePassDialog } from './IssuePassDialog'
 import { PassActions } from './PassActions'
 import { ResendInvitationDialog } from './ResendInvitationDialog'
@@ -172,7 +175,7 @@ function InvitationFailedBanner({
             )}
             {onResend && (
               <Button variant={onCorrectEmail ? 'secondary' : 'primary'} icon={<Send aria-hidden="true" />} onClick={onResend}>
-                {onCorrectEmail ? t('failure.resendSame') : t('failure.resend')}
+                {calendarInvitationFailed(visit.invitation) ? t('failure.resendCalendar') : onCorrectEmail ? t('failure.resendSame') : t('failure.resend')}
               </Button>
             )}
           </div>
@@ -244,6 +247,7 @@ export function VisitDetail({ visitId, me }: VisitDetailProps) {
   const { query, pollingStopped, restartPolling } = useVisitDetail(visitId)
   const [dialog, setDialog] = useState<VisitDialog | null>(null)
   const [newPass, setNewPass] = useState<NewPass | null>(null)
+  const now = useNow()
   const visit = query.data
 
   // A dialog returns focus to the button that opened it; after a cancellation that button is
@@ -259,6 +263,15 @@ export function VisitDetail({ visitId, me }: VisitDetailProps) {
   }, [dialog])
 
   const correctable = useCorrectableVisitor(visit, visit !== undefined && wantsVisitorCorrection(visit))
+
+  // The failure's banner goes once the failure is over (a resend, a correction, a poll); its focus, if it
+  // had it, goes on from the page's heading.
+  const failureShown = visit !== undefined && hasFailedInvitation(visit)
+  const failureWasShown = useRef(failureShown)
+  useEffect(() => {
+    if (failureWasShown.current && !failureShown && isFocusLost()) focusPageHeading()
+    failureWasShown.current = failureShown
+  }, [failureShown])
 
   const checkAgain = () => {
     restartPolling()
@@ -298,7 +311,9 @@ export function VisitDetail({ visitId, me }: VisitDetailProps) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-fg-secondary">
             <span className="flex flex-wrap items-center gap-2">
               <StatusBadge type="visit" status={visit.status} />
-              {visit.status === 'SCHEDULED' && <StatusBadge type="invitation" status={visit.invitation.status} standalone />}
+              {visit.status === 'SCHEDULED' && (
+                <StatusBadge type="invitation" status={visit.invitation.status} calendarFailed={visit.invitation.calendar_failed} standalone />
+              )}
               {visit.is_walk_in && <Badge tone="accent">{t('walkInBadge')}</Badge>}
             </span>
             {visit.visitor.company_name && (
@@ -364,7 +379,11 @@ export function VisitDetail({ visitId, me }: VisitDetailProps) {
           column the two status cards a host checks first come before the long timeline. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:grid-rows-[auto_1fr]">
         <div className="min-w-0 lg:col-span-2">
-          <VisitFactsCard visit={visit} timeZone={timeZone} />
+          <VisitFactsCard
+            visit={visit}
+            timeZone={timeZone}
+            scheduleAction={offersHostCalendar(visit, me.user.id, now) && <AddToCalendar visit={visit} me={me} />}
+          />
         </div>
         <div className="flex min-w-0 flex-col gap-6 lg:col-start-3 lg:row-span-2 lg:row-start-1">
           <InvitationCard
@@ -392,7 +411,8 @@ export function VisitDetail({ visitId, me }: VisitDetailProps) {
           onCorrectEmail={openCorrection}
           onResent={(result) => {
             closeDialog()
-            setNewPass({ passUrl: result.pass_url, emailed: true })
+            // Only the calendar invitation went again (`pass_url` null): no new pass to show.
+            if (result.pass_url) setNewPass({ passUrl: result.pass_url, emailed: true })
             restartPolling()
           }}
         />

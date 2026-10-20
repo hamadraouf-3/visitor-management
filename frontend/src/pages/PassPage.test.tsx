@@ -150,6 +150,27 @@ describe('the pass of a company (/pass?c={slug}, Phase 12)', () => {
     expect(document.body).not.toHaveTextContent('Mawdoo3')
   })
 
+  it('offers the appearance toggle beside the language switch, and stands the logo on the page itself in the light scheme (F13-25, F13-26)', async () => {
+    const lightOnly: PublicCompanyBrand = { ...NOVA, brand: makeBrand('nova-labs', { color: SAMPLE_COLOURS.darkBlue, logo: true }) }
+    const { user } = renderCompanyPass(`/pass?c=nova-labs#${TOKEN}`, [lightOnly])
+    await screen.findByRole('img', { name: 'Visitor pass QR code' })
+    // The toggle first, the language switch in the inline-end corner; neither on paper.
+    const toggle = screen.getByRole('button', { name: 'Dark mode' })
+    expect(toggle.nextElementSibling).toBe(screen.getByRole('button', { name: 'العربية' }))
+    expect(toggle.closest('header')).toHaveClass('print:hidden')
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    // No fill and no edge in the light scheme: the plate is the dark scheme's alone, in the same room.
+    const room = (await screenLogo()).closest('[data-logo-room]')
+    expect(room).toHaveAttribute('data-logo-plate', 'dark-scheme')
+    expect(room).toHaveClass('border-transparent', 'scheme-dark:bg-white', 'scheme-dark:border-border')
+    expect(room).not.toHaveClass('bg-white')
+    await user.click(toggle)
+    expect(document.documentElement).toHaveAttribute('data-scheme', 'dark')
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    // On paper the logo stands on the paper itself.
+    expect(document.querySelector('[data-identity-lockup="paper"] [data-logo-plate], [data-identity-lockup="paper"] [data-logo-room]')).toBeNull()
+  })
+
   it('asks the server for the company’s public brand and nothing else, and never sends the token', async () => {
     const { requests, fetchMock } = renderCompanyPass(`/pass?c=nova-labs#${TOKEN}`)
     await screenLogo()

@@ -30,7 +30,7 @@ const ME: Me = {
     must_change_password: false,
     preferred_language: null,
   },
-  company: { id: '00000000-0000-4000-8000-0000000000c1', name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED },
+  company: { id: '00000000-0000-4000-8000-0000000000c1', name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED, address: null, address_ar: null },
 }
 
 function visit(id: string, name: string, overrides: Partial<Visit> = {}): Visit {
@@ -65,8 +65,10 @@ function visit(id: string, name: string, overrides: Partial<Visit> = {}): Visit 
     created_by: { id: ME.user.id, full_name: ME.user.full_name },
     created_at: iso(NOW - 86_400_000),
     updated_at: iso(NOW - 86_400_000),
-    invitation: { status: 'SENT', to_email: 'visitor@example.com', attempts: 1, last_attempt_at: iso(NOW - 86_400_000), sent_at: iso(NOW - 86_400_000), error: null },
+    invitation: { status: 'SENT', to_email: 'visitor@example.com', attempts: 1, last_attempt_at: iso(NOW - 86_400_000), sent_at: iso(NOW - 86_400_000), error: null, calendar_failed: false },
     last_notice: null,
+    calendar_sequence: 0,
+    visitor_calendar_sent: false,
     pass: { status: 'ACTIVE', issued_at: iso(NOW - 86_400_000), revoke_reason: null },
     permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: true, can_check_out: false },
     ...overrides,

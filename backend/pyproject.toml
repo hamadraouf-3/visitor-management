@@ -37,6 +37,8 @@ dev = [
     # A real SMTP server in the SMTP provider's tests, and the throwaway TLS certificate they trust.
     "aiosmtpd>=1.4.6",
     "cryptography>=46",
+    # An iCalendar parser that is not ours, to read the calendar invitations back (Phase 14, B14-9).
+    "icalendar>=7.3",
 ]
 
 [tool.setuptools.packages.find]

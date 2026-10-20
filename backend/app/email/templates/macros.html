@@ -78,7 +78,7 @@
 {# Phase 13 (B13-1): the dark design's colours; none from a process that started before them (B12-26). #}
 {% set DARK = identity.dark | default(none) %}
 {# Messages about a change the reader should notice: their pill is yellow. #}
-{% set ATTENTION_KINDS = ("rescheduled", "cancelled", "changed", "platform") %}
+{% set ATTENTION_KINDS = ("rescheduled", "cancelled", "changed", "platform", "host_rescheduled", "host_cancelled", "withdrawn") %}
 
 {# One language's part of the card: a full-width row whose cell sets the direction, language and alignment. #}
 {% macro section(lang, padding="0 32px") %}

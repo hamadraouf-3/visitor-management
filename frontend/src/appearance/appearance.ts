@@ -4,6 +4,9 @@ import { withoutTransitions } from '../identity/document'
  * The appearance this device chose (Phase 13): Light, Dark, or System (the default), and the colour
  * scheme a page is drawn in: the choice, or under System the device's own (`prefers-color-scheme`).
  *
+ * - The person chooses with one toggle (`AppearanceToggle`, F13-25): until they press it the page
+ *   follows the device (System); a press keeps the other scheme than the one shown, Light or Dark.
+ *   Nothing in the interface leads back to System; a `system` kept by an earlier build still means it.
  * - One choice per device, for every company and for the platform owner's area alike: not an
  *   account's preference. It is kept in `localStorage` (`vms.appearance`); every read and write may
  *   fail (private browsing, blocked storage), and storage that cannot be read is no choice: System.

@@ -103,11 +103,21 @@ export function rescheduledConfirmation(before: Visit, after: Visit): ChangeConf
 }
 
 /**
+ * Whether a cancellation e-mails the visitor whatever the host chooses (Phase 14, the owner's
+ * decision): a visitor who was sent the visit's calendar invitation is always sent the cancellation
+ * (VISIT_CANCELLED, with the event's CANCEL), so the visit leaves their calendar. The cancel dialog
+ * then offers no choice, and says nothing about it.
+ */
+export function cancelAlwaysEmailsVisitor(visit: Visit): boolean {
+  return visit.visitor_calendar_sent
+}
+
+/**
  * The cancel dialog's line when no email can go out (it then offers no notify choice), so the
  * host knows the visitor is not told; null otherwise. A fact, not the reason (decision 3).
  */
 export function cancelNoEmailNotice(visit: Visit): string | null {
-  return cancelEmailsVisitor(visit) ? null : t('cancel.notEmailed')
+  return cancelAlwaysEmailsVisitor(visit) || cancelEmailsVisitor(visit) ? null : t('cancel.notEmailed')
 }
 
 /**

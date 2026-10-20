@@ -109,6 +109,8 @@ export function makeMe(roles: Role[] = ['EMPLOYEE'], overrides: Partial<Me['user
       timezone: 'Asia/Amman',
       default_language: 'en',
       brand: EMPTY_BRAND,
+      address: null,
+      address_ar: null,
     },
   }
 }

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{# A visit taken out of the calendar of an address the visitor no longer has (D-19, Phase 14, B14-17): it
+   carries the withdrawal of the visitor's event. The address may not be the visitor's at all (a typing
+   mistake), so the e-mail says nothing of the visit: no date, no host, no address, no link. #}
+{% set kind = "withdrawn" %}
+{% block preheader %}{{ t(lead, "withdrawn.intro") }}{% endblock %}
+
+{% macro body(lang, primary) %}
+{{ ui.heading(t(lang, "withdrawn.heading"), primary) }}
+{% call ui.paragraph(spacing=0) %}{{ t(lang, "withdrawn.intro") }}{% endcall %}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 28px 32px") %}
+{{ body(lead, True) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 28px 32px") %}
+{{ body(other, False) }}
+{% endcall %}
+{% endblock %}

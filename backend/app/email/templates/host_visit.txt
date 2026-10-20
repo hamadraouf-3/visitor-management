@@ -1,0 +1,35 @@
+{% extends "base.txt" %}
+{# The host's e-mails of a scheduled visit (Phase 14, B14-2); `kind` is given by the service. #}
+{# The company's closing paragraph: a paragraph of its own, with a blank line before it (B11-48). #}
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{{ "\n\n" }}{{ text }}{% endif %}{% endmacro %}
+{% macro body(lang) %}
+{{ edited(lang, "heading") or t(lang, kind ~ ".heading") }}
+
+{{ edited(lang, "greeting") or t(lang, "common.hello", name=host_full_name) }}
+
+{{ edited(lang, "intro") or t(lang, kind ~ ".intro", visitor=visitor_name, date=times[lang].date, time=times[lang].time, zone=times[lang].zone) }}
+
+{{ t(lang, "label.visitor") }}: {{ visitor_name | isolate(lang) }}
+{% if visitor_company_name %}
+{{ t(lang, "label.company") }}: {{ visitor_company_name | isolate(lang) }}
+{% endif %}
+{{ t(lang, "label.date") }}: {{ times[lang].date }}
+{{ t(lang, "label.time") }}: {{ times[lang].time }} ({{ times[lang].timezone }})
+{% if department_name[lang] %}
+{{ t(lang, "label.department") }}: {{ department_name[lang] | isolate(lang) }}
+{% endif %}
+{% if booked_by %}
+{{ t(lang, "label.booked_by") }}: {{ booked_by | isolate(lang) }}
+{% endif %}
+{{ t(lang, "label.purpose") }}: {{ purpose | isolate(lang) }}
+{% if reason %}
+{{ t(lang, "label.reason") }}: {{ reason | isolate(lang) }}
+{% endif %}
+{% if calendar_attached %}
+
+{{ t(lang, "calendar.attached") }}
+{% endif %}{{ closing(lang) }}
+
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

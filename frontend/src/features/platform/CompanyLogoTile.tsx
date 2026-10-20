@@ -1,5 +1,6 @@
 import { Building2 } from 'lucide-react'
 import { useState } from 'react'
+import { useColorScheme } from '../../appearance/useAppearance'
 import { toneTileClasses } from '../../components/ui/tones'
 import { parseCompanyBrand } from '../../identity/brand'
 import type { PlatformCompany } from '../../types/api'
@@ -20,14 +21,21 @@ const BOX = {
 } as const
 
 /**
- * A company's logo on the platform owner's pages (Phase 12): on a white plate, in either colour
- * scheme (it is the logo for light surfaces). A company without a logo, or whose file does not
- * load, has the building tile in the same box. Decorative: the company's name is written beside it.
+ * A company's logo on the platform owner's pages (Phase 12). In the light scheme its logo stands on the
+ * card itself, as on the company's own pages: no fill, no edge (Phase 13, F13-26). In the dark scheme it
+ * is its logo for dark surfaces, or for a company without one the logo for light surfaces on a white
+ * plate with the cards' edge. A company without a logo, or whose files do not load, has the building tile
+ * in the same box. The box is the same either way. Decorative: the company's name is written beside it.
  */
 export function CompanyLogoTile({ company, size = 'sm', className }: CompanyLogoTileProps) {
-  const [failed, setFailed] = useState<string | null>(null)
-  const logo = parseCompanyBrand(company.brand, company.slug).logo_url
-  if (!logo || failed === logo) {
+  // A file that does not load is given up, per address: the other logo stands in for it, or the tile for both.
+  const [failed, setFailed] = useState<readonly string[]>([])
+  const scheme = useColorScheme()
+  const brand = parseCompanyBrand(company.brand, company.slug)
+  const usable = (url: string | null) => (url !== null && !failed.includes(url) ? url : null)
+  const light = usable(brand.logo_url)
+  const dark = scheme === 'dark' ? usable(brand.logo_dark_url) : null
+  if (!light) {
     return (
       <span
         aria-hidden="true"
@@ -37,13 +45,29 @@ export function CompanyLogoTile({ company, size = 'sm', className }: CompanyLogo
       </span>
     )
   }
+  const logo = dark ?? light
   return (
     <span
       aria-hidden="true"
       data-company-logo-tile=""
-      className={cn('flex shrink-0 items-center justify-center border border-border bg-white', BOX[size], size === 'lg' ? 'px-2.5 py-2' : 'px-1.5 py-1', className)}
+      // `dark-scheme`: the logo for light surfaces, on its plate in the dark scheme only.
+      data-logo-plate={dark ? undefined : 'dark-scheme'}
+      className={cn(
+        'flex shrink-0 items-center justify-center border border-transparent',
+        !dark && 'scheme-dark:border-border scheme-dark:bg-white',
+        BOX[size],
+        size === 'lg' ? 'px-2.5 py-2' : 'px-1.5 py-1',
+        className,
+      )}
     >
-      <img src={logo} alt="" decoding="async" draggable={false} onError={() => setFailed(logo)} className="block max-h-full max-w-full object-contain" />
+      <img
+        src={logo}
+        alt=""
+        decoding="async"
+        draggable={false}
+        onError={() => setFailed((current) => (current.includes(logo) ? current : [...current, logo]))}
+        className="block max-h-full max-w-full object-contain"
+      />
     </span>
   )
 }

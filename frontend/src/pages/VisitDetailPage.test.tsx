@@ -1,8 +1,11 @@
+import { onlineManager } from '@tanstack/react-query'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { queryKeys } from '../api/queryKeys'
 import { routes } from '../test/appRoutes'
-import { errorResponse, jsonResponse, makeMe, mockApi, type RecordedRequest, type RouteHandler } from '../test/api'
+import { deferred, errorResponse, jsonResponse, makeMe, mockApi, type RecordedRequest, type RouteHandler } from '../test/api'
 import { FINANCE, LEGAL, makeVisit, makeVisitor, VISIT_ID, VISITOR_ID } from '../test/fixtures'
+import { i18n } from '../i18n'
 import { findAlert, renderRoutes } from '../test/render'
 import type { Role, Visit } from '../types/api'
 
@@ -28,6 +31,11 @@ function setup({
 
 function bodyOf(requests: RecordedRequest[], method: string, path: string): unknown {
   return requests.find((request) => request.method === method && request.path === path)?.body
+}
+
+/** The page's requests for the visit. */
+function visitLoads(requests: RecordedRequest[]): number {
+  return requests.filter((request) => request.method === 'GET' && request.path === DETAIL).length
 }
 
 async function loaded(name = 'Élodie Martin') {
@@ -418,6 +426,49 @@ describe('Visit detail', () => {
     expect(bodyOf(requests, 'POST', `${DETAIL}/cancel`)).toEqual({ notify_visitor: false })
   })
 
+  it('offers no choice when the visitor was sent the calendar invitation: the cancellation always tells them', async () => {
+    const inCalendar = makeVisit({ visitor_calendar_sent: true })
+    const cancelled = makeVisit({
+      visitor_calendar_sent: true,
+      status: 'CANCELLED',
+      cancelled_at: '2026-10-05T06:12:00Z',
+      calendar_sequence: 1,
+      permissions: { can_edit: false, can_cancel: false, can_resend: false },
+      last_notice: { kind: 'VISIT_CANCELLED', status: 'PENDING', to_email: 'elodie@orbit.example', sent_at: null, error: null },
+    })
+    const { user, requests } = setup({ visit: inCalendar, routes: { [`POST ${DETAIL}/cancel`]: () => jsonResponse(cancelled) } })
+    await loaded()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel visit' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Cancel this visit?' })
+    // No box to clear and no words about it: the visitor will be told, and the visit leaves their calendar.
+    expect(within(dialog).queryByRole('checkbox')).toBeNull()
+    expect(dialog).not.toHaveTextContent('The visitor will not be emailed.')
+    expect(dialog).not.toHaveTextContent(/notify|email/i)
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel visit' }))
+
+    expect(await screen.findByText('The visitor is being notified by email.')).toBeInTheDocument()
+    expect(bodyOf(requests, 'POST', `${DETAIL}/cancel`)).toEqual({ notify_visitor: true })
+  })
+
+  it('offers no choice and says nothing about e-mail for such a visitor even with no address on file now; the outcome says what happened', async () => {
+    // The address was removed after the calendar invitation went out: the response tells whether an e-mail went.
+    const inCalendar = makeVisit({ visitor_calendar_sent: true, permissions: { can_resend: false } })
+    const { user } = setup({
+      visit: inCalendar,
+      routes: { [`POST ${DETAIL}/cancel`]: () => jsonResponse({ ...inCalendar, status: 'CANCELLED', cancelled_at: '2026-10-05T06:12:00Z' }) },
+    })
+    await loaded()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel visit' }))
+    const dialog = screen.getByRole('alertdialog')
+    expect(within(dialog).queryByRole('checkbox')).toBeNull()
+    expect(dialog).not.toHaveTextContent('The visitor will not be emailed.')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel visit' }))
+
+    expect(await screen.findByText('The visitor was not notified.')).toBeInTheDocument()
+  })
+
   it('cancels without notifying the visitor when the box is cleared, and without a reason', async () => {
     const { user, requests } = setup({
       routes: {
@@ -509,6 +560,83 @@ describe('Visit detail', () => {
     await user.click(screen.getByRole('button', { name: 'Done' }))
     expect(screen.queryByRole('textbox', { name: 'Pass link' })).toBeNull()
     expect(screen.getByRole('heading', { level: 1, name: 'Élodie Martin' })).toHaveFocus()
+  })
+
+  it('says when only the calendar invitation did not arrive, and sends it alone again: no new pass, no address doubted', async () => {
+    const calendarFailed = makeVisit({
+      invitation: { status: 'FAILED', sent_at: null, calendar_failed: true, attempts: 2, last_attempt_at: '2026-10-05T06:10:09Z', error: 'Mailbox full' },
+    })
+    // The resend sends the calendar invitation alone (B14-31): the invitation as it was, no new pass.
+    const resent = makeVisit()
+    let current = calendarFailed
+    // No GET /visitors/{id}: the page does not load the visitor to offer a correction.
+    const { user, requests } = setup({
+      visit: () => jsonResponse(current),
+      routes: {
+        [`POST ${DETAIL}/invitation`]: () => {
+          current = resent
+          return jsonResponse({ visit: resent, pass_url: null, visitor_match: { reused: false } })
+        },
+      },
+    })
+    const title = await loaded()
+
+    const header = title.closest('header') as HTMLElement
+    expect(within(header).getByText('Calendar invitation not delivered')).toBeInTheDocument()
+    expect(header).not.toHaveTextContent('Invitation failed')
+    const invitation = screen.getByRole('heading', { name: 'Invitation' }).closest('section') as HTMLElement
+    // The banner's title; the card below says the same in its own line.
+    const bannerTitle = screen.getAllByText(/^The calendar invitation did not reach/).find((element) => !invitation.contains(element))
+    const banner = bannerTitle?.closest('div.flex') as HTMLElement
+    expect(banner).toHaveTextContent('The calendar invitation did not reach elodie@orbit.example')
+    expect(banner).not.toHaveTextContent('Invitation not delivered')
+    // The address took the invitation: no correction; sending the calendar invitation again is the way out.
+    expect(within(banner).queryByRole('button', { name: 'Correct email and resend' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: /^Resend/ }).map((button) => button.textContent)).toEqual(['Resend calendar invitation'])
+    expect(requests.some((request) => request.path.startsWith('/visitors/'))).toBe(false)
+
+    expect(within(invitation).getByText('Calendar failed')).toBeInTheDocument()
+    expect(invitation).toHaveTextContent('The calendar invitation did not reach elodie@orbit.example.')
+    expect(invitation).not.toHaveTextContent('Could not be sent')
+    expect(within(invitation).getByText('Mailbox full')).toBeInTheDocument()
+    const timeline = screen.getByRole('heading', { name: 'Timeline' }).closest('section') as HTMLElement
+    expect(within(timeline).getAllByRole('listitem').map((item) => item.querySelector('p')?.textContent)).toEqual([
+      'Visit created',
+      'Calendar invitation not delivered',
+    ])
+
+    await user.click(within(banner).getByRole('button', { name: 'Resend calendar invitation' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Send the calendar invitation again?' })
+    // Nothing is replaced: no word of a new pass or QR code.
+    expect(dialog).toHaveAccessibleDescription('The calendar invitation did not reach elodie@orbit.example.')
+    expect(dialog).not.toHaveTextContent(/QR|pass/i)
+    expect(within(dialog).queryByRole('button', { name: 'Correct email and resend' })).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Not now' })).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Resend calendar invitation' }))
+
+    expect(await screen.findByText('Sending the calendar invitation to elodie@orbit.example')).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(screen.queryByRole('heading', { level: 2, name: 'New visitor pass' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Pass link' })).toBeNull()
+    // The banner went with the failure; the focus goes on from the page's heading.
+    await waitFor(() => expect(screen.queryByText(/^The calendar invitation did not reach/)).toBeNull())
+    await waitFor(() => expect(title).toHaveFocus())
+    expect(requests.filter((request) => request.method === 'POST' && request.path === `${DETAIL}/invitation`)).toHaveLength(1)
+  })
+
+  it('keeps the calendar invitation’s resend in its dialog when the invitation budget is spent (429), nothing sent', async () => {
+    const calendarFailed = makeVisit({ invitation: { status: 'FAILED', sent_at: null, calendar_failed: true } })
+    const { user } = setup({
+      visit: calendarFailed,
+      routes: { [`POST ${DETAIL}/invitation`]: () => errorResponse(429, 'INVITATION_LIMIT', 'You have reached the limit of invitations for today.') },
+    })
+    await loaded()
+
+    await user.click(screen.getByRole('button', { name: 'Resend calendar invitation' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Send the calendar invitation again?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Resend calendar invitation' }))
+    expect(await within(dialog).findByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByText(/^Sending the calendar invitation/)).toBeNull()
   })
 
   it('corrects the visitor’s address from a failed invitation; the server re-sends it there', async () => {
@@ -785,5 +913,314 @@ describe('Visit detail', () => {
     await user.click(within(alert).getByRole('button', { name: 'Try again' }))
 
     expect(await loaded()).toBeInTheDocument()
+  })
+})
+
+/** The dates of the open calendar menu's Google Calendar link. */
+async function googleDates(): Promise<string | null> {
+  const items = within(await screen.findByRole('menu', { name: 'Add to my calendar' })).getAllByRole('menuitem')
+  return new URL(items[0]!.getAttribute('href')!).searchParams.get('dates')
+}
+
+/** The `.ics` the menu's last item saves, and the link it follows to save it. */
+function captureDownload() {
+  const blobs: Blob[] = []
+  const links: HTMLAnchorElement[] = []
+  vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+    blobs.push(blob as Blob)
+    return 'blob:calendar/1'
+  })
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    links.push(this)
+  })
+  return { blobs, links }
+}
+
+describe('Add to my calendar', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  const ADDRESS = { address: 'King Hussein Business Park\nBuilding 4', address_ar: 'مجمع الملك حسين للأعمال\nالمبنى 4' }
+
+  /**
+   * The visit page of `visit`. `now`, when given, answers every later request for the visit: the visit as
+   * it is when the menu fetches it again, changed elsewhere since the page loaded.
+   */
+  function open({
+    visit = makeVisit(),
+    now,
+    roles = ['EMPLOYEE'],
+    language = 'en',
+  }: { visit?: Visit; now?: RouteHandler; roles?: Role[]; language?: 'ar' | 'en' } = {}) {
+    const me = makeMe(roles, { preferred_language: language })
+    let loads = 0
+    const api = mockApi({
+      'GET /auth/me': () => jsonResponse({ ...me, company: { ...me.company, ...ADDRESS } }),
+      [`GET ${DETAIL}`]: (request) => {
+        loads += 1
+        return loads > 1 && now ? now(request) : jsonResponse(visit)
+      },
+      'GET /departments': () => jsonResponse([FINANCE, LEGAL]),
+    })
+    return { ...api, ...renderRoutes(routes, { initialEntries: [DETAIL] }) }
+  }
+
+  const MOVED = makeVisit({ calendar_sequence: 1, scheduled_start: '2026-10-07T11:30:00Z', scheduled_end: '2026-10-07T12:15:00Z', updated_at: '2026-10-05T07:00:00Z' })
+
+  it('offers the host their event in Google Calendar, in Outlook and as a file, from the schedule', async () => {
+    const download = captureDownload()
+    const { user } = open({ visit: makeVisit({ calendar_sequence: 2 }) })
+    await loaded()
+
+    const details = screen.getByRole('heading', { name: 'Visit details' }).closest('section') as HTMLElement
+    const trigger = within(details).getByRole('button', { name: 'Add to my calendar' })
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu')
+    await user.click(trigger)
+    const menu = await screen.findByRole('menu', { name: 'Add to my calendar' })
+    const items = within(menu).getAllByRole('menuitem')
+    expect(items.map((item) => item.textContent)).toEqual(['Google Calendar', 'Outlook', 'Apple and others (.ics)'])
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual(['Google Calendar (opens in a new tab)', 'Outlook (opens in a new tab)', null])
+    await waitFor(() => expect(items[0]).toHaveFocus())
+
+    // The calendars' own new-event forms, in a new tab that knows nothing of this page.
+    const google = new URL(items[0]!.getAttribute('href')!)
+    expect(google.host).toBe('calendar.google.com')
+    expect(google.searchParams.get('text')).toBe('Visit: Élodie Martin')
+    expect(google.searchParams.get('dates')).toBe('20261006T060000Z/20261006T070000Z')
+    expect(google.searchParams.get('location')).toBe('King Hussein Business Park, Building 4')
+    expect(items[0]).toHaveAttribute('target', '_blank')
+    expect(items[0]).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(new URL(items[1]!.getAttribute('href')!).host).toBe('outlook.office.com')
+
+    await user.click(items[2]!)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).toHaveFocus()
+    expect(download.links.map((link) => [link.download, link.href])).toEqual([['visit-2026-10-06.ics', 'blob:calendar/1']])
+    expect(download.blobs[0]!.type).toBe('text/calendar;charset=utf-8')
+    const ics = await download.blobs[0]!.text()
+    expect(ics).toContain(`\r\nUID:visit-${VISIT_ID}-host\r\nSEQUENCE:2\r\n`)
+    expect(ics).toContain('\r\nSUMMARY:Visit: Élodie Martin\r\n')
+    expect(ics).not.toMatch(/\/pass|#/)
+  })
+
+  it('is reached and left from the keyboard', async () => {
+    const { user } = open()
+    await loaded()
+    const trigger = screen.getByRole('button', { name: 'Add to my calendar' })
+    trigger.focus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: /Google Calendar/ })).toHaveFocus())
+    await user.keyboard('{ArrowUp}')
+    expect(screen.getByRole('menuitem', { name: 'Apple and others (.ics)' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('writes the event in Arabic in the Arabic UI', async () => {
+    await i18n.changeLanguage('ar')
+    const download = captureDownload()
+    const { user } = open({ language: 'ar', visit: makeVisit({ department: { id: FINANCE.id, name: 'Finance', name_ar: 'المالية' } }) })
+    await user.click(await screen.findByRole('button', { name: 'أضف إلى تقويمي' }))
+    const items = within(await screen.findByRole('menu', { name: 'أضف إلى تقويمي' })).getAllByRole('menuitem')
+    expect(items.map((item) => item.textContent)).toEqual(['تقويم Google', 'Outlook', 'تقويم Apple وغيره (ملف ics)'])
+    expect(new URL(items[0]!.getAttribute('href')!).searchParams.get('location')).toBe('مجمع الملك حسين للأعمال، المبنى 4')
+    await user.click(items[2]!)
+    const ics = (await download.blobs[0]!.text()).replace(/\r\n /g, '')
+    expect(ics).toContain('SUMMARY:زيارة: Élodie Martin\r\n')
+    expect(ics).toContain('DESCRIPTION:الزائر: Élodie Martin\\nالشركة: Orbit Labs\\nالقسم: المالية\\nالغرض من الزيارة: Quarterly review\r\n')
+  })
+
+  it('is offered for the host’s own scheduled visit only, not after it ended', async () => {
+    const cases: [string, Visit, Role[]][] = [
+      ['cancelled', makeVisit({ status: 'CANCELLED', cancelled_at: '2026-10-05T06:00:00Z' }), ['EMPLOYEE']],
+      ['checked in', makeVisit({ status: 'CHECKED_IN', check_in_at: '2026-10-05T06:00:00Z', check_in_method: 'QR' }), ['EMPLOYEE']],
+      ['ended', makeVisit({ scheduled_start: '2026-10-05T04:00:00Z', scheduled_end: '2026-10-05T05:00:00Z' }), ['EMPLOYEE']],
+      ['walk-in', makeVisit({ is_walk_in: true }), ['EMPLOYEE']],
+      ['another host’s', makeVisit({ host: { id: 'another-host', full_name: 'Omar Khalil', phone: null } }), ['SYSTEM_ADMIN', 'EMPLOYEE']],
+    ]
+    for (const [, visit, roles] of cases) {
+      const view = open({ visit, roles })
+      await loaded()
+      expect(screen.queryByRole('button', { name: 'Add to my calendar' })).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('is written from the visit as it is when the menu opens: a new time made elsewhere since the page loaded', async () => {
+    const download = captureDownload()
+    const moved = makeVisit({ calendar_sequence: 1, scheduled_start: '2026-10-07T11:30:00Z', scheduled_end: '2026-10-07T12:15:00Z', updated_at: '2026-10-05T07:00:00Z' })
+    const { user, requests } = open({ now: () => jsonResponse(moved) })
+    await loaded()
+    const details = screen.getByRole('heading', { name: 'Visit details' }).closest('section') as HTMLElement
+    expect(details).toHaveTextContent('Tue, 6 Oct 2026, 09:00–\u206010:00')
+
+    await user.click(screen.getByRole('button', { name: 'Add to my calendar' }))
+    const items = within(await screen.findByRole('menu', { name: 'Add to my calendar' })).getAllByRole('menuitem')
+    expect(visitLoads(requests)).toBe(2)
+    expect(new URL(items[0]!.getAttribute('href')!).searchParams.get('dates')).toBe('20261007T113000Z/20261007T121500Z')
+    expect(new URL(items[1]!.getAttribute('href')!).searchParams.get('startdt')).toBe('2026-10-07T11:30:00Z')
+    await user.click(items[2]!)
+    const ics = await download.blobs[0]!.text()
+    expect(ics).toContain('\r\nSEQUENCE:1\r\nDTSTAMP:20261005T070000Z\r\nDTSTART:20261007T113000Z\r\nDTEND:20261007T121500Z\r\n')
+    expect(download.links[0]!.download).toBe('visit-2026-10-07.ics')
+    // The page shows the visit the menu was written from.
+    expect(details).toHaveTextContent('Wed, 7 Oct 2026, 14:30–\u206015:15')
+  })
+
+  it('shows the kit’s loading state while it fetches the visit again', async () => {
+    const now = deferred<Response>()
+    const { user } = open({ now: () => now.promise })
+    await loaded()
+    const trigger = screen.getByRole('button', { name: 'Add to my calendar' })
+
+    await user.click(trigger)
+    expect(trigger).toHaveAttribute('aria-busy', 'true')
+    expect(trigger).toHaveAttribute('aria-disabled', 'true')
+    expect(trigger.querySelector('.animate-spin')).not.toBeNull()
+    expect(screen.queryByRole('menu')).toBeNull()
+
+    now.resolve(jsonResponse(makeVisit()))
+    expect(await screen.findByRole('menu', { name: 'Add to my calendar' })).toBeInTheDocument()
+    expect(trigger).not.toHaveAttribute('aria-busy')
+    expect(trigger.querySelector('.animate-spin')).toBeNull()
+  })
+
+  it('opens nothing for a visit cancelled elsewhere since: the page shows the cancellation, and the focus goes on from its heading', async () => {
+    const download = captureDownload()
+    const cancelled = makeVisit({ status: 'CANCELLED', cancelled_at: '2026-10-05T06:05:00Z', calendar_sequence: 1 })
+    const { user } = open({ now: () => jsonResponse(cancelled) })
+    const heading = await loaded()
+
+    screen.getByRole('button', { name: 'Add to my calendar' }).focus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Add to my calendar' })).toBeNull())
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(heading).toHaveFocus()
+    expect(await screen.findByText('This visit was cancelled')).toBeInTheDocument()
+    expect(download.blobs).toEqual([])
+  })
+
+  it('opens nothing for a visit that ended or began since, or that is no longer this host’s', async () => {
+    const changes: Visit[] = [
+      makeVisit({ scheduled_start: '2026-10-05T05:00:00Z', scheduled_end: '2026-10-05T06:00:00Z' }),
+      makeVisit({ status: 'CHECKED_IN', check_in_at: '2026-10-05T06:05:00Z', check_in_method: 'QR' }),
+      makeVisit({ host: { id: 'another-host', full_name: 'Omar Khalil', phone: null } }),
+    ]
+    for (const changed of changes) {
+      const view = open({ now: () => jsonResponse(changed) })
+      await loaded()
+      await view.user.click(screen.getByRole('button', { name: 'Add to my calendar' }))
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Add to my calendar' })).toBeNull())
+      expect(screen.queryByRole('menu')).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('shows the kit’s error toast when the visit cannot be fetched again, and opens nothing', async () => {
+    const { user } = open({ now: () => errorResponse(500, 'INTERNAL_ERROR', 'Something went wrong. Please try again.') })
+    await loaded()
+    const trigger = screen.getByRole('button', { name: 'Add to my calendar' })
+
+    await user.click(trigger)
+    const toast = await findAlert('The visit could not be loaded')
+    expect(toast).toHaveTextContent('Something went wrong. Please try again.')
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(trigger).not.toHaveAttribute('aria-busy')
+    // The page keeps the visit it shows.
+    expect(screen.getByRole('heading', { level: 1, name: 'Élodie Martin' })).toBeInTheDocument()
+  })
+
+  it('closes its open menu when the visit changes under it, the focus back on its trigger; opened again, it says the new time', async () => {
+    let current = makeVisit()
+    const { user, queryClient } = open({ now: () => jsonResponse(current) })
+    await loaded()
+    const trigger = screen.getByRole('button', { name: 'Add to my calendar' })
+    trigger.focus()
+    await user.keyboard('{Enter}')
+    expect(await googleDates()).toBe('20261006T060000Z/20261006T070000Z')
+    const first = screen.getAllByRole('menuitem')[0]!
+    await waitFor(() => expect(first).toHaveFocus())
+
+    // A refetch that finds the visit as it was keeps the menu open.
+    await act(() => queryClient.invalidateQueries({ queryKey: queryKeys.visits.detail(VISIT_ID) }))
+    expect(screen.getByRole('menu', { name: 'Add to my calendar' })).toBeInTheDocument()
+
+    // A new time reaches the page (a poll, a refetch): the menu, still saying the old one, closes.
+    current = MOVED
+    await act(() => queryClient.invalidateQueries({ queryKey: queryKeys.visits.detail(VISIT_ID) }))
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    expect(trigger).toHaveFocus()
+    const details = screen.getByRole('heading', { name: 'Visit details' }).closest('section') as HTMLElement
+    expect(details).toHaveTextContent('Wed, 7 Oct 2026, 14:30–\u206015:15')
+    await user.keyboard('{Enter}')
+    expect(await googleDates()).toBe('20261007T113000Z/20261007T121500Z')
+  })
+
+  it('asks again when a request of the page was already on its way: the menu says the visit as it is now', async () => {
+    const held = deferred<Response>()
+    let answers = 0
+    const { user, queryClient, requests } = open({ now: () => ((answers += 1) === 1 ? held.promise : jsonResponse(MOVED)) })
+    await loaded()
+    // A refetch of the page left before the change (a poll, the window's focus) and is still on its way.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.visits.detail(VISIT_ID) })
+    await waitFor(() => expect(visitLoads(requests)).toBe(2))
+
+    await user.click(screen.getByRole('button', { name: 'Add to my calendar' }))
+    expect(await googleDates()).toBe('20261007T113000Z/20261007T121500Z')
+    expect(visitLoads(requests)).toBe(3)
+    held.resolve(jsonResponse(makeVisit()))
+  })
+
+  it('fails at once offline, with the error toast, and never opens later on its own', async () => {
+    let offline = false
+    const { user } = open({ now: () => (offline ? Promise.reject(new TypeError('Failed to fetch')) : jsonResponse(makeVisit())) })
+    await loaded()
+    const trigger = screen.getByRole('button', { name: 'Add to my calendar' })
+    offline = true
+    act(() => onlineManager.setOnline(false))
+    try {
+      await user.click(trigger)
+      expect(await findAlert('The visit could not be loaded')).toBeInTheDocument()
+      expect(trigger).not.toHaveAttribute('aria-busy')
+      // Back online: nothing opens by itself.
+      offline = false
+      act(() => onlineManager.setOnline(true))
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+      expect(screen.queryByRole('menu')).toBeNull()
+    } finally {
+      onlineManager.setOnline(true)
+    }
+  })
+
+  it.each([
+    [404, 'NOT_FOUND', 'The requested item was not found.', 'Visit not found'],
+    [403, 'FORBIDDEN', 'You do not have permission to perform this action.', 'No access to this visit'],
+  ] as const)('a %i on the menu’s request: the page turns to it, and the focus goes on from its heading', async (status, code, message, title) => {
+    const { user } = open({ now: () => errorResponse(status, code, message) })
+    await loaded()
+    screen.getByRole('button', { name: 'Add to my calendar' }).focus()
+    await user.keyboard('{Enter}')
+
+    const heading = await screen.findByRole('heading', { level: 1, name: title })
+    await waitFor(() => expect(heading).toHaveFocus())
+    expect(screen.queryByRole('button', { name: 'Add to my calendar' })).toBeNull()
+  })
+
+  it('writes nothing while the page renders: a time the browser cannot read fails the menu, not the page', async () => {
+    const broken = makeVisit({ updated_at: 'not a time' })
+    const { user } = open({ visit: broken, now: () => jsonResponse(broken) })
+    await loaded()
+
+    await user.click(screen.getByRole('button', { name: 'Add to my calendar' }))
+    expect(await findAlert('The visit could not be loaded')).toBeInTheDocument()
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Visit details' })).toBeInTheDocument()
   })
 })

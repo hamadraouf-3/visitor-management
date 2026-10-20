@@ -191,6 +191,8 @@
       "reschedule_notices_per_user_day": "رسائل تغيير الموعد اليومية",
       "reschedule_notices_per_visit": "رسائل تغيير الموعد لكل زيارة",
       "host_arrivals_per_user_day": "رسائل إبلاغ المضيفين اليومية",
+      "host_visit_notices_per_user_day": "رسائل زيارات المضيفين اليومية",
+      "calendar_emails_per_company_day": "رسائل التقويم اليومية لكل شركة",
       "api_per_user": "الطلبات",
       "platform": "مالك المنصة",
       "company_inactive": "شركة معطّلة",
@@ -207,6 +209,9 @@
       "VISITOR_INVITATION": "دعوة الزائر",
       "VISIT_RESCHEDULED": "تغيير موعد الزيارة",
       "HOST_ARRIVAL": "وصول الزائر",
+      "HOST_VISIT_SCHEDULED": "زيارة جديدة (المضيف)",
+      "HOST_VISIT_RESCHEDULED": "تغيير موعد الزيارة (المضيف)",
+      "HOST_VISIT_CANCELLED": "إلغاء الزيارة (المضيف)",
       "PASSWORD_RESET": "إعادة تعيين كلمة المرور",
       "PASSWORD_CHANGED": "تغيير كلمة المرور"
     },
@@ -253,7 +258,10 @@
       "id_verified": "تم التحقق من الهوية",
       "host_notified": "أُبلغ المضيف",
       "notice": "الإشعار",
-      "notice_limited_by": "لم يُرسل الإشعار بسبب",
+      "notice_limited_by": "الحدّ الذي قيّد الإشعار",
+      "host_notice_limited_by": "الحدّ الذي قيّد إشعار المضيف",
+      "calendar_sent": "أُرسل حدث التقويم",
+      "host_calendar_sent": "أُرسل حدث تقويم المضيف",
       "visitor_notified": "أُبلغ الزائر",
       "reason_given": "ذُكر سبب",
       "trigger": "مصدر الإجراء",
@@ -607,7 +615,10 @@
       "VISITOR_INVITATION": "دعوة الزائر",
       "VISIT_RESCHEDULED": "تغيير موعد الزيارة",
       "VISIT_CANCELLED": "إلغاء الزيارة",
-      "HOST_ARRIVAL": "وصول الزائر"
+      "HOST_ARRIVAL": "وصول الزائر",
+      "HOST_VISIT_SCHEDULED": "زيارة جديدة (المضيف)",
+      "HOST_VISIT_RESCHEDULED": "تغيير موعد الزيارة (المضيف)",
+      "HOST_VISIT_CANCELLED": "إلغاء الزيارة (المضيف)"
     },
     "recipients": {
       "visitor": "إلى الزائر",

@@ -27,7 +27,20 @@ Message (S10-1). An `EmailMessage` with policy SMTP:
         ├── text/html                 (quoted-printable; <img src="cid:visitor-pass-qr">)
         └── image/png                 (base64; Content-ID: <visitor-pass-qr>; inline)
 
-which Gmail, Outlook and Apple Mail show with the QR code inside the HTML. From, Reply-To and Subject are
+which Gmail, Outlook and Apple Mail show with the QR code inside the HTML. A message that carries a visit
+as a calendar event (Phase 14, B14-7) is the tree Google Calendar sends and Outlook processes:
+
+    multipart/mixed
+    ├── multipart/alternative
+    │   ├── text/plain
+    │   ├── multipart/related         (text/html and its images, as above)
+    │   └── text/calendar; method=REQUEST|CANCEL; charset=UTF-8   (base64, no Content-Disposition)
+    └── application/ics; name="invite.ics"                       (base64, attachment)
+
+The `text/calendar` part, last of the alternatives and without a disposition, is what Outlook imports as
+the invitation ([MS-STANOICAL]: a part disposed as an attachment is not iMIP data) and what Gmail and
+Apple Mail turn into their invitation card; the attachment, the same object, is for whatever looks only
+at attachments. From, Reply-To and Subject are
 the ones the Resend provider sends (`EmailService` builds them: EMAIL_FROM, the deployment's or host's
 reply address, the rendered subject); this provider adds `Date` and a `Message-ID` derived from the
 message's row (`<vms-email-<id>@<sender's domain>>`), so the retries of one message carry the same ID.
@@ -77,7 +90,14 @@ from pydantic import SecretStr
 from app.core import time as app_time
 from app.core.config import SmtpSecurity
 from app.email.headers import literal_text, sanitize_header
-from app.email.providers.base import EmailDeliveryError, OutgoingEmail, ProviderResult
+from app.email.providers.base import (
+    CALENDAR_FILE,
+    CALENDAR_METHODS,
+    CalendarPart,
+    EmailDeliveryError,
+    OutgoingEmail,
+    ProviderResult,
+)
 from app.email.providers.common import SAFE_CONTENT_ID
 
 logger = logging.getLogger("app.email")
@@ -575,6 +595,30 @@ def _mailbox(value: str) -> Address | None:
         return None
 
 
+def _add_calendar(message: EmailMessage, calendar: CalendarPart) -> None:
+    """The visit's calendar event in `message` (multipart/alternative, made multipart/mixed): the last
+    alternative, `text/calendar` with the iTIP method (RFC 6047 §2.4: the `method` parameter is what makes
+    it an iMIP part, and it equals the object's METHOD), and the same object as `invite.ics`. Base64:
+    the object's CRLF line ends and folded lines arrive exactly as written, in a 7-bit body."""
+    if calendar.method not in CALENDAR_METHODS:
+        raise ValueError("unknown calendar method")
+    message.add_alternative(
+        calendar.content,
+        maintype="text",
+        subtype="calendar",
+        cte="base64",
+        params={"method": calendar.method, "charset": "UTF-8"},
+    )
+    message.make_mixed()
+    message.add_attachment(
+        calendar.content,
+        maintype="application",
+        subtype="ics",
+        filename=CALENDAR_FILE,
+        params={"name": CALENDAR_FILE},
+    )
+
+
 def _prepare(email: OutgoingEmail, *, now: datetime) -> _Prepared:
     sender = _mailbox(email.sender)
     if sender is None:
@@ -618,6 +662,8 @@ def _prepare(email: OutgoingEmail, *, now: datetime) -> _Prepared:
                     filename=sanitize_header(image.filename) or f"{image.content_id}.{subtype}",
                     disposition="inline",
                 )
+        if email.calendar is not None:
+            _add_calendar(message, email.calendar)
     except (ValueError, TypeError, MessageError) as exc:
         raise EmailDeliveryError(
             f"The message could not be built ({type(exc).__name__}).", transient=False

@@ -1,6 +1,7 @@
 import { LANGUAGE_NAMES, type Language } from '../../i18n'
 import { useChangeLanguage, useLanguage } from '../../i18n/useLanguage'
 import { cn } from '../../utils/cn'
+import { SWITCH_BUTTON } from '../ui/buttonStyles'
 
 export interface LanguageSwitchButtonProps {
   /** Switches to `language` (the other one). */
@@ -31,11 +32,7 @@ export function LanguageSwitchButton({ onSwitch, pending = false, className }: L
         if (!pending) onSwitch(target)
       }}
       data-language-switch=""
-      className={cn(
-        'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control border border-border-strong bg-surface px-3',
-        'font-numeric text-sm font-semibold text-fg transition-colors hover:bg-surface-muted aria-disabled:cursor-progress',
-        className,
-      )}
+      className={cn(SWITCH_BUTTON, 'font-numeric text-sm font-semibold aria-disabled:cursor-progress', className)}
     >
       <span aria-hidden="true">{names.short}</span>
       <span className="sr-only">{names.name}</span>

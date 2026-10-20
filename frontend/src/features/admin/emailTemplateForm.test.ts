@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { i18n } from '../../i18n'
+import type { EmailTemplateKind } from '../../types/api'
 import { makeEmailTemplate, withOverrides } from './emailTemplateFixtures'
 import {
   checkTemplateText,
@@ -17,6 +18,7 @@ import {
   refusedSavedTexts,
   serverProblemMessage,
   templateProblemMessage,
+  templateRecipient,
   textLength,
   toPreviewRequest,
   toTemplateUpdate,
@@ -213,8 +215,15 @@ describe('variables', () => {
     await i18n.changeLanguage('en')
   })
 
-  it('knows the four kinds', () => {
+  it('knows the seven kinds, and who receives each', () => {
     expect(isEmailTemplateKind('HOST_ARRIVAL')).toBe(true)
+    for (const kind of ['HOST_VISIT_SCHEDULED', 'HOST_VISIT_RESCHEDULED', 'HOST_VISIT_CANCELLED']) {
+      expect(isEmailTemplateKind(kind)).toBe(true)
+      expect(templateRecipient(kind as EmailTemplateKind)).toBe('host')
+    }
+    expect(templateRecipient('VISIT_CANCELLED')).toBe('visitor')
+    // Not editable (Phase 14): the visitor's calendar e-mail has no words of the company's.
+    expect(isEmailTemplateKind('VISITOR_CALENDAR')).toBe(false)
     expect(isEmailTemplateKind('PASSWORD_RESET')).toBe(false)
     expect(isEmailTemplateKind(undefined)).toBe(false)
   })

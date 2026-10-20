@@ -43,6 +43,8 @@ def me_payload(user: User, brands: BrandReader) -> Me:
             name=company.name,
             name_ar=company.name_ar,
             slug=company.slug,
+            address=company.address,
+            address_ar=company.address_ar,
             timezone=company.timezone,
             default_language=Language(company.default_language),
             brand=brands.of(company),

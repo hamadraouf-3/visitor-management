@@ -13,8 +13,8 @@ import { COMPANY_ID, drawFile, gate, mockCompanyApi, publicBrandOf, readPng, roo
  *   buttons are the palette's `surface`, and on a light one everything follows the dark ink: texts,
  *   the current page, hover fills, dividers, the focus ring; a near-white shell ends at a line.
  * - The account menu stays inside a phone's screen with a long company name.
- * - A logo with a background of its own stands on a plate on the signed-out pages; an emblem has the
- *   company's name beside it.
+ * - On the signed-out pages a logo stands on the page itself in the light scheme, on a plate in the
+ *   dark one (Phase 13, F13-26); an emblem has the company's name beside it.
  * - The identity page refuses a logo that would not show where it is chosen for, a strip, a column
  *   and a picture too small; takes the white background of a JPEG away; makes the icon of a wordmark
  *   from the company's letter on its colour; offers no compression artefact as a colour.
@@ -293,20 +293,21 @@ test('the account menu stays inside the screen with a long company name, and its
 
 /* Logos on the signed-out pages --------------------------------------------------------------- */
 
-test('a logo with a background of its own stands on a plate on the signed-out pages, in both schemes', async ({ browser }, testInfo) => {
+test('on the signed-out pages a logo stands on the page in the light scheme, and on a plate in the dark one, in the same room (F13-26)', async ({ browser }, testInfo) => {
   const company = COMPANIES.navy
   const draft = await openWith(browser, testInfo.project.use)
   // Saved before the page took backgrounds away: an opaque white rectangle around the drawing.
   const logo = (await drawFile(draft, 'atlas.png', 1000, 400, ATLAS_PAINT)).buffer
   await draft.context().close()
 
-  for (const scheme of ['light', 'dark'] as const) {
-    for (const [what, address, heading] of [
-      ['sign in', `/c/${company.slug}`, 'Sign in'],
-      ['forgot password', `/forgot-password?c=${company.slug}`, 'Reset your password'],
-      ['the visitor’s pass', `/pass?c=${company.slug}#${PASS_TOKEN}`, 'Visitor pass'],
-      ['a page that is not there', `/no-such-page?c=${company.slug}`, 'Page not found'],
-    ] as const) {
+  for (const [what, address, heading] of [
+    ['sign in', `/c/${company.slug}`, 'Sign in'],
+    ['forgot password', `/forgot-password?c=${company.slug}`, 'Reset your password'],
+    ['the visitor’s pass', `/pass?c=${company.slug}#${PASS_TOKEN}`, 'Visitor pass'],
+    ['a page that is not there', `/no-such-page?c=${company.slug}`, 'Page not found'],
+  ] as const) {
+    const rooms: string[] = []
+    for (const scheme of ['light', 'dark'] as const) {
       const page = await openWith(browser, testInfo.project.use, { colorScheme: scheme })
       await mockCompanyApi(page, { company, files: { logo } })
       await page.goto(address)
@@ -314,20 +315,29 @@ test('a logo with a background of its own stands on a plate on the signed-out pa
       const image = page.locator('[data-identity-lockup="page"] img')
       await expect(image).toBeVisible()
       await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true)
-      const plate = page.locator('[data-identity-lockup="page"] [data-logo-plate]')
+      const room = page.locator('[data-identity-lockup="page"] [data-logo-room]')
       const label = `${what}, ${scheme}`
-      // White, with an edge, and room around the picture: a white rectangle on it is no longer a rectangle on the page.
-      expect(await plate.evaluate((element) => getComputedStyle(element).backgroundColor), label).toBe('rgb(255, 255, 255)')
-      expect(await plate.evaluate((element) => getComputedStyle(element).borderTopWidth), label).toBe('1px')
-      const [plateBox, imageBox] = [await plate.boundingBox(), await image.boundingBox()]
-      expect(imageBox!.x - plateBox!.x, label).toBeGreaterThanOrEqual(8)
-      expect(plateBox!.x + plateBox!.width - (imageBox!.x + imageBox!.width), label).toBeGreaterThanOrEqual(8)
-      expect(imageBox!.y - plateBox!.y, label).toBeGreaterThanOrEqual(6)
-      expect(Number.parseFloat(await plate.evaluate((element) => getComputedStyle(element).borderTopLeftRadius)), label).toBeGreaterThanOrEqual(8)
+      const paint = await room.evaluate((element) => ({ fill: getComputedStyle(element).backgroundColor, edge: getComputedStyle(element).borderTopColor, edgeWidth: getComputedStyle(element).borderTopWidth }))
+      if (scheme === 'light') {
+        // The light scheme: the logo on the page itself, as the company drew it; no fill, no edge.
+        expect(paint, label).toEqual({ fill: 'rgba(0, 0, 0, 0)', edge: 'rgba(0, 0, 0, 0)', edgeWidth: '1px' })
+      } else {
+        // The dark scheme, a company without a logo for dark surfaces: white, with an edge, and room around the picture.
+        expect(paint.fill, label).toBe('rgb(255, 255, 255)')
+        expect(paint.edge, label).not.toBe('rgba(0, 0, 0, 0)')
+        expect(Number.parseFloat(await room.evaluate((element) => getComputedStyle(element).borderTopLeftRadius)), label).toBeGreaterThanOrEqual(8)
+      }
+      // The same room in both schemes: the picture where it was, with room around it.
+      const [roomBox, imageBox] = [await room.boundingBox(), await image.boundingBox()]
+      expect(imageBox!.x - roomBox!.x, label).toBeGreaterThanOrEqual(8)
+      expect(roomBox!.x + roomBox!.width - (imageBox!.x + imageBox!.width), label).toBeGreaterThanOrEqual(8)
+      expect(imageBox!.y - roomBox!.y, label).toBeGreaterThanOrEqual(6)
+      rooms.push([roomBox, imageBox].map((box) => [box!.x, box!.y, box!.width, box!.height].map(Math.round).join(' ')).join(' / '))
       await noHorizontalScroll(page)
       await expectNoAxeViolations(page, label)
       await page.context().close()
     }
+    expect(rooms[1], `${what}: the room and the picture in the dark scheme where they are in the light one`).toBe(rooms[0])
   }
 })
 
@@ -351,7 +361,7 @@ test('an emblem has the company’s name written beside it: the shell, the sign-
     expect(lockupBox!.x + lockupBox!.width).toBeLessThanOrEqual(shellBox!.x + shellBox!.width + 0.5)
     const overlaps = await shell.evaluate((element) => {
       const box = element.querySelector('[data-identity-lockup="shell"]')!.getBoundingClientRect()
-      const head = [...element.querySelectorAll('[data-language-switch], button[aria-expanded], button[aria-haspopup="menu"]')].filter((control) => control.getBoundingClientRect().top < box.bottom)
+      const head = [...element.querySelectorAll('[data-language-switch], [data-appearance-toggle], button[aria-expanded], button[aria-haspopup="menu"]')].filter((control) => control.getBoundingClientRect().top < box.bottom)
       return head.filter((control) => {
         const other = control.getBoundingClientRect()
         return other.left < box.right && box.left < other.right && other.top < box.bottom && box.top < other.bottom

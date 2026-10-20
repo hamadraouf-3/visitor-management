@@ -13,16 +13,24 @@ import type { EmailTemplate, EmailTemplateFieldName, EmailTemplateKind, EmailTem
 /** The languages in the order the editor shows them: Arabic first (the product's default), then English. */
 export const TEMPLATE_LANGUAGES: readonly Language[] = ['ar', 'en']
 
-/** The four kinds, in the order the API lists them. */
-export const EMAIL_TEMPLATE_KINDS: readonly EmailTemplateKind[] = ['VISITOR_INVITATION', 'VISIT_RESCHEDULED', 'VISIT_CANCELLED', 'HOST_ARRIVAL']
+/** The seven kinds (three to the visitor; four to the host, three of them since Phase 14), in the order the API lists them. */
+export const EMAIL_TEMPLATE_KINDS: readonly EmailTemplateKind[] = [
+  'VISITOR_INVITATION',
+  'VISIT_RESCHEDULED',
+  'VISIT_CANCELLED',
+  'HOST_ARRIVAL',
+  'HOST_VISIT_SCHEDULED',
+  'HOST_VISIT_RESCHEDULED',
+  'HOST_VISIT_CANCELLED',
+]
 
 export function isEmailTemplateKind(value: string | undefined): value is EmailTemplateKind {
   return (EMAIL_TEMPLATE_KINDS as readonly (string | undefined)[]).includes(value)
 }
 
-/** Who receives the kind: the visitor, or the host (a visitor's arrival). */
+/** Who receives the kind: the visitor, or the host (a visitor's arrival; a visit created, moved or cancelled, Phase 14). */
 export function templateRecipient(kind: EmailTemplateKind): 'visitor' | 'host' {
-  return kind === 'HOST_ARRIVAL' ? 'host' : 'visitor'
+  return kind.startsWith('HOST_') ? 'host' : 'visitor'
 }
 
 export type TemplateField = EmailTemplate['fields'][number]

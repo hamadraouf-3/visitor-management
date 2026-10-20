@@ -66,6 +66,9 @@
     "summaryNoEmail": "The visitor has no email address.",
     "failedTitleTo": "Invitation not delivered to {{email}}",
     "failedTitle": "Invitation not delivered",
+    "calendarFailedTitleTo": "The calendar invitation did not reach {{email}}",
+    "calendarFailedTitle": "Calendar invitation not delivered",
+    "statusCalendarFailed": "The calendar invitation did not reach {{recipient}}.",
     "checkAgain": "Check again"
   },
   "inviteSuccess": {
@@ -161,6 +164,7 @@
     "reason": "Reason: {{reason}}",
     "invitationSent": "Invitation sent",
     "invitationFailed": "Invitation could not be sent",
+    "calendarInvitationFailed": "Calendar invitation not delivered",
     "checkedIn": "Checked in",
     "checkedInBy": "Checked in by {{name}}",
     "checkedOut": "Checked out",
@@ -331,7 +335,8 @@
   "failure": {
     "correctAndResend": "Correct email and resend",
     "resendSame": "Resend to same address",
-    "resend": "Resend invitation"
+    "resend": "Resend invitation",
+    "resendCalendar": "Resend calendar invitation"
   },
   "backToName": "Back to {{name}}",
   "walkInBadge": "Walk-in",
@@ -345,6 +350,10 @@
   },
   "resend": {
     "titleFailed": "Send the invitation again?",
+    "titleCalendar": "Send the calendar invitation again?",
+    "calendarSendingTo": "Sending the calendar invitation to {{email}}",
+    "calendarSending": "Sending the calendar invitation",
+    "notNow": "Not now",
     "title": "Resend the invitation?",
     "keep": "Keep current invitation",
     "lastFailed": "The last invitation to {{email}} could not be sent.",
@@ -366,5 +375,11 @@
     "noHost": "No active host with that name.",
     "noDepartment": "No department",
     "inactiveDepartment": "{{name}} (inactive)"
+  },
+  "calendar": {
+    "add": "Add to my calendar",
+    "google": "Google Calendar",
+    "outlook": "Outlook",
+    "file": "Apple and others (.ics)"
   }
 }

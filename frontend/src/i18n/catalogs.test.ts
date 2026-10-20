@@ -180,8 +180,9 @@ describe('translation catalogs', () => {
 
   it('write Arabic in Arabic: no Latin letters in the Arabic texts except names that stay Latin', () => {
     // The Latin words the Arabic UI uses: UTC (time zone offsets) and QR («رمز QR», as the
-    // e-mails and the mockups write it).
-    const allowed = /\b(UTC|QR)\b/g
+    // e-mails and the mockups write it), and the calendars a visit is added to by their own names
+    // («تقويم Google», «Outlook», «تقويم Apple وغيره (ملف ics)», Phase 14, F14-1).
+    const allowed = /\b(UTC|QR|Google|Outlook|Apple|ics)\b/g
     const problems: string[] = []
     for (const namespace of NAMESPACES) {
       for (const [key, text] of flatten(resources.ar[namespace] as Catalog)) {

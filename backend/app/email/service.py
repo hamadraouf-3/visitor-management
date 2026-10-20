@@ -46,12 +46,27 @@ renditions are (`app.email.logos`), an opaque light one on a white plate (`cid:b
 company has a logo for dark surfaces, an opaque dark one that only the dark design shows
 (`cid:brand-logo-dark`). A preview shows one design alone (`scheme`): "light", the e-mail as a client
 in light mode shows it, or "dark", with its dark rules applied, as a client in dark mode shows it.
+
+Calendars (Phase 14, B14-1 to B14-12; `app.email.calendar`): the visit e-mails carry the visit as a
+calendar event, so it is in the visitor's and in the host's calendar, moves when the visit gets a new time
+and goes when it is cancelled. The visitor's calendar invitation (VISITOR_CALENDAR, the short e-mail
+that follows every invitation) and notice of a new time carry an iTIP REQUEST, the notice of the
+cancellation a CANCEL, all with the `UID` of the visitor's event; the host's three e-mails (a new visit,
+its new time, its cancellation: `HOST_VISIT_*`) do the same for the host's event. Each carries the
+visit's `calendar_sequence` as its `SEQUENCE`. The event is written in the e-mail's leading language and
+never holds the pass link or a token (B14-4); and the invitation itself carries none (B14-10), because
+Outlook keeps the text of the e-mail that carries an event, pass link and QR code included, in the
+calendar entry. The host's event is private (B14-19). No event goes to the sending mailbox itself, its
+organizer (B14-5; in any spelling of its address, B14-21), nor with a test e-mail of a company's texts:
+its visit exists nowhere. An address the visitor no longer has is sent the withdrawal of the visitor's
+event (a VISITOR_CALENDAR message whose CANCEL says nothing of the visit, B14-17).
 """
 
 import logging
 import re
 import uuid
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from email.utils import parseaddr
@@ -60,13 +75,23 @@ from importlib import resources
 from typing import Any, Literal, Protocol
 from urllib.parse import quote
 
+import idna
 from sqlalchemy.orm import Session
 
+from app.core import time as app_time
 from app.core.config import Settings
 from app.core.palette import derive_palette
 from app.core.png import PngError
 from app.core.qr import qr_png
 from app.core.text import validate_email_address
+from app.email.calendar import (
+    CalendarMailbox,
+    CalendarMethod,
+    CalendarRole,
+    VisitEvent,
+    calendar_part,
+    event_uid,
+)
 from app.email.editable import Texts, Variables, render_subject, usable_texts
 from app.email.formatting import VisitTimes, format_date, format_time, timezone_label
 from app.email.headers import (
@@ -81,7 +106,7 @@ from app.email.i18n import Sentence, as_language, minutes, other_language, trans
 from app.email.identity import DEFAULT_COLORS, Identity, colors_of, dark_colors_of, fitted
 from app.email.logos import PLATE, Rendition, dark_rendition, is_mark, light_rendition
 from app.email.providers.base import InlineImage, OutgoingEmail
-from app.email.rendering import LOGO_HEIGHT, LOGO_WIDTH, EmailRenderer, RenderedEmail, Scheme
+from app.email.rendering import COMMA, LOGO_HEIGHT, LOGO_WIDTH, EmailRenderer, RenderedEmail, Scheme
 from app.models import (
     BrandAssetKind,
     Company,
@@ -123,6 +148,14 @@ SUBJECT_NAME_MIN = 12
 # Before the subject of a test e-mail of a company's texts (B11-29), in the language that leads it.
 TEST_SUBJECT_PREFIX = {Language.AR: "[رسالة تجريبية] ", Language.EN: "[Test] "}
 LANGUAGES = (Language.AR, Language.EN)
+# The host's three e-mails of a scheduled visit (B14-2): the catalog's prefix of each, and the iTIP method
+# of the event it carries.
+HOST_VISIT_KINDS: dict[EmailKind, tuple[str, CalendarMethod]] = {
+    EmailKind.HOST_VISIT_SCHEDULED: ("host_scheduled", "REQUEST"),
+    EmailKind.HOST_VISIT_RESCHEDULED: ("host_rescheduled", "REQUEST"),
+    EmailKind.HOST_VISIT_CANCELLED: ("host_cancelled", "CANCEL"),
+}
+# Characters that end a line of an address and would double the comma that joins it to the next one.
 _AUDIT_SAFE_DOMAIN = re.compile(r"[a-z0-9.-]{1,100}")
 _WHITE_SPACE_RUN = re.compile(r"\s+")
 _ARABIC_COMMA = "\N{ARABIC COMMA}"
@@ -134,6 +167,27 @@ def one_line(name: str | None) -> str | None:
     Names are single-line (SEC-34); this keeps rows stored before that rule from printing extra lines
     ("Company: …") into the e-mails that show them."""
     return None if name is None else _WHITE_SPACE_RUN.sub(" ", name).strip()
+
+
+# Gmail's own domains, where a dot in the local part is no part of the address and googlemail.com is
+# gmail.com (https://support.google.com/mail/answer/7436150); in an organisation's domain dots count.
+_GMAIL_DOMAINS = frozenset({"gmail.com", "googlemail.com"})
+
+
+def mailbox_key(address: str) -> str:
+    """The mailbox `address` delivers to, as far as its spelling tells (B14-21): letter case aside; the
+    domain in its ASCII (IDNA) form, so `exämple.com` and `xn--exmple-cua.com` are one; without a `+tag`
+    (Gmail, Google Workspace and Microsoft 365 deliver `name+tag@` to `name@`); and for a Gmail address
+    without dots and with gmail.com for googlemail.com. Another address of the same account (an alias)
+    cannot be told from its spelling."""
+    local, at, domain = address.strip().lower().rpartition("@")
+    local = local.split("+", 1)[0]
+    if not domain.isascii():
+        with suppress(idna.IDNAError, UnicodeError):  # not a domain IDNA can write: compared as it is
+            domain = idna.encode(domain, uts46=True).decode("ascii")
+    if domain in _GMAIL_DOMAINS:
+        local, domain = local.replace(".", ""), "gmail.com"
+    return f"{local}{at}{domain}"
 
 
 def recipient_domain(address: str) -> str:
@@ -279,6 +333,23 @@ def company_identity(
         logo_dark_height=dark.height,
         logo_dark_mark=dark.mark,
     )
+
+
+def one_line_address(address: str | None, language: Language) -> str | None:
+    """A company's address on one line, as a calendar's location shows it (B14-3): its lines joined by
+    the language's comma. A location is looked up on a map, where line breaks have no place."""
+    if not address:
+        return None
+    lines = [line.strip().rstrip(",;" + _ARABIC_COMMA).strip() for line in address.splitlines()]
+    return COMMA[language].join(line for line in lines if line) or None
+
+
+def event_description(language: Language, details: tuple[tuple[str, str | None], ...], *last: str) -> str:
+    """An event's description (B14-3): a "Label: value" line per detail that has a value, labelled as the
+    e-mails label them, then `last`. Plain text: a calendar writes no markup and no isolate characters
+    (`app.email.calendar.text_value` removes direction controls)."""
+    lines = [f"{translate(language, key)}: {value}" for key, value in details if value]
+    return "\n".join((*lines, *last))
 
 
 def company_link(url: str, slug: str) -> str:
@@ -495,6 +566,9 @@ class PreparedEmail:
     inline_images: tuple[InlineImage, ...]
     sender: str  # the From mailbox: EMAIL_FROM's address under the company's name (B12-13)
     pass_url: str | None = None
+    # The visit as a calendar event (B14-1), addressed to the recipient when the e-mail is queued; None
+    # for an e-mail that carries none (a host's arrival notice, a test e-mail).
+    event: VisitEvent | None = None
 
 
 def visit_variables(context: dict[str, Any]) -> Variables:
@@ -525,6 +599,24 @@ def arrival_variables(context: dict[str, Any], *, host_name: str, arrived_at: st
             "date": context["times"][language].date,
             "time": arrived_at,
             "timezone": context["times"][language].timezone,
+            "purpose": context["purpose"],
+        }
+        for language in LANGUAGES
+    }
+
+
+def host_visit_variables(context: dict[str, Any], *, host_name: str) -> Variables:
+    """The values of the variables of the host's e-mails of a scheduled visit (B14-2), per language."""
+    return {
+        language: {
+            "host_name": host_name,
+            "visitor_name": context["visitor_name"] or "",
+            "visitor_company": context["visitor_company_name"] or "",
+            "company": context["company_name"][language],
+            "date": context["times"][language].date,
+            "time": context["times"][language].time,
+            "timezone": context["times"][language].timezone,
+            "department": context["department_name"][language] or "",
             "purpose": context["purpose"],
         }
         for language in LANGUAGES
@@ -655,7 +747,11 @@ class EmailService:
     ) -> PreparedEmail:
         """The rendered invitation (`queue_visitor_invitation`); `overrides` replaces the company's saved
         texts (a preview of a draft), `subject_prefix` heads the subject (a test e-mail's "[Test] "), and
-        `scheme` renders one design alone, whatever the viewer's scheme (a preview of it, B13-5)."""
+        `scheme` renders one design alone, whatever the viewer's scheme (a preview of it, B13-5).
+
+        It carries no calendar event (B14-10): Outlook would keep its text, the pass link and the QR code
+        with it, in the calendar entry. The visitor's event follows in its own e-mail
+        (`queue_visitor_calendar`)."""
         reply_to = self._visitor_reply_to(host_email)
         lead = as_language(company.default_language)
         identity = self.identity_of(company)
@@ -664,20 +760,7 @@ class EmailService:
         variables = visit_variables(context)
         rendered = self.renderer.render(
             "visitor_invitation",
-            subject=bilingual_subject(
-                lead,
-                "invitation.subject",
-                {
-                    language: {
-                        "company": context["company_name"][language],
-                        "date": context["times"][language].date,
-                    }
-                    for language in LANGUAGES
-                },
-                overrides=texts,
-                variables=variables,
-                prefix=subject_prefix,
-            ),
+            subject=self._invitation_subject(lead, context, texts, variables, prefix=subject_prefix),
             language=lead,
             scheme=scheme,
             context={
@@ -702,11 +785,120 @@ class EmailService:
             pass_url=pass_url,
         )
 
-    def queue_visit_rescheduled(
+    def queue_visitor_calendar(
         self, visit: Visit, *, company: Company, recipient: str, host_email: str | None
     ) -> DeliveryJob:
-        """No QR code (the raw token is never stored): the visitor's existing pass stays valid (D-22)."""
-        prepared = self.prepare_visit_rescheduled(visit, company=company, host_email=host_email)
+        """The visitor's calendar invitation (B14-10): the short e-mail that follows the invitation, with
+        the visit as an event of the visitor's calendar (a REQUEST). The caller sends it after every
+        invitation, and only then; never to the sending mailbox itself (`sends_from`)."""
+        prepared = self.prepare_visitor_calendar(visit, company=company, host_email=host_email)
+        return self.queue_prepared(prepared, company_id=company.id, to=recipient, visit_id=visit.id)
+
+    def prepare_visitor_calendar(
+        self, visit: Visit, *, company: Company, host_email: str | None, scheme: Scheme | None = None
+    ) -> PreparedEmail:
+        """The rendered calendar invitation: the invitation's subject (so a mail client shows the two
+        together) and heading, the company's own where it wrote them, the visit's date, time, host and
+        address, and the line that says the event is attached. No pass link and no QR code: in Outlook
+        this text becomes the calendar entry's (B14-10). In the invitation's language and identity."""
+        reply_to = self._visitor_reply_to(host_email)
+        lead = as_language(company.default_language)
+        context = self._visit_context(visit, company, host_email=host_email, reply_to=reply_to)
+        texts = self._texts(company.id, EmailKind.VISITOR_INVITATION, None)
+        variables = visit_variables(context)
+        rendered = self.renderer.render(
+            "visitor_calendar",
+            subject=self._invitation_subject(lead, context, texts, variables),
+            language=lead,
+            scheme=scheme,
+            context={**context, "overrides": texts, "variables": variables},
+        )
+        event = self._visitor_event(visit, company, lead, "REQUEST")
+        return self._prepared(EmailKind.VISITOR_CALENDAR, rendered, reply_to, company, lead, event=event)
+
+    @staticmethod
+    def _invitation_subject(
+        lead: Language, context: dict[str, Any], texts: Texts, variables: Variables, *, prefix: str = ""
+    ) -> str:
+        """The invitation's subject (the company's own, where it wrote one), which its calendar invitation
+        shares."""
+        return bilingual_subject(
+            lead,
+            "invitation.subject",
+            {
+                language: {
+                    "company": context["company_name"][language],
+                    "date": context["times"][language].date,
+                }
+                for language in LANGUAGES
+            },
+            overrides=texts,
+            variables=variables,
+            prefix=prefix,
+        )
+
+    def queue_visitor_withdrawal(self, visit: Visit, *, company: Company, recipient: str) -> DeliveryJob:
+        """The visitor's event taken out of the calendar of `recipient`, an address the visitor no longer
+        has, to which the visit's calendar invitation went (D-19, B14-17): a VISITOR_CALENDAR message whose
+        CANCEL uninvites that address. The caller has raised the visit's `calendar_sequence`, so the
+        withdrawal is newer than anything sent there; the new address's calendar invitation carries the
+        same version."""
+        prepared = self.prepare_visitor_withdrawal(visit, company=company)
+        return self.queue_prepared(prepared, company_id=company.id, to=recipient, visit_id=visit.id)
+
+    def prepare_visitor_withdrawal(
+        self, visit: Visit, *, company: Company, scheme: Scheme | None = None
+    ) -> PreparedEmail:
+        """The rendered withdrawal: the company's header and footer, a heading and one sentence; no date,
+        host, address or link, and replies only to EMAIL_REPLY_TO, never to the host, since the address
+        may be nobody the visit concerns. Its event: the visit's identity and times, a summary that names
+        nothing, no description and no location (B14-17)."""
+        reply_to = self.settings.email_reply_to
+        lead = as_language(company.default_language)
+        rendered = self.renderer.render(
+            "visitor_withdrawn",
+            subject=bilingual_subject(
+                lead,
+                "withdrawn.subject",
+                {language: {} for language in LANGUAGES},
+                overrides={},
+                variables={},
+            ),
+            language=lead,
+            scheme=scheme,
+            context=self._company_context(company, has_reply_to=reply_to is not None),
+        )
+        event = replace(
+            self._event(
+                visit,
+                company,
+                lead,
+                "CANCEL",
+                role="visitor",
+                summary=translate(lead, "calendar.withdrawn_summary"),
+                description=None,
+                attendee=None,
+            ),
+            location=None,
+            withdrawn=True,
+        )
+        return self._prepared(EmailKind.VISITOR_CALENDAR, rendered, reply_to, company, lead, event=event)
+
+    def queue_visit_rescheduled(
+        self,
+        visit: Visit,
+        *,
+        company: Company,
+        recipient: str,
+        host_email: str | None,
+        calendar: bool = True,
+    ) -> DeliveryJob:
+        """No QR code (the raw token is never stored): the visitor's existing pass stays valid (D-22).
+        `calendar`: with the visitor's event at the new time; the caller leaves it out where it may not
+        go (B14-15, B14-27)."""
+        prepared = self.prepare_visit_rescheduled(
+            visit, company=company, host_email=host_email, calendar=calendar
+        )
         return self.queue_prepared(prepared, company_id=company.id, to=recipient, visit_id=visit.id)
 
     def prepare_visit_rescheduled(
@@ -718,7 +910,9 @@ class EmailService:
         overrides: Texts | None = None,
         subject_prefix: str = "",
         scheme: Scheme | None = None,
+        calendar: bool = True,
     ) -> PreparedEmail:
+        """The notice of a new time, with the visitor's event at its new time (a REQUEST, B14-1)."""
         reply_to = self._visitor_reply_to(host_email)
         context = self._visit_context(visit, company, host_email=host_email, reply_to=reply_to)
         lead = as_language(company.default_language)
@@ -738,12 +932,24 @@ class EmailService:
             scheme=scheme,
             context={**context, "overrides": texts, "variables": variables},
         )
-        return self._prepared(EmailKind.VISIT_RESCHEDULED, rendered, reply_to, company, lead)
+        event = self._visitor_event(visit, company, lead, "REQUEST") if calendar else None
+        return self._prepared(EmailKind.VISIT_RESCHEDULED, rendered, reply_to, company, lead, event=event)
 
     def queue_visit_cancelled(
-        self, visit: Visit, reason: str | None, *, company: Company, recipient: str, host_email: str | None
+        self,
+        visit: Visit,
+        reason: str | None,
+        *,
+        company: Company,
+        recipient: str,
+        host_email: str | None,
+        calendar: bool = True,
     ) -> DeliveryJob:
-        prepared = self.prepare_visit_cancelled(visit, reason, company=company, host_email=host_email)
+        """`calendar`: with the cancellation of the visitor's event; the caller leaves it out where it
+        may not go (B14-27)."""
+        prepared = self.prepare_visit_cancelled(
+            visit, reason, company=company, host_email=host_email, calendar=calendar
+        )
         return self.queue_prepared(prepared, company_id=company.id, to=recipient, visit_id=visit.id)
 
     def prepare_visit_cancelled(
@@ -756,7 +962,9 @@ class EmailService:
         overrides: Texts | None = None,
         subject_prefix: str = "",
         scheme: Scheme | None = None,
+        calendar: bool = True,
     ) -> PreparedEmail:
+        """The notice of the cancellation, with the visitor's event cancelled (a CANCEL, B14-1)."""
         reply_to = self._visitor_reply_to(host_email)
         context = self._visit_context(visit, company, host_email=host_email, reply_to=reply_to)
         lead = as_language(company.default_language)
@@ -776,7 +984,8 @@ class EmailService:
             scheme=scheme,
             context={**context, "reason": reason, "overrides": texts, "variables": variables},
         )
-        return self._prepared(EmailKind.VISIT_CANCELLED, rendered, reply_to, company, lead)
+        event = self._visitor_event(visit, company, lead, "CANCEL") if calendar else None
+        return self._prepared(EmailKind.VISIT_CANCELLED, rendered, reply_to, company, lead, event=event)
 
     # ---- staff ----------------------------------------------------------------------------------
     # Staff e-mails lead with the recipient's own language, else the company's; the subject is in that
@@ -836,6 +1045,89 @@ class EmailService:
             },
         )
         return self._prepared(EmailKind.HOST_ARRIVAL, rendered, reply_to, company, lead)
+
+    def queue_host_visit(
+        self,
+        visit: Visit,
+        *,
+        kind: EmailKind,
+        company: Company,
+        host: User,
+        booked_by: str | None = None,
+        reason: str | None = None,
+        calendar: bool = True,
+    ) -> DeliveryJob:
+        """The host's e-mail of a scheduled visit (B14-2): `kind` is HOST_VISIT_SCHEDULED (a new visit),
+        HOST_VISIT_RESCHEDULED (its new time) or HOST_VISIT_CANCELLED (with `reason`), each with the
+        host's event of the visit unless `calendar` is false. The caller decides whether to send it and
+        with what (an active host; the budgets and the calendar switch: `services.visit_lifecycle`).
+
+        A host whose address is the one the e-mails are sent from would be the organizer of their own
+        event, which no calendar adds from an invitation (B14-5): that host gets the e-mail without it."""
+        prepared = self.prepare_host_visit(
+            visit,
+            kind=kind,
+            company=company,
+            host_name=host.full_name,
+            host_language=host.preferred_language,
+            booked_by=booked_by,
+            reason=reason,
+            calendar=calendar and not self.sends_from(host.email),
+        )
+        return self.queue_prepared(
+            prepared, company_id=company.id, to=host.email, visit_id=visit.id, recipient_user_id=host.id
+        )
+
+    def prepare_host_visit(
+        self,
+        visit: Visit,
+        *,
+        kind: EmailKind,
+        company: Company,
+        host_name: str,
+        host_language: str | None,
+        booked_by: str | None = None,
+        reason: str | None = None,
+        overrides: Texts | None = None,
+        subject_prefix: str = "",
+        scheme: Scheme | None = None,
+        calendar: bool = True,
+    ) -> PreparedEmail:
+        """The rendered host's e-mail of a scheduled visit (`queue_host_visit`), in the host's language
+        (B10-9). `booked_by`: whoever booked the visit, when that is not the host; `calendar` as for the
+        visitor's invitation (only the notice of a new visit says that the event is attached)."""
+        prefix, method = HOST_VISIT_KINDS[kind]
+        reply_to = self.settings.email_reply_to
+        context = self._visit_context(visit, company, host_email=None, reply_to=reply_to)
+        lead = as_language(host_language, company.default_language)
+        full_name = one_line(host_name) or ""
+        texts = self._texts(company.id, kind, overrides)
+        variables = host_visit_variables(context, host_name=full_name)
+        rendered = self.renderer.render(
+            "host_visit",
+            subject=single_subject(
+                lead,
+                f"{prefix}.subject",
+                {"visitor": context["visitor_name"], "date": context["times"][lead].date},
+                overrides=texts,
+                variables=variables,
+                prefix=subject_prefix,
+            ),
+            language=lead,
+            scheme=scheme,
+            context={
+                **context,
+                "kind": prefix,
+                "host_full_name": full_name,
+                "booked_by": one_line(booked_by),
+                "reason": reason,
+                "calendar_attached": calendar and kind == EmailKind.HOST_VISIT_SCHEDULED,
+                "overrides": texts,
+                "variables": variables,
+            },
+        )
+        event = self._host_event(visit, company, lead, method, booked_by=booked_by) if calendar else None
+        return self._prepared(kind, rendered, reply_to, company, lead, event=event)
 
     def queue_password_reset(
         self, user: User, raw_token: str, *, sent_by_platform_owner: bool = False
@@ -987,9 +1279,114 @@ class EmailService:
         reply_to: str | None,
         company: Company,
         lead: Language,
+        *,
+        event: VisitEvent | None = None,
     ) -> PreparedEmail:
         return PreparedEmail(
-            kind, rendered, reply_to, self.identity_of(company).images, self._sender(company, lead)
+            kind,
+            rendered,
+            reply_to,
+            self.identity_of(company).images,
+            self._sender(company, lead),
+            event=event,
+        )
+
+    # ---- calendar events (B14-1 to B14-5) -------------------------------------------------------
+
+    def sends_from(self, address: str) -> bool:
+        """Whether `address` is the mailbox the e-mails are sent from (EMAIL_FROM's address), in any
+        spelling that reaches it (`mailbox_key`: letter case, a `+tag`, Gmail's dots; B14-21): the
+        organizer of every event (B14-5), to whom an invitation to their own event means nothing (Outlook:
+        "As the meeting organizer, you do not need to respond", and nothing is added)."""
+        sender = parseaddr(self.settings.email_from)[1].strip()
+        return bool(sender) and mailbox_key(address) == mailbox_key(sender)
+
+    def _organizer(self, company: Company, lead: Language) -> CalendarMailbox:
+        """Who organizes a company's events (B14-5): the address its e-mails are sent from (EMAIL_FROM),
+        under the name they are sent in (the company's, in the e-mail's leading language), so a calendar
+        sees the invitation come from its organizer."""
+        return CalendarMailbox(company_names(company)[lead], parseaddr(self.settings.email_from)[1])
+
+    def _event(
+        self,
+        visit: Visit,
+        company: Company,
+        lead: Language,
+        method: CalendarMethod,
+        *,
+        role: CalendarRole,
+        summary: str,
+        description: str | None,
+        attendee: str | None,
+        private: bool = False,
+    ) -> VisitEvent:
+        return VisitEvent(
+            method=method,
+            uid=event_uid(visit.id, role),
+            # A visit that was never stored (a preview's sample) has no counter yet.
+            sequence=visit.calendar_sequence or 0,
+            start=visit.scheduled_start,
+            end=visit.scheduled_end,
+            summary=summary,
+            location=one_line_address(company_addresses(company)[lead], lead),
+            description=description,
+            organizer=self._organizer(company, lead),
+            attendee_name=attendee or "",
+            private=private,
+        )
+
+    def _visitor_event(
+        self, visit: Visit, company: Company, lead: Language, method: CalendarMethod
+    ) -> VisitEvent:
+        """The visit in the visitor's calendar (B14-3): "Visit to {company}" at the company's address,
+        with the host, the department and the purpose, and the pass to show at reception. No link."""
+        details = (
+            ("label.host", one_line(visit.host_name)),
+            ("label.department", department_names(visit)[lead]),
+            ("label.purpose", visit.purpose),
+        )
+        return self._event(
+            visit,
+            company,
+            lead,
+            method,
+            role="visitor",
+            summary=translate(lead, "calendar.visitor_summary", company=company_names(company)[lead]),
+            description=event_description(lead, details, translate(lead, "calendar.show_pass")),
+            attendee=one_line(visit.visitor_name),
+        )
+
+    def _host_event(
+        self,
+        visit: Visit,
+        company: Company,
+        lead: Language,
+        method: CalendarMethod,
+        *,
+        booked_by: str | None,
+    ) -> VisitEvent:
+        """The visit in the host's calendar (B14-3): "Visit: {visitor}" at the company's address, with
+        who visits, from where, the department, the purpose and who booked it when not the host. Private
+        (`CLASS:PRIVATE`, B14-19): a host's calendar is often shared with colleagues, who should see the
+        time taken and not who the visitor is."""
+        visitor = one_line(visit.visitor_name) or ""
+        details = (
+            ("label.visitor", visitor),
+            ("label.company", one_line(visit.visitor_company_name)),
+            ("label.department", department_names(visit)[lead]),
+            ("label.purpose", visit.purpose),
+            ("label.booked_by", one_line(booked_by)),
+        )
+        return self._event(
+            visit,
+            company,
+            lead,
+            method,
+            role="host",
+            summary=translate(lead, "calendar.host_summary", visitor=visitor),
+            description=event_description(lead, details),
+            attendee=one_line(visit.host_name),
+            private=True,
         )
 
     def _company_context(self, company: Company, *, has_reply_to: bool) -> dict[str, Any]:
@@ -1055,6 +1452,7 @@ class EmailService:
             pass_url=prepared.pass_url,
             inline_images=prepared.inline_images,
             sender=prepared.sender,
+            event=prepared.event,
             audit=audit,
         )
 
@@ -1073,13 +1471,18 @@ class EmailService:
         reset_url: str | None = None,
         inline_images: tuple[InlineImage, ...] | None = None,
         identity: Identity | None = None,
+        event: VisitEvent | None = None,
         audit: DeliveryAudit | None = None,
     ) -> DeliveryJob:
         """`inline_images` are the message's images; without them, those of `identity` (its logo, if it
-        has one)."""
+        has one). `event`: the visit as a calendar event, addressed here to the recipient, its DTSTAMP the
+        moment the e-mail is queued (B14-1); never to the sending mailbox itself, the event's organizer
+        (`sends_from`, B14-5)."""
         if inline_images is None:
             inline_images = identity.images if identity is not None else ()
         recipient = validate_email_address(sanitize_header(to))
+        if event is not None and self.sends_from(recipient):
+            event = None
         message = self.messages.add(
             EmailMessage(
                 id=uuid.uuid4(),
@@ -1092,6 +1495,8 @@ class EmailService:
                 status=EmailStatus.PENDING.value,
                 provider=self.provider_name,
                 attempts=0,
+                # What the recipient's calendar was sent of the visit (B14-26).
+                calendar_method=event.method if event is not None else None,
             )
         )
         email = OutgoingEmail(
@@ -1104,6 +1509,9 @@ class EmailService:
             sender=sender,
             reply_to=sanitize_header(reply_to) if reply_to else None,
             inline_images=inline_images,
+            calendar=(
+                calendar_part(event.addressed(recipient, stamp=app_time.now())) if event is not None else None
+            ),
             pass_url=pass_url,
             reset_url=reset_url,
         )

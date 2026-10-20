@@ -51,7 +51,8 @@ def test_reissuing_a_pass_returns_a_new_link_once_and_sends_nothing(
     assert body["pass_url"].startswith(prefix) and body["pass_url"] != created["pass_url"]
     assert body["visit"]["pass"]["status"] == "ACTIVE"
     assert body["visit"]["invitation"]["status"] == "NOT_SENT"
-    assert email_provider.sent == []
+    # Only the host's notice of the visit, when it was created (B14-2): a new pass sends nothing.
+    assert [email.kind for email in email_provider.sent] == ["HOST_VISIT_SCHEDULED"]
     reception = signed_in(make_client, world.a.receptionist)
     old = _scan(reception, created["pass_url"])
     assert old.status_code == 410 and error_code(old) == "PASS_REVOKED"
@@ -131,7 +132,8 @@ def test_a_cancellation_notice_is_reported_on_the_visit(
     assert queued["to_email"] == created["visit"]["invitation"]["to_email"]
     delivered = host.get(f"/visits/{visit_id}").json()["last_notice"]
     assert delivered["status"] == "SENT" and delivered["sent_at"] is not None
-    assert [email.kind for email in email_provider.sent][-1] == "VISIT_CANCELLED"
+    # The host's cancellation follows the visitor's (B14-2); the visit reports the visitor's.
+    assert [email.kind for email in email_provider.sent][-2:] == ["VISIT_CANCELLED", "HOST_VISIT_CANCELLED"]
 
 
 def test_a_failed_notice_shows_why(host: Api, world: World, email_provider: MemoryProvider) -> None:

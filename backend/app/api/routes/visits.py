@@ -25,6 +25,7 @@ from app.schemas.visits import (
     VisitCreateResult,
     VisitListQuery,
     VisitPassResult,
+    VisitResendResult,
     VisitUpdate,
 )
 
@@ -92,7 +93,7 @@ def cancel_visit(
     return result.payload
 
 
-@router.post("/{visit_id}/invitation", response_model=VisitCreateResult)
+@router.post("/{visit_id}/invitation", response_model=VisitResendResult)
 def resend_invitation(
     visit_id: UUID,
     auth: ManageVisitsAuth,
@@ -101,8 +102,10 @@ def resend_invitation(
     dispatcher: EmailDispatcherDep,
     background_tasks: BackgroundTasks,
     context: ContextDep,
-) -> VisitCreateResult:
-    """Rotates the pass: the previous QR code stops working."""
+) -> VisitResendResult:
+    """Rotates the pass: the previous QR code stops working. When only the calendar invitation failed
+    (`invitation.calendar_failed`), sends the calendar invitation alone again instead: the pass stays
+    valid and `pass_url` is null (B14-31)."""
     result = service.resend_invitation(auth, visit_id, context)
     schedule_deliveries(background_tasks, db, dispatcher, result.delivery_jobs)
     return result.payload

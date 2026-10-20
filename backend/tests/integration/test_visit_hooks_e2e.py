@@ -50,9 +50,13 @@ def test_deactivating_a_host_cancels_their_scheduled_visits(
         assert [p.revoke_reason for p in passes] == ["VISIT_CANCELLED"]
     assert refreshed(db, Visit, for_colleague).status == "SCHEDULED"
     # The invited visitor is told, after the commit. The host has left, so replies cannot go to them.
-    [notice] = email_provider.sent
-    assert notice.kind == "VISIT_CANCELLED" and "Host is no longer available" in notice.text
+    [notice] = [email for email in email_provider.sent if email.kind == "VISIT_CANCELLED"]
+    assert "Host is no longer available" in notice.text
     assert notice.reply_to is None and "please contact Alpha." in notice.text
+    # The host is told of each, so the entries leave the calendar of the account that stops (B14-20).
+    told = [email for email in email_provider.sent if email.kind == "HOST_VISIT_CANCELLED"]
+    assert len(told) == 3 and {email.to for email in told} == {host_user.email}
+    assert len(email_provider.sent) == 4
     rows = audit_rows(db, "VISIT_CANCELLED")
     assert {row.meta["trigger"] for row in rows} == {"host_unavailable"}
     assert {row.actor_user_id for row in rows} == {world.a.admin.id}

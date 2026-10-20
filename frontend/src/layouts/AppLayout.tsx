@@ -18,9 +18,9 @@ interface AppLayoutProps {
  * Authenticated shell of a company's users, direction C: a shell in the company's colour (the
  * product's teal when it has none) around the light content area, drawn by `ShellFrame`.
  *
- * - Desktop (lg+): the sidebar opens with the company's identity (its logo for dark surfaces, its
- *   logo on a white plate, or its name as a wordmark: Phase 12) and the language switch, then the
- *   navigation, and the user block at its foot.
+ * - Desktop (lg+): the sidebar opens with the appearance toggle and the language switch (Phase 13)
+ *   over the company's identity (its logo for dark surfaces, its logo on a white plate, or its name
+ *   as a wordmark: Phase 12), then the navigation, and the user block at its foot.
  * - Tablet/mobile: the top bar and the navigation drawer, in the same colour.
  * - The shell is the company's own colour: a light one (a yellow, a pastel) is a light surface under
  *   dark ink, and everything on it follows that ink (`identity/tokens.ts`).
@@ -28,7 +28,7 @@ interface AppLayoutProps {
  *   tablet) gets the deep shell and dark tokens for the page and its dialogs (`data-surface`).
  *
  * While a password change is required the navigation is hidden (every other endpoint answers 403
- * until then); the language can still be switched.
+ * until then); the language and the appearance can still be switched.
  */
 export function AppLayout({ navigation, children }: AppLayoutProps) {
   const { me } = useAuth()

@@ -1,4 +1,4 @@
-import { CalendarClock, CalendarX, ChevronRight, DoorOpen, Mail, type LucideIcon } from 'lucide-react'
+import { CalendarClock, CalendarPlus, CalendarX, ChevronRight, DoorOpen, Mail, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Badge } from '../../components/ui/Badge'
@@ -15,12 +15,15 @@ import { customisedCount, templateRecipient } from './emailTemplateForm'
 import { useEmailTemplatesSource } from './emailTemplatesSource'
 import { useEmailTemplates } from './queries'
 
-/** The icon of each kind's tile (decorative: the name says it). */
+/** The icon of each kind's tile (decorative: the name says it). A move and a cancellation have one icon whoever is told. */
 const KIND_ICONS: Record<EmailTemplateKind, LucideIcon> = {
   VISITOR_INVITATION: Mail,
   VISIT_RESCHEDULED: CalendarClock,
   VISIT_CANCELLED: CalendarX,
   HOST_ARRIVAL: DoorOpen,
+  HOST_VISIT_SCHEDULED: CalendarPlus,
+  HOST_VISIT_RESCHEDULED: CalendarClock,
+  HOST_VISIT_CANCELLED: CalendarX,
 }
 
 function TemplateRow({ template }: { template: EmailTemplate }) {
@@ -54,7 +57,7 @@ function TemplateRow({ template }: { template: EmailTemplate }) {
 }
 
 /**
- * The four e-mails whose words a company may change (B11-20), each to its editor: the company's
+ * The e-mails whose words a company may change (B11-20; seven since Phase 14), each to its editor: the company's
  * own list for its administrator (`/admin/email-templates`), and a company's list for the platform
  * owner (Phase 12), whose way back above the title names the company.
  */

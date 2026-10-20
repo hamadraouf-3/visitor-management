@@ -98,12 +98,20 @@ function visitColumns({
       id: 'invitation',
       header: t('table.invitation'),
       stacked: 'inline',
+      // The longest short label, a calendar invitation's failure ("Calendar failed", «لم يصل التقويم»), fits
+      // 160 px with the cell's padding; 144 px cut it.
       className: MIDDLE,
-      headerClassName: 'xl:w-36',
+      headerClassName: 'xl:w-40',
       cell: (visit) => (
         <>
-          <StatusBadge type="invitation" status={visit.invitation.status} className="max-lg:hidden" />
-          <StatusBadge type="invitation" status={visit.invitation.status} standalone className="lg:hidden" />
+          <StatusBadge type="invitation" status={visit.invitation.status} calendarFailed={visit.invitation.calendar_failed} className="max-lg:hidden" />
+          <StatusBadge
+            type="invitation"
+            status={visit.invitation.status}
+            calendarFailed={visit.invitation.calendar_failed}
+            standalone
+            className="lg:hidden"
+          />
         </>
       ),
     },

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import type { InvitationStatus, PassStatus, VisitStatus } from '../../types/api'
 import { Badge } from './Badge'
 import {
+  calendarInvitationFailedMeta,
   INVITATION_STATUS_LONG_LABELS,
   INVITATION_STATUS_META,
   PASS_STATUS_META,
@@ -35,6 +36,8 @@ export type StatusBadgeProps =
        * ("Invitation sent" instead of "Sent"), see INVITATION_STATUS_META.
        */
       standalone?: boolean
+      /** The invitation's `calendar_failed`: a FAILED that is the calendar invitation's (Phase 14) has its own words. */
+      calendarFailed?: boolean
     } & CommonProps)
   | ({ type: 'pass'; status: PassStatus } & CommonProps)
 
@@ -43,6 +46,7 @@ function metaFor(props: StatusBadgeProps): StatusMeta {
     case 'visit':
       return VISIT_STATUS_META[props.status]
     case 'invitation': {
+      if (props.status === 'FAILED' && props.calendarFailed) return calendarInvitationFailedMeta(props.standalone ?? false)
       const meta = INVITATION_STATUS_META[props.status]
       return props.standalone ? { ...meta, label: INVITATION_STATUS_LONG_LABELS[props.status] } : meta
     }

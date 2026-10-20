@@ -46,6 +46,7 @@ from tests.support import (
     World,
     audit_rows,
     create_visit,
+    pass_token,
     refreshed,
     signed_in,
 )
@@ -120,7 +121,11 @@ def host(
 
 def _invitation(db: Session, visit_id: str) -> EmailMessage:
     db.expire_all()
-    return db.scalars(select(EmailMessage).where(EmailMessage.visit_id == UUID(visit_id))).one()
+    return db.scalars(
+        select(EmailMessage).where(
+            EmailMessage.visit_id == UUID(visit_id), EmailMessage.kind == "VISITOR_INVITATION"
+        )
+    ).one()
 
 
 def test_an_invitation_reaches_the_mail_server_with_its_pass_inline(
@@ -135,9 +140,24 @@ def test_an_invitation_reaches_the_mail_server_with_its_pass_inline(
         visitor={"full_name": "Dana Guest", "email": "Dana.Guest@Example.com"},
     )
 
-    [received] = mail_server.handler.received
-    assert received.rcpt_tos == ["dana.guest@example.com"]
+    # The invitation, then its calendar invitation (B14-10), then the host's notice of the visit (B14-2),
+    # in the order they were queued.
+    received, calendar, host_notice = mail_server.handler.received
+    assert received.rcpt_tos == calendar.rcpt_tos == ["dana.guest@example.com"]
+    assert host_notice.rcpt_tos == [world.a.employee.email]
     message = received.message()
+    # The invitation carries no calendar event; the two that follow carry theirs as Outlook and Gmail
+    # read it (B14-7): the text/calendar alternative and the invite.ics attachment.
+    assert message.get_content_type() == "multipart/alternative"
+    for mail, uid in ((calendar, "visitor"), (host_notice, "host")):
+        parsed = mail.message()
+        assert parsed.get_content_type() == "multipart/mixed"
+        [event] = [part for part in parsed.walk() if part.get_content_type() == "text/calendar"]
+        assert event.get_param("method") == "REQUEST" and event.get_content_disposition() is None
+        content = event.get_payload(decode=True)
+        assert isinstance(content, bytes)
+        assert f"UID:visit-{result['visit']['id']}-{uid}".encode() in content
+        assert pass_token(result["pass_url"]).encode() not in mail.data
     assert message["Subject"].startswith("Your visit to ")
     # Sent in the company's name, from the configured address (B12-13).
     assert message["From"] == "Alpha <no-reply@localhost>" and received.mail_from == "no-reply@localhost"
@@ -183,7 +203,9 @@ def test_a_rejected_recipient_fails_the_invitation_at_once(
     assert result["visit"]["id"] in {item["id"] for item in attention["items"]}
     [failed] = audit_rows(db, "INVITATION_FAILED", entity_id=UUID(result["visit"]["id"]))
     assert failed.meta["attempts"] == 1
-    assert mail_server.handler.received == []
+    # The script refuses one RCPT, the invitation's: what follows it (its calendar invitation, the host's
+    # notice) is delivered on its own and judged by the mail server on its own (B14-10).
+    assert not any(b"Content-ID: <visitor-pass-qr>" in mail.data for mail in mail_server.handler.received)
 
 
 def test_a_deferred_message_is_retried_and_sent(
@@ -195,7 +217,8 @@ def test_a_deferred_message_is_retried_and_sent(
     row = _invitation(db, result["visit"]["id"])
     assert (row.status, row.attempts) == ("SENT", 2)
     assert smtp_sleeps == [1.0]
-    assert len(mail_server.handler.received) == 1
+    # The invitation once, then its calendar invitation and the host's notice (B14-10, B14-2).
+    assert len(mail_server.handler.received) == 3
 
 
 def test_a_silent_mail_server_ends_the_delivery_at_its_deadline(

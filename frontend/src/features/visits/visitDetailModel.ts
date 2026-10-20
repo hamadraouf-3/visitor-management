@@ -1,5 +1,6 @@
 import { i18n } from '../../i18n'
 import type { Visit } from '../../types/api'
+import { calendarInvitationFailed } from './invitationText'
 import { visitorHasEmail } from './visitEdit'
 
 const t = i18n.getFixedT(null, 'visits')
@@ -41,10 +42,15 @@ export function visitorHasNoEmailOnFile(visit: Visit): boolean {
 /**
  * Whether the page offers to correct the visitor's email address (and so loads the visitor to
  * learn whether the caller may edit them): after a failed invitation, or for a visitor without
- * an address who was never invited ("Add an email address").
+ * an address who was never invited ("Add an email address"). Not when only the calendar
+ * invitation failed: the invitation itself went to the same address, so the address is no
+ * reason to doubt (the resend sends both again).
  */
 export function wantsVisitorCorrection(visit: Visit): boolean {
-  return visit.invitation.status === 'FAILED' || (visitorHasNoEmailOnFile(visit) && visit.invitation.status === 'NOT_SENT')
+  return (
+    (visit.invitation.status === 'FAILED' && !calendarInvitationFailed(visit.invitation)) ||
+    (visitorHasNoEmailOnFile(visit) && visit.invitation.status === 'NOT_SENT')
+  )
 }
 
 /**

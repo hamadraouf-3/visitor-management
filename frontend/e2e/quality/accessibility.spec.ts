@@ -25,6 +25,12 @@ interface PageCheck {
 }
 
 const h1 = (name: string | RegExp) => (page: Page) => page.getByRole('heading', { level: 1, name })
+/**
+ * A page's first render, its data loaded: on a machine loaded by the whole suite the dev server's modules
+ * and the API's first answer took more than the default 10 s (the audit log on the tablet, 2026-10-20: the
+ * page loaded in 5 s, and the list's request answered 13 s after the navigation began).
+ */
+const FIRST_RENDER = { timeout: 30_000 }
 
 const PAGES = {
   changePassword: { name: 'change password', path: () => '/change-password', ready: (page) => page.getByLabel('Current password') },
@@ -48,6 +54,8 @@ const PAGES = {
   // Phase 11: a company's e-mail texts (the editor with its draft preview rendered).
   adminEmailTemplates: { name: 'admin: e-mail texts', path: () => '/admin/email-templates', ready: (page) => page.getByRole('list', { name: 'Emails' }) },
   adminEmailTemplate: { name: 'admin: e-mail texts editor', path: () => '/admin/email-templates/VISITOR_INVITATION', ready: (page) => page.locator('[data-preview-subject]') },
+  // Phase 14: one of the host's e-mails of a visit (no button field, the department among the variables).
+  adminEmailTemplateHost: { name: 'admin: e-mail texts editor (host)', path: () => '/admin/email-templates/HOST_VISIT_SCHEDULED', ready: (page) => page.locator('[data-preview-subject]') },
 } satisfies Record<string, PageCheck>
 
 /** The platform owner's pages (Phase 11), with the platform account's own session. */
@@ -87,6 +95,7 @@ const ROLE_PAGES: { label: string; account: AccountKey; pages: PageCheck[] }[] =
       PAGES.adminAudit,
       PAGES.adminEmailTemplates,
       PAGES.adminEmailTemplate,
+      PAGES.adminEmailTemplateHost,
       PAGES.reception,
       PAGES.receptionExpected,
       PAGES.receptionInside,
@@ -114,7 +123,7 @@ const ROLE_PAGES: { label: string; account: AccountKey; pages: PageCheck[] }[] =
 async function checkPage(page: Page, check: PageCheck) {
   const data = qualityData()
   await page.goto(check.path(data))
-  await expect(check.ready(page, data)).toBeVisible()
+  await expect(check.ready(page, data)).toBeVisible(FIRST_RENDER)
   // Every loading spinner (a `status` with a spinning icon) is gone, so the data is on screen.
   await expect(page.locator('[role="status"] .animate-spin')).toHaveCount(0)
   await page.waitForLoadState('networkidle')
@@ -156,7 +165,7 @@ test.describe('administrator · audit log with event details open', () => {
   test.use({ storageState: storageStatePath('admin') })
   test('two open events: axe, including landmark-unique', async ({ page }) => {
     await page.goto('/admin/audit')
-    await expect(PAGES.adminAudit.ready(page)).toBeVisible()
+    await expect(PAGES.adminAudit.ready(page)).toBeVisible(FIRST_RENDER)
     await page.waitForLoadState('networkidle')
     // Each open event used to add a region landmark named "Recorded details": two open events repeated it
     // (axe `landmark-unique`, a moderate rule the page check above does not block on).

@@ -40,7 +40,7 @@ function setup(path: string, { template = makeEmailTemplate(), extra = {} }: { t
     ...platformRoutes({ me: OWNER, companies: [NOVA] }),
     [`GET /platform/companies/${NOVA.id}`]: () => jsonResponse(NOVA),
     [`GET /platform/companies/${NOVA.id}/admins`]: () => jsonResponse([]),
-    [`GET ${BASE}`]: () => jsonResponse([current, makeEmailTemplate('VISIT_RESCHEDULED'), makeEmailTemplate('VISIT_CANCELLED'), makeEmailTemplate('HOST_ARRIVAL')]),
+    [`GET ${BASE}`]: () => jsonResponse([current, makeEmailTemplate('VISIT_RESCHEDULED'), makeEmailTemplate('VISIT_CANCELLED'), makeEmailTemplate('HOST_ARRIVAL'), makeEmailTemplate('HOST_VISIT_SCHEDULED'), makeEmailTemplate('HOST_VISIT_RESCHEDULED'), makeEmailTemplate('HOST_VISIT_CANCELLED')]),
     [`GET ${BASE}/VISITOR_INVITATION`]: () => jsonResponse(current),
     [`PATCH ${BASE}/VISITOR_INVITATION`]: (request) => {
       const body = request.body as EmailTemplateUpdate
@@ -82,14 +82,15 @@ describe('a company’s email texts on the platform', () => {
     expect(router.state.location.pathname).toBe(LIST)
   })
 
-  it('list the four emails of that company, naming it, with the way back to it', async () => {
+  it('list the seven emails of that company, naming it, with the way back to it', async () => {
     const changed = withOverrides(makeEmailTemplate(), { en: { subject: 'Welcome to {company}' } })
     const { requests } = setup(LIST, { template: changed })
     await screen.findByRole('heading', { level: 1, name: 'Email texts' })
 
     const list = await screen.findByRole('list', { name: 'Emails' })
     const rows = within(list).getAllByRole('listitem')
-    expect(rows).toHaveLength(4)
+    expect(rows).toHaveLength(7)
+    expect(rows[6]).toHaveTextContent('Visit cancelled (host)')
     expect(rows[0]).toHaveTextContent('Visitor invitation')
     expect(rows[0]).toHaveTextContent('1 text changed')
     expect(rows[1]).toHaveTextContent('Default texts')

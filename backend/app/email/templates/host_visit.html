@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{# The host's e-mails of a scheduled visit (Phase 14, B14-2): `kind` is the catalog's prefix of the one
+   this is (host_scheduled, host_rescheduled, host_cancelled), given by the service. Each carries the
+   visit as an event of the host's calendar; the notice of a new visit says so in one line
+   (`calendar_attached`: not in a test e-mail, which carries no event). #}
+{% block preheader %}{% if kind == "host_cancelled" %}{{ t(lead, "host_cancelled.preheader", date=times[lead].date) }}{% elif kind == "host_rescheduled" %}{{ t(lead, "host_rescheduled.preheader", date=times[lead].date, time=times[lead].time) }}{% else %}{{ t(lead, "host_scheduled.preheader", visitor=visitor_name, date=times[lead].date, time=times[lead].time) }}{% endif %}{% endblock %}
+
+{% macro closing(lang) %}{% set text = edited(lang, "closing") %}{% if text %}{% call ui.paragraph() %}{{ text }}{% endcall %}{% endif %}{% endmacro %}
+
+{% macro body(lang, primary) %}
+{{ ui.heading(edited(lang, "heading") or t(lang, kind ~ ".heading"), primary) }}
+{% call ui.paragraph(spacing=4) %}{{ edited(lang, "greeting") or t(lang, "common.hello", name=host_full_name) }}{% endcall %}
+{% call ui.paragraph(spacing=20) %}{{ edited(lang, "intro") or t(lang, kind ~ ".intro", visitor=visitor_name, date=times[lang].date, time=times[lang].time, zone=times[lang].zone) }}{% endcall %}
+{{ ui.details([
+    [(t(lang, "label.visitor"), visitor_name), (t(lang, "label.company"), visitor_company_name)],
+    [(t(lang, "label.date"), times[lang].date), (t(lang, "label.time"), times[lang].time ~ " (" ~ times[lang].timezone ~ ")")],
+    [(t(lang, "label.department"), department_name[lang]), (t(lang, "label.booked_by"), booked_by)],
+    [(t(lang, "label.purpose"), purpose)],
+    [(t(lang, "label.reason"), reason)],
+], lang) }}
+{% if calendar_attached %}{% call ui.paragraph(muted=True) %}{{ t(lang, "calendar.attached") }}{% endcall %}{% endif %}
+{{ closing(lang) }}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 8px 32px") %}
+{{ body(lead, True) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 8px 32px") %}
+{{ body(other, False) }}
+{% endcall %}
+{% endblock %}

@@ -3,7 +3,7 @@ import { getEmployeeDashboard } from '../../api/dashboard'
 import { isApiError } from '../../api/client'
 import { queryKeys } from '../../api/queryKeys'
 import { cancelVisit, createVisit, issueVisitPass, listVisits, resendInvitation, updateVisit } from '../../api/visits'
-import type { Visit, VisitCancelRequest, VisitCreate, VisitCreateResult, VisitListParams, VisitPassResult, VisitUpdate } from '../../types/api'
+import type { Visit, VisitCancelRequest, VisitCreate, VisitListParams, VisitPassResult, VisitResendResult, VisitUpdate } from '../../types/api'
 
 export function useEmployeeDashboard() {
   return useQuery({
@@ -95,7 +95,7 @@ export function useCancelVisit(visitId: string) {
 export function useResendInvitation(visitId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (): Promise<VisitCreateResult> => resendInvitation(visitId),
+    mutationFn: (): Promise<VisitResendResult> => resendInvitation(visitId),
     gcTime: 0,
     onSuccess: (result) => refreshAfterVisitChange(queryClient, result.visit),
     onError: (error) => refreshStaleVisit(queryClient, visitId, error),

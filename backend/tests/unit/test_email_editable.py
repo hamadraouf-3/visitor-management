@@ -50,8 +50,14 @@ def test_the_editable_kinds_are_the_visit_e_mails_and_never_the_security_ones() 
         EmailKind.VISIT_RESCHEDULED,
         EmailKind.VISIT_CANCELLED,
         EmailKind.HOST_ARRIVAL,
+        # The host's e-mails of a scheduled visit (Phase 14, B14-2).
+        EmailKind.HOST_VISIT_SCHEDULED,
+        EmailKind.HOST_VISIT_RESCHEDULED,
+        EmailKind.HOST_VISIT_CANCELLED,
     }
     assert editable_kind("PASSWORD_RESET") is None
+    # The visitor's calendar invitation takes the invitation's words (B14-10).
+    assert editable_kind("VISITOR_CALENDAR") is None
     assert editable_kind("PASSWORD_CHANGED") is None
     assert editable_kind("NOT_A_KIND") is None
     assert editable_kind("HOST_ARRIVAL") is ARRIVAL

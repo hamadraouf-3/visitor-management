@@ -30,7 +30,7 @@ const ME: Me = {
     must_change_password: false,
     preferred_language: null,
   },
-  company: { id: '00000000-0000-4000-8000-0000000000c1', name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED },
+  company: { id: '00000000-0000-4000-8000-0000000000c1', name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED, address: null, address_ar: null },
 }
 
 const iso = (ms: number) => new Date(ms).toISOString()
@@ -69,8 +69,10 @@ function inside(index: number, fullName: string, companyName: string | null, pho
     created_by: actor,
     created_at: iso(start),
     updated_at: iso(start),
-    invitation: { status: 'NOT_SENT', to_email: null, attempts: 0, last_attempt_at: null, sent_at: null, error: null },
+    invitation: { status: 'NOT_SENT', to_email: null, attempts: 0, last_attempt_at: null, sent_at: null, error: null, calendar_failed: false },
     last_notice: null,
+    calendar_sequence: 0,
+    visitor_calendar_sent: false,
     pass: { status: 'ACTIVE', issued_at: iso(start), revoke_reason: null },
     permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: false, can_check_out: true },
   }

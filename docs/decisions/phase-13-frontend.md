@@ -89,6 +89,9 @@ in the dark scheme). The identity page's preview draws the shell and the content
 device's scheme is dark (`useColorScheme`, it used `useMediaQuery`). The mocked spec checks the file each
 place shows (`currentSrc`) in both schemes, on a device whose own scheme is the other one, and on paper.
 
+*On a light page, superseded in part by F13-26 (2026-10-19): in the light scheme the logo stands on the page
+itself, and the page's plate is the dark scheme's alone, for a company without a logo for dark surfaces.*
+
 **F13-6 — The browser chrome's colour is one meta.** `index.html` had two `theme-color` metas with
 `media="(prefers-color-scheme: …)"`: the browser chose by the device. There is one now, without a media
 query, and `applyDocumentIdentity(document, identity, scheme)` writes the colour of the scheme the page is
@@ -120,6 +123,8 @@ pass page's header, before the language switch, so the language switch keeps its
 fit one row (English at 320 px, a larger text size, wider text spacing), the language switch takes a row of
 its own (F13-17; this entry first said both stay on one row at 320 px, which held in Arabic only).
 
+*Superseded by F13-25 (2026-10-19): one toggle beside the language switch; the radio group is gone.*
+
 **F13-9 — In the account menus: a group of `menuitemradio`.** The company's account menu (every role, also
 while a password change is required) and the platform owner's carry the same choice, first, set apart from
 "Change password" and "Sign out" by a separator. "The platform owner's shell" is read as its account menu:
@@ -134,8 +139,14 @@ the word, so the three fit the narrowest menu (14 rem in the sidebar) in either 
 symbol beside word, cut «تلقائي» there: found in the screenshots). The chosen tile is the shell's
 current-page pill (`bg-accent`): the menu opens from the shell and takes its tokens.
 
+*Superseded by F13-25 (2026-10-19): the account menus hold no appearance, and `Menu` no group of choices (its
+arrow keys still go on from the item that has the focus).*
+
 **F13-10 — Words.** «المظهر»: «فاتح» «داكن» «تلقائي»; "Appearance": "Light" "Dark" "System"
 (`common:appearance`). Nothing else: no description, no hint of what System means.
+
+*Superseded by F13-25 (2026-10-19): «الوضع الداكن» / "Dark mode"; «فاتح» «داكن» / "Light" "Dark" stay for the
+e-mail preview (F13-11).*
 
 ## The e-mail previews (section C)
 
@@ -287,6 +298,9 @@ spec opens the pass and the account menu with `forcedColors: 'active'`: the chos
 neighbours', its word is not its fill, and on screen more than half of it is that fill and its word is drawn
 on it, both for a choice made there.
 
+*Superseded by F13-25 (2026-10-19): the toggle shows its state by its symbol, never by a fill, and
+`FORCED_COLORS_CHOSEN` went with the two controls that needed it.*
+
 **F13-19 — Dark from the first frame includes the browser's chrome.** With Dark stored, the first frame was
 dark but its `theme-color` was `index.html`'s light teal until the app ran. `public/appearance.js` now also
 sets `theme-color` in the dark scheme, to a neutral page's dark one (`#0f3b3f`, `DEFAULT_THEME_COLORS.dark`:
@@ -430,6 +444,166 @@ at 320 px with 20 px text the segments wrap as closed boxes. The switch in a for
 light and the dark system palettes (Highlight under HighlightText, the ring in the system's text colour), and
 without one (unchanged). Screenshots: the session scratchpad's `fix13f/`.
 
+## The owner's follow-up (2026-10-19): one toggle, and the logo without a plate
+
+The owner asked for two changes: the three choices become one toggle button (a sun or a moon), and a
+company's logo must not stand on a white box on the light pages (on production the bank's transparent navy
+logo stood inside a white rounded box with an edge on the light grey sign-in page: "the logo has a
+background"). Each entry records what was built and every interpretation.
+
+**F13-25 — The appearance is one toggle beside the language switch** (supersedes F13-8, F13-9, F13-10 and
+F13-18). `appearance/AppearanceToggle.tsx`:
+
+- *Behaviour.* Until it is pressed the page follows the device, live, as System did: nothing is stored. A
+  press draws the other scheme than the one shown and keeps that choice, `light` or `dark`, under the same
+  key `vms.appearance`. Nothing in the interface leads back to System (accepted by the owner); a `system`
+  the earlier build stored still means "follow the device". So the store (`appearance.ts`), the pre-paint
+  script (`public/appearance.js`: its rule did not change, only its comment), the first frame, another
+  tab's press and the device followed live are all as they were (F13-1, F13-2), and the unit test that runs
+  the script against the store still holds them together.
+- *What is shown.* The toggle's state is the scheme the person sees. On the reception, dark by design
+  while nothing is chosen (F13-7), that is dark also on a light device, so `ShellFrame` passes its
+  `darkSurface`: the toggle is pressed there, and a press keeps Light (the reception is then drawn light);
+  the next press, Dark.
+- *The control.* A `button` with `aria-pressed` (true while dark) and a constant name, «الوضع الداكن» /
+  "Dark mode" (`common:appearance.darkMode`), which is also its `title`; no words on screen and no helper
+  text. It has the language switch's own look and size: the classes moved to `SWITCH_BUTTON`
+  (`components/ui/buttonStyles.ts`), used by both, at least 44 × 44 px, its outline on the surface it
+  stands on (the page's tokens, or the shell's). Its focus ring is the app's own `:focus-visible` ring. In
+  a forced-colours mode its edge and its symbol take the system's colours; its state was never a fill.
+- *Its symbol* is the scheme a press leads to: the moon while light, the sun while dark. The kit has a
+  convention for exactly this, the language switch beside it, which shows the language a press leads to
+  («ع» in English, "EN" in Arabic); the toggle says the same kind of thing in the same place. (With
+  `aria-pressed` and the constant name, assistive technology hears the state, not the symbol.)
+- *Where.* Everywhere the language switch is, always right beside it on its inline-start side (left of it
+  in English, right of it in Arabic), 8 px apart: the public pages' header (`CenteredLayout`: `/login`,
+  `/c/{slug}`, the password pages, the error pages, `/platform/login`), the pass page's header, the company
+  shell and the platform owner's shell (`ShellFrame`: both get it there). The public headers keep wrapping
+  (F13-17), but two buttons fit the narrowest one with any text size: they always share a row.
+- *The sidebar.* Its head was one row, the lockup and the language switch. The sidebar's content is
+  220 px wide; a lockup takes up to 156 px (a wordmark), 152 px (a logo on its plate), 140 px (the bank's
+  mark with its name beside it); with the second 44 px button only 112 px would be left. Rather than
+  shrinking every company's logo by a third, the two switches now stand in the sidebar's top inline-end
+  corner, as on every public page, and the lockup under them keeps the sidebar's whole width (the head is
+  44 px taller; the navigation scrolls as before where the screen is short). Measured before and after:
+  the lockups' widths are unchanged (bank 140, a yellow company's plate 112, a wordmark 87, the platform
+  109 px).
+- *The phone's top bar.* At 320 px the bar holds its menu button, the lockup, the toggle, the language
+  switch and the account menu. With the toggle added the lockup had 60 px and a wide logo's plate ran
+  under the toggle (seen in the screenshots). Now, below 384 px only: the bar's gaps are 6 px and its sides
+  8 px, the account menu's trigger is its avatar alone (a 44 px target; the chevron returns from 384 px), and
+  the platform's logo is 18 px tall instead of 22. A company's wide logo on the shell may give way, in its
+  proportions (`CompanyLogo`: on the shell a logo that is not an emblem is `min-w-0`; an emblem keeps its
+  size and its name is cut). The lockup has 100 px at 320 px; nothing is under anything, and at 390 px and
+  wider the bar is as it was but for the toggle.
+- *Removed with the radio groups*: `AppearanceSwitch` and its test, `appearance/options.ts`,
+  `useAppearanceMenuGroup`, `Menu`'s `radio-group` entry (`MenuRadioGroup`, `MenuEntry`; `Menu` takes
+  `MenuItem`s again, and keeps going on from the focused item), `FORCED_COLORS_CHOSEN`, and the catalog
+  keys `appearance.label` and `appearance.system`. `appearance.light` and `appearance.dark` stay: the
+  e-mail preview's Light / Dark switch (`EmailPreviewCard`, F13-11) uses them, and it is unchanged.
+
+**F13-26 — A company's logo stands on a light surface itself** (supersedes, in the light scheme, F12-7's
+light page, F12-23's white plate on the platform owner's pages and F12-32 (b); and F13-5's page plate).
+
+- *The rule.* In the light scheme, on the neutral light surfaces, the logo for light surfaces stands on the
+  surface: no fill, no edge, no visible box. That is the `page` surface (the sign-in pages, the password
+  and error pages, the pass), `paper` (print; it already was), and the platform owner's light cards and
+  header tiles. The white plate stays only where a logo for light surfaces would otherwise stand on a dark
+  or coloured surface: the dark scheme for a company without a logo for dark surfaces, and the shells by
+  their rules (`shellTone`, F12-29: a dark shell without a dark-surface logo, and every light-coloured
+  shell, unchanged). The logo for dark surfaces never has a plate.
+- *`CompanyLogo` on a page.* The logo's room (`PAGE_ROOM`, `data-logo-room`) keeps the plate's padding and
+  a 1 px edge, transparent; only in the dark scheme, for a company without a logo for dark surfaces, is it
+  painted white with the cards' edge (`scheme-dark:bg-white scheme-dark:border-border`,
+  `data-logo-plate="dark-scheme"`; screen only, so paper stays plain). The room is the same in both schemes,
+  so when the scheme changes nothing moves but the logo itself: the switches, the logo's place, the card
+  (the 82 px kept for the logo while it arrives is the room's height, as before). For a company with a logo
+  for dark surfaces the room is never painted; that logo replaces the other in the dark scheme (the bank's
+  mark then has its name beside it, as it had).
+- *The platform owner's pages.* `CompanyLogoTile` (the companies list, a company's header, its identity and
+  e-mail pages): the logo on the card in the light scheme; in the dark scheme the company's logo for dark
+  surfaces without a plate, or for a company without one the logo on the white plate with the cards' edge;
+  the same box either way (the names beside the tiles still line up), and a file that does not load gives
+  way to the other one, then to the building tile. The identity card's "Logo" fact (`CompanyIdentityCard`)
+  shows the logo for light surfaces, as its name says: on the card in the light scheme, on its plate in the
+  dark one.
+- *Left as they were.* The identity editor's upload tiles (`IdentityAssetSlot`: the logo on white, the
+  dark logo on the brand's colour) are previews of the files on their intended grounds, not
+  `CompanyLogo`'s plate. The identity preview (`IdentityPreview`) draws the shell by the shell's rules and
+  the e-mail's head on white (paper). Every other use was checked: `IdentityLockup` in `CenteredLayout`,
+  `PassPage` (screen and paper), `AppLayout` (shell, deep shell), `PrintSheetHeader` and `PassActions`
+  (paper); `BrandLogo` and `BrandLockup` (the product's logo, never on a plate).
+- *What this gives up.* F12-32 (b) put the plate on the light pages so a logo saved with a background of its
+  own (an opaque white rectangle) would look meant. Such a logo now shows its rectangle on the grey page in
+  the light scheme. Uploads since Phase 12 have a flat near-white background taken away (F12-32 (a)), so
+  this is a logo saved before that, or one with a tile of its own; the owner chose the plain logo.
+
+**F13-27 — Tests.** Unit (Vitest): `appearance/AppearanceToggle.test.tsx` (new, in place of
+`AppearanceSwitch.test.tsx`: the name, the tooltip, no words, the language switch's classes, the moon and
+the sun; the device followed live until a press, nothing stored; a press stores the other scheme than the
+one shown, again and again, and the device no longer decides; Enter and Space; a stored `system`; another
+tab's press and a cleared storage; the reception's dark surface; Arabic);
+`features/platform/CompanyLogoTile.test.tsx` (new: no plate in the light scheme, the dark logo without one,
+the plate for a company with one logo, the same box, a failing file); `components/ui/Menu.test.tsx` (the
+group's tests gone; the arrow keys from the focused item, with plain items); `layouts/AppLayout.test.tsx`
+(the account menu without the appearance; the toggle beside the language switch, same classes, in the top
+bar and the sidebar's corner; on the dark screen pressed until a choice, a press light, the next dark);
+`components/app/CompanyLogo.test.tsx` (a page's room unpainted in the light scheme, the plate in the dark
+scheme only and in the same room, the dark-surface logo never on one; a wide logo on the shell gives way,
+an emblem does not); `pages/PassPage.test.tsx` (the toggle beside the language switch, the logo's room).
+End-to-end, `e2e/phase13-appearance.spec.ts` (mocked API): the toggle on the signed-out pages (name,
+tooltip, no words, moon and sun, 44 × 44 px, beside the language switch on its inline-start side 8 px
+apart in both languages, the same look, the first tab stop with its ring, Enter and Space, axe in both
+schemes); the header at 320 and 390 px with the browser's text, WCAG text spacing and a 20 px text size in
+both languages on the sign-in page and the pass (the toggle never meets the language switch, the symbol
+inside it, both at least 44 px, both inside the header, the language switch in its corner, one row, no
+sideways scroll: twenty-four layouts, the overlap assertions of F13-17 kept); a press kept across reloads,
+companies, the platform's sign-in and another tab; the device followed live until a press, a press holding
+against it, a stored `system`; the first frame (unchanged); the logos and the chrome's colour; the bank's
+logos as production has them, on the sign-in page and the pass: in the light scheme the room unpainted and
+the page's own canvas at its corners, the logo's own white pixels inside its diamond; in the dark scheme
+the mark with the name and no plate, or for the bank with one logo the white plate with the cards' edge;
+the switches, the room and the card where they were; the shells (the toggle beside the language switch in
+both, the account menus without the appearance, the platform's chrome and slate); the top bar at 320 px
+in both languages for the bank, a yellow company's wide logo and the platform (nothing over anything, the
+avatar a 44 px target, the logo in its proportions); forced colours (the symbol drawn in the system's
+colour, the edge, the focus ring, the state after a press, on the pass and in the sidebar); the reception
+(the toggle pressed on the dark screen with nothing chosen; a press draws it light, the next dark).
+`e2e/phase12-ux.spec.ts`: the signed-out pages' logo (the ATLAS logo with its white rectangle) is
+unpainted in the light scheme and on its plate in the dark one, the room and the picture in the same
+place in both; the controls checked against the lockup include the toggle. `e2e/quality/appearance.spec.ts`
+(the real API): the toggle pressed on a company's sign-in page and in the administrator's shell, kept
+across a reload, axe and no sideways scroll in Dark.
+
+### Verification (2026-10-19)
+
+| Gate | Result |
+|---|---|
+| `npx tsc -b` | clean |
+| `npm run e2e:typecheck` | clean |
+| `npx oxlint --deny-warnings` | clean |
+| `npx vitest run` | 154 files, 2,093 tests, all passed (before: 153 files, 2,083). Three later full runs on a loaded machine: 2,091 passed, and the e-mail texts editor's two typing tests ran past their 20 s (4.6 s and 3.1 s alone; 4.7 s and 4.2 s on the code before this follow-up) |
+| `npm run build -- --outDir <scratch> --emptyOutDir` | built (the app chunk 322 kB, 92 kB gzipped; the stylesheet 107 kB, 19 kB gzipped); `appearance.js` in the build and the precache list; no `prefers-color-scheme` |
+| `npx playwright test --retries=0`, the whole suite (8700, `vms_e2e`) | 630 tests: 554 passed, 73 skipped, 3 failed, 48.7 min. The three: the header test (desktop), whose page Vite reloaded when `frontend/README.md` was edited during the run, and two reception pages under axe (tablet, phone) whose modules took the dev server 11.5 s to serve on a machine at 100 % CPU (the API answered in at most 1.4 s) |
+| The three again (`phase13-appearance.spec.ts:269`, `quality/appearance.spec.ts:120`, all projects) | 43 passed, 2 skipped, 0 failed, 2.2 min |
+
+**Each safeguard taken out again.** Thirteen single changes against the unit tests: a press keeping the scheme
+shown; the toggle ignoring the dark screen; no `aria-pressed`; the symbol of the scheme shown; the toggle
+after the language switch on the pass and in the sidebar; the page's plate in the light scheme; the plate for
+a company with a dark-surface logo; the room's padding in the dark scheme only (missed at first: the class
+string is the same in both schemes; the test now allows no dark-scheme class but the plate's two); a wide
+shell logo that cannot give way; the platform tile on a plate in the light scheme; the platform tile without
+the dark logo; the toggle without the language switch's look. A test failed for each; the files were
+restored.
+
+**Looked at.** Screenshots in the session scratchpad's `toggle13/shots/`: the bank's sign-in page and pass
+(the transparent navy wordmark with white pixels in its diamond, the mark for dark surfaces), a yellow
+company with one logo and with both, a company without a logo, light and dark, Arabic and English, 1440,
+390 and 320 px; the company shell (sidebar and top bar) and the platform owner's (companies, a company, its
+identity page); the page right after a press; the header at 320 px with a 20 px text size and with text
+spacing; forced colours; the reception before and after a press. No sideways scroll on any. What they
+showed and changed: the 320 px top bar ran a wide logo's plate under the toggle (F13-25's narrow bar).
+
 ## Open items
 
 - **Under System on a light device the reception screen still loads through a light frame**: the page is
@@ -440,3 +614,9 @@ without one (unchanged). Screenshots: the session scratchpad's `fix13f/`.
   the deep shell drawn around the dark screen (as before this phase).
 - **The identity page's e-mail preview** draws the e-mail's light design; its dark design is seen in the
   e-mail texts' Light / Dark preview, which the server renders.
+- **Back to "follow the device"** is not in the interface (F13-25, accepted by the owner): a device that
+  pressed the toggle keeps its choice until it is pressed again, or the site's data is cleared.
+- **A forced-colours mode draws every shell on the system's `Canvas`**, so a company's logo for dark
+  surfaces (white) on the shell all but disappears there (seen with the bank's mark: its red square alone).
+  This was so before this follow-up, and the toggle beside it shows; a fix would give the shell's logo its
+  own forced-colours rule.

@@ -32,6 +32,7 @@ from app.schemas.visits import VisitCancel, VisitCreate, VisitUpdate
 from app.security.sessions import AuthContext
 from app.security.tokens import hash_token
 from app.services.departments import DEPARTMENT_INACTIVE, DepartmentsService
+from app.services.results import Mutation
 from app.services.visit_hooks import VisitSnapshots
 from app.services.visitors import VisitorsService
 from app.services.visits import HOST_NOT_AVAILABLE, VisitsService
@@ -188,6 +189,56 @@ def test_cancel_wins_over_a_waiting_reschedule(committed_session_factory, scenar
         visit = db.get(Visit, scenario["visit_id"])
         assert visit is not None and visit.status == "CANCELLED"
         assert visit.scheduled_start == START  # the reschedule never happened
+        assert visit.calendar_sequence == 1  # ... and raised no version (B14-6)
+
+
+def _sequences(result: object) -> list[int]:
+    """The SEQUENCE of each calendar event a change's e-mails carry, in delivery order."""
+    assert isinstance(result, Mutation), result
+    return [job.email.calendar.sequence for job in result.delivery_jobs if job.email.calendar is not None]
+
+
+def _move(scenario: dict, hours: int) -> Callable[[VisitsService, AuthContext], object]:
+    start = START + timedelta(hours=hours)
+
+    def reschedule(service: VisitsService, auth: AuthContext):
+        return service.update_visit(
+            auth,
+            scenario["visit_id"],
+            VisitUpdate(scheduled_start=start, scheduled_end=start + timedelta(hours=1)),
+            SYSTEM_CONTEXT,
+        )
+
+    return reschedule
+
+
+def test_racing_reschedules_each_raise_the_calendar_version(committed_session_factory, scenario) -> None:
+    """B14-6: the version is raised under the visit's lock, so two new times that race are two versions,
+    and the e-mails of the one that waited carry the higher one: every calendar ends at the later time."""
+    first, second = _race(committed_session_factory, scenario, _move(scenario, 2), _move(scenario, 3))
+    # The visitor's notice and the host's, each with the event at its new time.
+    assert _sequences(first) == [1, 1] and _sequences(second) == [2, 2]
+    with committed_session_factory() as db:
+        visit = db.get(Visit, scenario["visit_id"])
+        assert visit is not None and visit.calendar_sequence == 2
+        assert visit.scheduled_start == START + timedelta(hours=3)
+
+
+def test_a_cancel_that_waited_for_a_reschedule_cancels_the_newer_version(
+    committed_session_factory, scenario
+) -> None:
+    def cancel(service: VisitsService, auth: AuthContext):
+        return service.cancel_visit(
+            auth, scenario["visit_id"], VisitCancel(notify_visitor=False), SYSTEM_CONTEXT
+        )
+
+    first, second = _race(committed_session_factory, scenario, _move(scenario, 2), cancel)
+    # The visitor's calendar was sent the visit: its cancellation goes whatever `notify_visitor` says
+    # (B14-16), one version above the new time, as the host's does.
+    assert _sequences(first) == [1, 1] and _sequences(second) == [2, 2]
+    with committed_session_factory() as db:
+        visit = db.get(Visit, scenario["visit_id"])
+        assert visit is not None and visit.status == "CANCELLED" and visit.calendar_sequence == 2
 
 
 def test_reschedule_then_waiting_cancel(committed_session_factory, scenario) -> None:
@@ -337,8 +388,13 @@ def test_a_visit_created_during_an_email_change_is_invited_at_the_new_address(
     assert not isinstance(created, (AppError, str)), created
     visit_id = created.payload.visit.id  # type: ignore[attr-defined]
     with committed_session_factory() as db:
-        invitations = db.scalars(select(EmailMessage.to_email).where(EmailMessage.visit_id == visit_id)).all()
-        assert invitations == [new_email]
+        visitor_mail = db.scalars(
+            select(EmailMessage.to_email).where(
+                EmailMessage.visit_id == visit_id, EmailMessage.recipient_user_id.is_(None)
+            )
+        ).all()
+        # The invitation and its calendar invitation (B14-10), both to the new address.
+        assert visitor_mail == [new_email, new_email]
         sent_to_old = db.scalars(
             select(EmailMessage.visit_id).where(EmailMessage.to_email == people["old_email"])
         ).all()

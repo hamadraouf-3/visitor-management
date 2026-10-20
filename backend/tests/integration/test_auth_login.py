@@ -43,6 +43,9 @@ def test_login_success_sets_cookies_and_returns_me(client: TestClient, world: Wo
         "name": world.a.company.name,
         "name_ar": None,
         "slug": world.a.company.slug,
+        # Where its visits are, for the calendar events the application offers (B14-13): none yet.
+        "address": None,
+        "address_ar": None,
         "timezone": "Asia/Amman",
         "default_language": "en",
         # Its identity (B12-11): no logo, icon or colour yet.

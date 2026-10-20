@@ -11,9 +11,11 @@ Edit rule: SYSTEM_ADMIN and RECEPTIONIST may edit any visitor; an EMPLOYEE only 
 has no visit owned by somebody else (MANAGEMENT may not edit). Editing refreshes the name snapshots of
 the visitor's SCHEDULED visits (D-17). Changing the e-mail address revokes the active passes of the
 visitor's SCHEDULED visits (VISITOR_EMAIL_CHANGED) and sends each a new invitation with a new pass to the
-new address (D-19); clearing it only revokes them. The re-sends count against the editor's daily
+new address (D-19); clearing it only revokes them. Either way a visit whose calendar invitation went to
+the old address is taken out of that calendar (B14-17). The re-sends count against the editor's daily
 invitation budget, so a visitor with more SCHEDULED visits than that budget holds cannot be given a new
-address until some are cancelled (422 on `email`, SEC-44).
+address until some are cancelled (422 on `email`, SEC-44); the withdrawals count against it too, while
+it has room, and never hold the change up.
 
 Visitors are deduplicated by e-mail within the company (`INSERT … ON CONFLICT DO NOTHING`, D-05), and a
 visitor is reused that way only under its own name (B57-70). Reusing a visitor fills its empty fields
@@ -43,8 +45,10 @@ from app.core.search import (
 )
 from app.core.time import company_day_bounds, local_date
 from app.db.errors import unique_violation_constraint
-from app.email.service import DeliveryJob
+from app.email.dispatcher import ADDRESS_CHANGED_ERROR
+from app.email.service import DeliveryJob, mailbox_key
 from app.models import Company, PassRevokeReason, Visit, Visitor
+from app.repositories.email_messages import EmailMessageRepository
 from app.repositories.locking import RowLock
 from app.repositories.visitors import EMAIL_CONSTRAINT, VisitorRepository
 from app.repositories.visits import VisitRepository
@@ -618,6 +622,7 @@ class VisitorsService:
                 return Mutation(views.build([visitor])[0])
 
             changed = list(changes)
+            old_email = visitor.email
             try:
                 # The changes are made inside the savepoint: `begin_nested` flushes pending changes first.
                 with self.db.begin_nested():
@@ -642,7 +647,14 @@ class VisitorsService:
                     refresh_visitor_snapshots(visits, visitor)
                 if "email" in changed:
                     jobs = self._reissue_passes(
-                        auth, visitor, visits, company=company, quota=quota, context=context, now=now
+                        auth,
+                        visitor,
+                        visits,
+                        old_email=old_email,
+                        company=company,
+                        quota=quota,
+                        context=context,
+                        now=now,
                     )
             payload = views.build([visitor])[0]
             self.db.commit()
@@ -661,44 +673,70 @@ class VisitorsService:
         visitor: Visitor,
         visits: Sequence[Visit],
         *,
+        old_email: str | None,
         company: Company,
         quota: QuotaUnit,
         context: RequestContext,
         now: datetime,
     ) -> tuple[DeliveryJob, ...]:
         """D-19: the passes of the visitor's SCHEDULED visits (`visits`, locked) may have reached the wrong
-        person, so they are revoked (VISITOR_EMAIL_CHANGED). With a new address each visit gets a new
-        pass and an invitation to it, all of them reserved in the editor's invitation budget first: 429
-        INVITATION_LIMIT while the budget has no room for them yet, 422 on `email` when they are more
-        than the budget can ever hold (SEC-44)."""
+        person, so they are revoked (VISITOR_EMAIL_CHANGED). A visit whose event the calendar of
+        `old_email` holds is taken out of that calendar, one version newer (B14-17), unless the new
+        address is the same mailbox (B14-30); a REQUEST still waiting to go there is closed first (B14-29).
+        With a new address each visit gets a new pass and an invitation to it, one version above the
+        withdrawal, all of them reserved in the editor's invitation budget first: 429 INVITATION_LIMIT
+        while the budget has no room for them yet, 422 on `email` when they are more than the budget can
+        ever hold (SEC-44). The withdrawals count against it after them, while it has room: refusing one
+        would keep the event at the old address, and the old address with it."""
         if not visits:
             return ()
         lifecycle = VisitLifecycle(self.db, self.env)
         reason = PassRevokeReason.VISITOR_EMAIL_CHANGED
-        if visitor.email is None:
-            for visit in visits:
+        withdrawn = lifecycle.holders(visits, old_email)
+        if old_email is not None:
+            # A REQUEST still waiting to go to the old address would put the visit back in that calendar
+            # after its withdrawal (B14-29).
+            EmailMessageRepository(self.db).close_pending_requests(
+                company.id, [visit.id for visit in visits], old_email, error=ADDRESS_CHANGED_ERROR, now=now
+            )
+        # Another spelling of the same mailbox (B14-21): its calendar keeps the visit, which the new
+        # address's invitation updates (B14-30).
+        same_mailbox = (
+            old_email is not None
+            and visitor.email is not None
+            and mailbox_key(old_email) == mailbox_key(visitor.email)
+        )
+        if visitor.email is not None:
+            try:
+                quota.invitations(auth.user_id, count=len(visits))
+            except InvitationBatchTooLarge as exc:
+                # More than the budget can ever hold: a 429 "try again later" would never succeed (SEC-44).
+                raise ValidationFailed({"email": too_many_reinvitations(exc.count, exc.limit)}) from None
+        jobs: list[DeliveryJob] = []
+        for visit in visits:
+            withdraw_from = old_email if visit.id in withdrawn and not same_mailbox else None
+            if withdraw_from is not None:
+                jobs.append(lifecycle.withdraw_visitor_event(visit, company=company, address=withdraw_from))
+                quota.withdrawal(auth.user_id, company.id)
+            if visitor.email is None:
                 lifecycle.passes.revoke_active(
                     visit, reason=reason, actor_id=auth.user_id, context=context, now=now
                 )
-            return ()
-        try:
-            quota.invitations(auth.user_id, count=len(visits))
-        except InvitationBatchTooLarge as exc:
-            # More than the budget can ever hold: a 429 "try again later" would never succeed (SEC-44).
-            raise ValidationFailed({"email": too_many_reinvitations(exc.count, exc.limit)}) from None
-        jobs: list[DeliveryJob] = []
-        for visit in visits:
+                continue
+            if withdraw_from is not None:
+                # The new address's event is one version above the withdrawal's, so that a calendar that
+                # receives both (one person's two addresses) keeps the visit, whatever their order (B14-30).
+                visit.calendar_sequence += 1
             issued = lifecycle.passes.replace(
                 visit, company=company, reason=reason, actor_id=auth.user_id, context=context, now=now
             )
-            jobs.append(
-                lifecycle.invite(
-                    visit,
-                    issued,
-                    company=company,
-                    recipient=visitor.email,
-                    actor_id=auth.user_id,
-                    context=context,
-                )
+            jobs += lifecycle.invite(
+                visit,
+                issued,
+                company=company,
+                recipient=visitor.email,
+                actor_id=auth.user_id,
+                context=context,
+                quota=quota,
             )
         return tuple(jobs)

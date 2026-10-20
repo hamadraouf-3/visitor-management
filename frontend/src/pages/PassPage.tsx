@@ -1,7 +1,7 @@
 import { Printer, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
-import { AppearanceSwitch } from '../appearance/AppearanceSwitch'
+import { AppearanceToggle } from '../appearance/AppearanceToggle'
 import { IdentityLockup } from '../components/app/IdentityLockup'
 import { LanguageSwitcher } from '../components/app/LanguageSwitcher'
 import { QrCode } from '../components/qr/QrCode'
@@ -28,7 +28,7 @@ import { passTokenFromHash } from '../scanner/parsePassToken'
  * bring are in the invitation e-mail that links here. In the visitor's language: the
  * device's (or the browser's) like the sign-in page, and the language switch at the top
  * inline-end corner (it works signed out, remembering the choice on the device), with the
- * device's appearance beside it (Phase 13). On paper the
+ * appearance toggle beside it (Phase 13). On paper the
  * card is black on white under the company's logo, so a printed pass still carries its identity.
  */
 export default function PassPage() {
@@ -42,7 +42,7 @@ export default function PassPage() {
     <div className="flex min-h-dvh flex-col items-center bg-canvas px-4 pt-4 pb-10 sm:px-6 print:bg-white print:p-0">
       {/* As the sign-in page's header: where the two switches do not fit one row, the language switch takes the next. */}
       <header className="flex w-full flex-wrap justify-end gap-2 print:hidden">
-        <AppearanceSwitch />
+        <AppearanceToggle />
         <LanguageSwitcher />
       </header>
       <main id="main-content" className="flex w-full max-w-[26rem] flex-col items-center gap-6 pt-4">

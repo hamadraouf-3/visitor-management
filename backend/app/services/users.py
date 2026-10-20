@@ -61,6 +61,7 @@ from app.services import audit
 from app.services.audit import AuditAction, AuditEntity
 from app.services.authorization import lock_company_for_change, require_still_authorized
 from app.services.departments import assignable_department
+from app.services.email_quota import EmailQuota, QuotaUnit
 from app.services.scoping import FieldErrors, require_found
 from app.services.visit_snapshots import VisitSnapshotRefresher
 
@@ -91,11 +92,19 @@ class HostedVisitCancellation:
 
 class HostedVisitCanceller(Protocol):
     """Cancels a host's SCHEDULED visits in the caller's transaction (reason "Host is no longer
-    available", visitors notified, audited) and returns the e-mail jobs to schedule after commit.
+    available", visitors and the host notified, audited) and returns the e-mail jobs to schedule after
+    commit; the e-mails count against `quota`, which the caller settles after its commit (B14-15).
     Implemented by `services.visit_hooks.HostedVisitCancellations`, which `create_app` wires."""
 
     def cancel_hosted_visits(
-        self, db: Session, *, host: User, actor: AuthContext, context: RequestContext, now: datetime
+        self,
+        db: Session,
+        *,
+        host: User,
+        actor: AuthContext,
+        context: RequestContext,
+        now: datetime,
+        quota: QuotaUnit,
     ) -> HostedVisitCancellation: ...
 
 
@@ -327,11 +336,12 @@ class UsersService:
             self._audit(auth, user, AuditAction.USER_REACTIVATED, context, {})
 
         cancellation: HostedVisitCancellation | None = None
-        if deactivated or (is_host(old_roles) and not is_host(new_roles)):
-            cancellation = self.hosted_visits.cancel_hosted_visits(
-                self.db, host=user, actor=auth, context=context, now=now
-            )
-        self.db.commit()
+        with EmailQuota(self.limiter, self.policies).unit() as quota:
+            if deactivated or (is_host(old_roles) and not is_host(new_roles)):
+                cancellation = self.hosted_visits.cancel_hosted_visits(
+                    self.db, host=user, actor=auth, context=context, now=now, quota=quota
+                )
+            self.db.commit()
         if cancellation is not None and cancellation.cancelled > 0:
             return UserUpdateResult(user, cancellation.cancelled, cancellation.delivery_jobs)
         return UserUpdateResult(user=user, cancelled_visits=None)

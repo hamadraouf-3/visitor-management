@@ -1,10 +1,11 @@
 /*
  * The colour scheme a page is drawn in, before anything is drawn (Phase 13).
  *
- * Each device chooses its appearance: Light, Dark or System (the default: the device's own colour
- * scheme), kept in `localStorage` under `vms.appearance` (src/appearance/appearance.ts, which takes
- * over once the app runs, by the same rule: appearance.test.ts runs this file against it). This
- * classic script runs in <head>, before the stylesheet, and puts that scheme on the root element
+ * Each device chooses its appearance with one toggle: until it is pressed, the device's own colour
+ * scheme (System); then Light or Dark, kept in `localStorage` under `vms.appearance` (a `system` an
+ * earlier build kept is no choice either). src/appearance/appearance.ts takes over once the app runs,
+ * by the same rule (appearance.test.ts runs this file against it). This classic script runs in
+ * <head>, before the stylesheet, and puts that scheme on the root element
  * (`data-scheme`: the stylesheet's one switch for every dark rule) and in the `color-scheme` meta
  * (the browser's own canvas until the stylesheet applies), so a dark page is dark from its first
  * frame. A file of its own, since the page's policy allows no inline script (`script-src 'self'`).

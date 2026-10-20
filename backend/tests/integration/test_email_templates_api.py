@@ -72,7 +72,16 @@ def test_the_list_names_every_editable_kind_with_its_fields_defaults_and_variabl
     response = admin.get(BASE)
     assert response.status_code == 200
     kinds = {item["kind"]: item for item in response.json()}
-    assert set(kinds) == {"VISITOR_INVITATION", "VISIT_RESCHEDULED", "VISIT_CANCELLED", "HOST_ARRIVAL"}
+    assert list(kinds) == [
+        "VISITOR_INVITATION",
+        "VISIT_RESCHEDULED",
+        "VISIT_CANCELLED",
+        "HOST_ARRIVAL",
+        # The host's e-mails of a scheduled visit (Phase 14, B14-2).
+        "HOST_VISIT_SCHEDULED",
+        "HOST_VISIT_RESCHEDULED",
+        "HOST_VISIT_CANCELLED",
+    ]
     invitation = kinds["VISITOR_INVITATION"]
     assert invitation["updated_at"] is None
     assert "visitor_name" in invitation["variables"]
@@ -93,6 +102,32 @@ def test_the_list_names_every_editable_kind_with_its_fields_defaults_and_variabl
         forbidden = {field["name"]: field["forbidden_variables"] for field in kind["fields"]}
         assert forbidden.pop("subject") == ["purpose"] and set(map(tuple, forbidden.values())) == {()}
     assert "button" not in {field["name"] for field in kinds["VISIT_RESCHEDULED"]["fields"]}
+    # The host's three: the host arrival's fields, the visit's own variables, the visitor named in the
+    # subject (B14-2).
+    for kind in ("HOST_VISIT_SCHEDULED", "HOST_VISIT_RESCHEDULED", "HOST_VISIT_CANCELLED"):
+        spec = kinds[kind]
+        assert spec["variables"] == [
+            "host_name",
+            "visitor_name",
+            "visitor_company",
+            "company",
+            "date",
+            "time",
+            "timezone",
+            "department",
+            "purpose",
+        ]
+        host_fields = {field["name"]: field for field in spec["fields"]}
+        assert list(host_fields) == ["subject", "heading", "greeting", "intro", "closing", "footer_note"]
+        assert host_fields["subject"]["required_variables"] == ["visitor_name"]
+        assert host_fields["greeting"]["default"] == {"ar": "مرحبًا {host_name}،", "en": "Hello {host_name},"}
+    defaults = {kind: {f["name"]: f["default"]["en"] for f in kinds[kind]["fields"]} for kind in kinds}
+    assert defaults["HOST_VISIT_SCHEDULED"]["subject"] == "New visit: {visitor_name} on {date}"
+    assert defaults["HOST_VISIT_SCHEDULED"]["intro"] == (
+        "You have a visit from {visitor_name} on {date}, {time} ({timezone})."
+    )
+    assert defaults["HOST_VISIT_RESCHEDULED"]["subject"] == "Visit rescheduled: {visitor_name} on {date}"
+    assert defaults["HOST_VISIT_CANCELLED"]["subject"] == "Visit cancelled: {visitor_name} on {date}"
 
 
 @pytest.mark.parametrize("kind", ["PASSWORD_RESET", "PASSWORD_CHANGED", "visitor_invitation", "NOPE"])
@@ -248,8 +283,12 @@ def test_a_sent_invitation_uses_the_company_s_texts_escaped(
         purpose="Budget <script>",
         send_invitation=True,
     )
-    [email] = email_provider.sent
+    email, calendar, _host_notice = email_provider.sent
     assert email.subject.startswith("Your pass for Alpha |")
+    # The calendar invitation that follows it takes the company's subject too (B14-10), and none of the
+    # invitation's body.
+    assert calendar.kind == "VISITOR_CALENDAR" and calendar.subject == email.subject
+    assert "Free parking at gate 2." not in calendar.html and "Eve &lt;img src=x&gt;" not in calendar.html
     assert "looks forward to meeting you about Budget &lt;script&gt;." in email.html
     assert "Free parking at gate 2." in email.html and "Free parking at gate 2." in email.text
     assert "<script>" not in email.html and "<img src=x>" not in email.html
@@ -282,7 +321,8 @@ def test_a_text_saved_before_a_rule_is_not_sent_or_previewed(
         purpose="P" * 500,
         send_invitation=True,
     )
-    [email] = email_provider.sent
+    email, calendar, _host_notice = email_provider.sent
+    assert calendar.subject == email.subject  # the stored subject is not used there either
     assert email.subject.startswith("Your visit to Alpha on ") and len(email.subject) < 200
     assert "A heading that passes" in email.html  # the text that passes is used
     assert "has invited you to visit Alpha." in email.text  # the product's intro
@@ -313,7 +353,8 @@ def test_each_company_s_texts_are_its_own(
         visitor={"full_name": "Bob", "email": "bob@example.com"},
         send_invitation=True,
     )
-    [email] = email_provider.sent
+    email, calendar, _host_notice = email_provider.sent
+    assert "Alpha's own heading" not in calendar.html and "Your visit to Bravo" in calendar.html
     assert "Alpha's own heading" not in email.html
     assert "Your visit to Bravo" in email.html
 
@@ -325,8 +366,8 @@ def test_a_host_arrival_uses_the_company_s_texts(
     visit = create_visit(admin, world.a.employee.id, clock.now() + timedelta(minutes=10))["visit"]
     reception = signed_in(make_client, world.a.receptionist)
     assert check_in(reception, visit["id"]).status_code == 200
-    [email] = [sent for sent in email_provider.sent if sent.to == world.a.employee.email]
-    assert email.subject == "Dana Guest is at the desk"
+    [email] = [sent for sent in email_provider.sent if sent.kind == "HOST_ARRIVAL"]
+    assert email.to == world.a.employee.email and email.subject == "Dana Guest is at the desk"
 
 
 # ---- preview -------------------------------------------------------------------------------------------
@@ -517,3 +558,59 @@ def test_tests_have_a_budget_per_administrator(
     assert (
         admin.post(f"{INVITATION}/test", json={"language": "ar", "en": {"intro": "{x}"}}).status_code == 422
     )
+
+
+# ---- the host's e-mails of a visit (Phase 14, B14-2, B14-14) -------------------------------------------
+
+HOST_KINDS = ("HOST_VISIT_SCHEDULED", "HOST_VISIT_RESCHEDULED", "HOST_VISIT_CANCELLED")
+
+
+@pytest.mark.parametrize("kind", HOST_KINDS)
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_host_s_e_mails_are_previewed_with_a_draft(admin: Api, kind: str, scheme: str) -> None:
+    draft = {"heading": "Draft heading for {host_name}", "intro": "{visitor_name} from {visitor_company}."}
+    response = admin.post(f"{BASE}/{kind}/preview", json={"language": "en", "en": draft, "scheme": scheme})
+    assert response.status_code == 200, response.text
+    preview = response.json()
+    assert preview["kind"] == kind and "Sara Ahmad" in preview["subject"]
+    assert "Draft heading for" in preview["html"] and "Example Trading" in preview["html"]
+    # The document endpoint shows the saved texts (the product's here).
+    document = admin.get(f"{BASE}/{kind}/preview", params={"language": "ar", "scheme": scheme})
+    assert document.status_code == 200 and document.headers["content-type"].startswith("text/html")
+
+
+def test_the_host_s_texts_are_used_in_real_e_mails(
+    admin: Api, make_client, world: World, clock: FakeClock, email_provider: MemoryProvider
+) -> None:
+    assert _patch(admin, "HOST_VISIT_SCHEDULED", en={"subject": "Guest: {visitor_name}"}).status_code == 200
+    assert (
+        _patch(admin, "HOST_VISIT_CANCELLED", en={"intro": "No visit from {visitor_name}."}).status_code
+        == 200
+    )
+    host = signed_in(make_client, world.a.employee)
+    visit = create_visit(host, world.a.employee.id, clock.now() + timedelta(hours=2))["visit"]
+    host.post(f"/visits/{visit['id']}/cancel", json={})
+    scheduled, cancelled = email_provider.sent
+    assert scheduled.kind == "HOST_VISIT_SCHEDULED" and scheduled.subject == "Guest: Dana Guest"
+    assert cancelled.kind == "HOST_VISIT_CANCELLED" and "No visit from" in cancelled.text
+    # Each carries its calendar event all the same.
+    assert scheduled.calendar is not None and cancelled.calendar is not None
+
+
+@pytest.mark.parametrize("kind", ["VISITOR_INVITATION", "VISIT_RESCHEDULED", "VISIT_CANCELLED", *HOST_KINDS])
+def test_a_test_e_mail_carries_no_calendar_event(
+    admin: Api, kind: str, email_provider: MemoryProvider
+) -> None:
+    """B14-14: the sample visit exists nowhere; an invitation would put it into the editor's calendar."""
+    assert admin.post(f"{BASE}/{kind}/test", json={"language": "en"}).status_code == 202
+    [email] = email_provider.sent
+    assert email.kind == kind and email.calendar is None
+    assert "attached for your calendar" not in email.html + email.text
+
+
+def test_the_calendar_invitation_has_no_texts_of_its_own(admin: Api) -> None:
+    """B14-10: it takes the invitation's words; it is not a kind of the editor."""
+    for path in (f"{BASE}/VISITOR_CALENDAR", f"{BASE}/VISITOR_CALENDAR/preview"):
+        response = admin.get(path, params={"language": "en"})
+        assert response.status_code == 404 and error_code(response) == "NOT_FOUND"
+    assert "VISITOR_CALENDAR" not in {item["kind"] for item in admin.get(BASE).json()}

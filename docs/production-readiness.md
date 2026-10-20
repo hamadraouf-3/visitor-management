@@ -72,6 +72,7 @@ hardware.
 | Automated tests | **Verified** | Phase 10 gate, re-run after the gap closure (2026-10-08): backend 2,974 passed (3 opt-in skips) in both test orders, lines 97.97 % and branches 93.56 % covered. Frontend 1,349 passed, lines 96.55 % covered. E2E 253 tests: 235 passed, 18 skipped by their project conditions, 0 failed, 0 flaky. Deploy unit tests 33 passed. | No CI pipeline in the repository yet |
 | Languages and brand (Phase 10) | **Verified** | Arabic (right to left) and English throughout: catalog, hard-coded-text and logical-property tests over all of `src/`; Arabic E2E specs (sign-in and shell, reflow at 360 and 320 px, the printed evacuation list); the Arabic acceptance run. No page, e-mail or subject names "Visitor Management" or the old demo company (that run, and `deploy/verify/test_brand_names.py`). The demo seed's address is Arabic (B10-23). | One wording observation kept (L-28) |
 | E-mail (Phase 10) | **Verified against a test server** | Bilingual e-mails with the logo inline, checked through the outbox in the E2E suite and the Arabic run. The SMTP provider is tested against a real SMTP server (aiosmtpd: STARTTLS, TLS, AUTH, the received QR decoded); production mode starts with `EMAIL_PROVIDER=smtp` and `SMTP_SECURITY=ssl`. The demo delivered through Gmail on port 465, checked by hand; Gmail accepted the current invitation (final templates, inline logo) on 2026-10-08. The worst e-mail the texts and values allow stays below 95 KiB with the heaviest logos, clear of Gmail's clipping at about 102 KB (held by a test, phase-13-backend.md B13-8). | Its rendering in the inbox not yet confirmed by the mailbox owner (L-4); no automated real delivery; not seen in real mail clients (L-24; since Phase 13 every e-mail also has a dark design, looked at in Chromium and WebKit only); Gmail's sending limit |
+| Calendar invitations (Phase 14) | **Verified against a test server and an independent parser** | The visitor's and the host's events (iTIP REQUEST, then REQUEST with a higher SEQUENCE, then CANCEL) travel as the tree Google Calendar sends and Outlook processes; tested through a real SMTP server, read back by `icalendar`, with no link or token in any event or in the e-mail that carries one ([phase-14-backend.md](decisions/phase-14-backend.md)). | Not seen in Gmail, Outlook or Apple Mail (L-29); with Resend the event is an attachment only; switched off on production (`CALENDAR_INVITATIONS_ENABLED=false`) until a dedicated sending mailbox with SPF, its own DKIM and DMARC (§15 E) |
 | Performance | **Targets met**, including the stress scenario with the shipped layout | On 60,000 visits, sequential runs: every endpoint met its p95 budget in all seven re-audit runs. Scan p95 ≤ 55 ms and QR check-in p95 ≤ 67 ms in the last three (target 300 ms). Stress B: one API process misses (check-in p95 up to 823 ms); two list processes held all four reception p95 under 300 ms in 24 of 24 runs. The reception page is interactive in 1.4 s median on a throttled tablet profile (target 3 s). | Laptop numbers on a shared host. The shipped layout was never run in containers or under the Compose CPU limits. |
 | Reliability | **Verified after fixes, re-audited twice** | Migrations round-trip with identical data. Backup and restore verified in five drills. When the database hangs, health answers 503 in about 2.1 s. E-mail failures never lose the visit, and lost deliveries become FAILED and visible. Every graceful stop with a stuck request or delivery ended within 26 s, inside the 45 s grace period. | Container shutdown and restart observed only outside containers (Windows, CTRL_BREAK) |
 | Logging and monitoring | **Ready to integrate** | JSON logs with no secrets, personal data or query strings. Tenant and user IDs on every authenticated access line. nginx logs which API process group answered (`api_pool`). Health answers within 3 s. A database outage logs one WARNING line a minute, no traceback. Alert list in §5. | No SIEM, alerting or metrics wired up; that is the operator's integration |
@@ -1250,10 +1251,11 @@ the walk-in reasons in the Arabic audit log, and a button over the start of a ge
   body, as in round 1.
 - The printed report shortens long department names with an ellipsis.
 - The dark colour scheme (Phase 10) was checked in the builders' screenshots; the E2E suite and the axe
-  runs use the light scheme. Since Phase 13 the scheme is each device's choice (Light, Dark, or System:
-  the device's own), and the E2E suite also runs axe on the main pages in Dark (sign-in, a company's
-  sign-in, the pass, the dashboards, visits, the administrator's pages, reports, the e-mail texts, the
-  platform owner's pages) and on the reception screen in Light, at the three viewports and at 320 px
+  runs use the light scheme. Since Phase 13 the scheme is each device's (its own until the appearance
+  toggle is pressed, then Light or Dark), and the E2E suite also runs axe on the main pages in Dark
+  (sign-in, a company's sign-in, the pass, the dashboards, visits, the administrator's pages, reports, the
+  e-mail texts, the platform owner's pages) and on the reception screen in Light, at the three viewports
+  and at 320 px
   (`e2e/quality/appearance.spec.ts`; [phase-13-frontend.md](decisions/phase-13-frontend.md)).
 
 **Not done:** a session with a real screen reader (NVDA, JAWS or VoiceOver); only the accessibility tree
@@ -1547,6 +1549,7 @@ account locked.
 | L-25 | **Native date inputs follow the browser's locale**, not the UI language: mm/dd/yyyy in headless Chromium regardless of the UI language (an `ar-JO` context showed «10/09/2026» in the Arabic edit-visit dialog too) | A date field can look unlike the app's own dates | The app reads every chosen date back in its own format; a date picker of its own would be a separate change |
 | L-26 | **`QR_BASE_URL` must be reachable from visitors' phones.** With the development default (`localhost`) the pass links and QR codes open nothing on a phone | Invitations whose pass does not open. The demo's own configuration still has `http://localhost:5173` (2026-10-08), so an invitation it delivers through Gmail opens nothing on the visitor's phone | The public `https://` origin in production; the API and `send-test-email` warn at startup about a local address. For the demo: the machine's LAN address (`npm run dev:https`, development.md §9 "Tablets on the LAN"), set by its operator in the root `.env` (hand-over, phase-10-backend.md B10-23) |
 | L-27 | **SMTP limits** (S10-9): no idempotency key, so a retry after a lost final reply can deliver a second, identical invitation; Gmail through App Passwords only (no OAuth2); the system's trusted certificates only (no setting for a private CA); one connection per message; Gmail's published limit of 500 messages a day for a personal account | A rare duplicate carries the same pass; Gmail suits a pilot | Resend or the organisation's mail server for production; a CA-bundle setting if a private CA is needed |
+| L-29 | **Calendar invitations seen in no real mail client** (Phase 14). The iTIP messages follow RFC 5545/5546/6047 and the structure Google Calendar sends and Microsoft's [MS-STANOICAL] describes, checked by parsing what a real SMTP server received and by an independent iCalendar parser; Google documents none of Gmail's iMIP handling. With **Resend** the event is an attachment only (its API has no alternative parts): Outlook does not process it as an invitation. Also unverified: whether Google Calendar honours `CLASS:PRIVATE` on the host's invited event (Outlook marks such an item private; B14-19), and how each client applies the withdrawal from an old address, a CANCEL that uninvites one attendee without `STATUS` (B14-17) | Gmail's card, Outlook's meeting bar and Apple Mail's invitation may differ from the specification's reading; Outlook users of a Resend deployment open the `.ics` themselves, and its entry does not move or go by itself | The real-client check of §15 E with the owner's consent ([phase-14-backend.md](decisions/phase-14-backend.md), open items 1 to 3, 8, 11, 12); production sends through SMTP |
 | L-28 | Wording (Arabic acceptance run). **Fixed:** the demo company's address is seeded in Arabic (B10-23; it was English in the Arabic part of the e-mails and in settings); a reception refusal shows its title alone («أُلغيت الزيارة بواسطة …» over «أُلغيت هذه الزيارة.» said one fact twice; F10-gap-5); under a minute reads «قبل أقل من دقيقة» and «منذ أقل من دقيقة في الداخل», not «قبل < 1 د» (F10-gap-6). **Kept, deliberate:** «تسجيل الدخول» and «تسجيل الخروج» name both the staff's sign-in and sign-out and a visitor's check-in and check-out (F10-rf-3: the standard Arabic terms; the staff's sign-out is only in the account menu, and every visitor action stands in the visitor's row, result or dialog) | Cosmetic | — |
 
 ---
@@ -1659,6 +1662,41 @@ and government deployments.
   - the pass-page fallback link;
   - the host-arrival e-mail;
   - the password-reset e-mail.
+- [ ] **B** **Calendar invitations** (Phase 14, L-29) in a Gmail or Workspace mailbox and an Outlook
+  mailbox (Microsoft 365 or outlook.com), each opened on the web and on a phone: the visitor's calendar
+  invitation (it follows the invitation) and the host's notice of a new visit show an invitation that is
+  added with one action; a new time moves the entry; a cancellation removes it (Outlook may keep
+  "Canceled: …" until it is removed). No link appears in the calendar entry. Also: the host's entry is
+  private in a calendar shared with a colleague (Outlook; Google's handling of `CLASS:PRIVATE` is
+  unverified), and a visitor's address changed in the app takes the entry out of the old address's
+  calendar. The procedure that sends one sample invitation, its new time and its cancellation without
+  the database is in the final report of the Phase 14 backend.
+- [ ] **B** **Release gate for calendar events (Phase 14, B14-24, B14-27): `CALENDAR_INVITATIONS_ENABLED`
+  stays `false` (as `deploy/env/backend.env.example` has it) until a dedicated sending mailbox, with SPF,
+  its own DKIM and DMARC.** Production is deployed with calendar e-mails off: the e-mails go as before,
+  and no calendar gets a new entry. Switch it on (`true`, then `docker compose up -d` to recreate the API
+  containers) only when all of the following hold; switching it off again later leaves no wrong entry
+  (the calendars that hold a visit still get its new time and its removal). Before calendar invitations
+  are sent from production:
+  - `EMAIL_FROM` is **a mailbox of the system's own that hosts nobody** (for example `visits@<domain>` in
+    the same Workspace, with its own App Password): not a person's mailbox, and no alias, `+tag` or other
+    address of one. It organizes every calendar event; a host whose address it is gets the host's e-mails
+    without the event (no calendar adds an invitation to its own organizer; the system recognises the
+    address in any spelling, but not an alias of another account), and Gmail sends recipients' answers
+    (Yes / No / Maybe) to it. On the current production `EMAIL_FROM` is a person's mailbox
+    (`hamad.raouf@salma.ai`), which fails this gate.
+  - The Google Workspace domain **signs with its own DKIM key** (Admin console → Apps → Google Workspace
+    → Gmail → Authenticate email; the `google._domainkey` TXT record published and authentication
+    started), not only Google's default signature, so that `From`, the envelope sender and the
+    `ORGANIZER` of every event are one address of a domain that authenticates itself: Outlook shows a
+    sender that differs from the organizer as "on behalf of", and clients may refuse an invitation whose
+    sender they cannot tie to its organizer ([phase-14-backend.md](decisions/phase-14-backend.md) B14-5).
+  - The sending domain publishes **SPF** (Google's `include:_spf.google.com` for Workspace) and a
+    **DMARC** record (`_dmarc.<domain>`; `p=none` with reports while it is new, then `quarantine`), so
+    that receivers can authenticate the mailbox the invitations come from. Today salma.ai has neither
+    SPF, nor its own DKIM, nor DMARC.
+  - `CALENDAR_EMAIL_COMPANY_DAILY_LIMIT` times the number of companies, with the invitations and the
+    other e-mails, stays below the mailbox's daily cap (Google Workspace: 2,000 messages a day).
 
 ### F. Monitoring and logging
 

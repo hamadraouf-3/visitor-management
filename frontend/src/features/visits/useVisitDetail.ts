@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { queryKeys } from '../../api/queryKeys'
 import { getVisit } from '../../api/visits'
@@ -21,6 +21,27 @@ function emailBeingSent(visit: Visit | undefined): boolean {
  */
 export function emailPollDelay(visit: Visit | undefined, windowOpen: boolean): number | false {
   return windowOpen && emailBeingSent(visit) ? INVITATION_POLL_INTERVAL_MS : false
+}
+
+/**
+ * The visit as it is now, for something a person asked to make from it (Phase 14: the host's calendar
+ * event, F14-15): fetched whatever the cache holds, which it then updates, so the page shows it too.
+ *
+ * - A request of the page already on its way may have left before the change this one is for: it is
+ *   cancelled, and a new one asked (F14-28).
+ * - Offline it fails at once, not paused until the connection is back (`networkMode: 'always'`, no
+ *   retry): the person who asked gets the error now, and nothing opens later on its own.
+ */
+export async function fetchVisitNow(queryClient: QueryClient, visitId: string): Promise<Visit> {
+  const queryKey = queryKeys.visits.detail(visitId)
+  await queryClient.cancelQueries({ queryKey, exact: true })
+  return queryClient.fetchQuery({
+    queryKey,
+    queryFn: ({ signal }) => getVisit(visitId, { signal }),
+    staleTime: 0,
+    networkMode: 'always',
+    retry: false,
+  })
 }
 
 /**

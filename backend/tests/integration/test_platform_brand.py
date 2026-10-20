@@ -911,6 +911,8 @@ def test_a_company_renamed_to_read_as_an_address_sends_under_a_name_that_does_no
     assert renamed.status_code == 200, renamed.text
     assert renamed.json()["name"] == typed
     create_visit(admin, world.a.admin.id, TEST_START + timedelta(hours=2), send_invitation=True)
-    invitation = email_provider.sent[-1]
+    [invitation] = [sent for sent in email_provider.sent if sent.kind == "VISITOR_INVITATION"]
     assert invitation.sender == f'"{sender_name}" <no-reply@localhost>'
+    # Every e-mail of the company is sent under the same name, its calendar events organized by it (B14-5).
+    assert {sent.sender for sent in email_provider.sent} == {invitation.sender}
     assert typed in invitation.subject

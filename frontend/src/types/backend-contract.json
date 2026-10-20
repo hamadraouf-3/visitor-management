@@ -1094,12 +1094,15 @@
       "type": "object"
     },
     "EditableEmailKind": {
-      "description": "The e-mails whose texts a company may change (B11-20); the security e-mails may not (B11-21).",
+      "description": "The e-mails whose texts a company may change (B11-20; the host's three of a scheduled visit since\nPhase 14, B14-2); the security e-mails may not (B11-21).",
       "enum": [
         "VISITOR_INVITATION",
         "VISIT_RESCHEDULED",
         "VISIT_CANCELLED",
-        "HOST_ARRIVAL"
+        "HOST_ARRIVAL",
+        "HOST_VISIT_SCHEDULED",
+        "HOST_VISIT_RESCHEDULED",
+        "HOST_VISIT_CANCELLED"
       ],
       "title": "EditableEmailKind",
       "type": "string"
@@ -1724,6 +1727,10 @@
     "InsideVisit": {
       "description": "`Visit` on the evacuation list (B57-72); only `visitor` differs.",
       "properties": {
+        "calendar_sequence": {
+          "title": "Calendar Sequence",
+          "type": "integer"
+        },
         "cancellation_reason": {
           "anyOf": [
             {
@@ -1940,6 +1947,10 @@
         "visitor": {
           "$ref": "#/$defs/InsideVisitor"
         },
+        "visitor_calendar_sent": {
+          "title": "Visitor Calendar Sent",
+          "type": "boolean"
+        },
         "walk_in_reason": {
           "anyOf": [
             {
@@ -1991,6 +2002,8 @@
         "created_by",
         "created_at",
         "updated_at",
+        "calendar_sequence",
+        "visitor_calendar_sent",
         "invitation",
         "last_notice",
         "pass",
@@ -2141,6 +2154,28 @@
     },
     "MeCompany": {
       "properties": {
+        "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Address"
+        },
+        "address_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Address Ar"
+        },
         "brand": {
           "$ref": "#/$defs/CompanyBrand"
         },
@@ -2181,6 +2216,8 @@
         "name",
         "name_ar",
         "slug",
+        "address",
+        "address_ar",
         "timezone",
         "default_language",
         "brand"
@@ -3953,6 +3990,10 @@
     },
     "Visit": {
       "properties": {
+        "calendar_sequence": {
+          "title": "Calendar Sequence",
+          "type": "integer"
+        },
         "cancellation_reason": {
           "anyOf": [
             {
@@ -4169,6 +4210,10 @@
         "visitor": {
           "$ref": "#/$defs/VisitVisitor"
         },
+        "visitor_calendar_sent": {
+          "title": "Visitor Calendar Sent",
+          "type": "boolean"
+        },
         "walk_in_reason": {
           "anyOf": [
             {
@@ -4220,6 +4265,8 @@
         "created_by",
         "created_at",
         "updated_at",
+        "calendar_sequence",
+        "visitor_calendar_sent",
         "invitation",
         "last_notice",
         "pass",
@@ -4383,11 +4430,15 @@
       "type": "object"
     },
     "VisitInvitation": {
-      "description": "Latest VISITOR_INVITATION e-mail of the visit.",
+      "description": "Latest VISITOR_INVITATION e-mail of the visit, or the failure of the calendar invitation that\nfollowed it (Phase 14, B14-18).",
       "properties": {
         "attempts": {
           "title": "Attempts",
           "type": "integer"
+        },
+        "calendar_failed": {
+          "title": "Calendar Failed",
+          "type": "boolean"
         },
         "error": {
           "anyOf": [
@@ -4450,7 +4501,8 @@
         "attempts",
         "last_attempt_at",
         "sent_at",
-        "error"
+        "error",
+        "calendar_failed"
       ],
       "title": "VisitInvitation",
       "type": "object"
@@ -4747,6 +4799,35 @@
         "can_check_out"
       ],
       "title": "VisitPermissions",
+      "type": "object"
+    },
+    "VisitResendResult": {
+      "description": "POST /visits/{id}/invitation: the visit, and the new pass's one-time URL; null when only the\ncalendar invitation was sent again (it alone had failed, `VisitInvitation.calendar_failed`, B14-31),\nand the pass the visitor has stays valid.",
+      "properties": {
+        "pass_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pass Url"
+        },
+        "visit": {
+          "$ref": "#/$defs/Visit"
+        },
+        "visitor_match": {
+          "$ref": "#/$defs/VisitorMatch"
+        }
+      },
+      "required": [
+        "visit",
+        "pass_url",
+        "visitor_match"
+      ],
+      "title": "VisitResendResult",
       "type": "object"
     },
     "VisitStatus": {
@@ -5828,6 +5909,9 @@
     },
     "VisitPassResult": {
       "$ref": "#/$defs/VisitPassResult"
+    },
+    "VisitResendResult": {
+      "$ref": "#/$defs/VisitResendResult"
     },
     "Visitor": {
       "$ref": "#/$defs/Visitor"

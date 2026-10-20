@@ -17,6 +17,24 @@ class InlineImage:
     mime_type: str = "image/png"
 
 
+# The file name of the calendar event a message carries (as Google Calendar names its own), and the
+# iTIP methods a message may carry (Phase 14, B14-7).
+CALENDAR_FILE = "invite.ics"
+CALENDAR_METHODS = frozenset({"REQUEST", "CANCEL"})
+
+
+@dataclass(frozen=True, slots=True)
+class CalendarPart:
+    """A visit as a calendar event that travels with the message (Phase 14, B14-1): an iCalendar object
+    (`app.email.calendar.write_calendar`) and its iTIP method, which the providers put where mail clients
+    look for an invitation (B14-7). It never holds a pass link or a token (B14-4)."""
+
+    method: str  # REQUEST or CANCEL
+    uid: str
+    sequence: int
+    content: bytes = field(repr=False)  # UTF-8, CRLF line ends, folded
+
+
 @dataclass(frozen=True, slots=True)
 class OutgoingEmail:
     """A fully rendered message. Never persisted: bodies and links may contain raw tokens."""
@@ -30,6 +48,7 @@ class OutgoingEmail:
     sender: str = ""
     reply_to: str | None = None
     inline_images: tuple[InlineImage, ...] = ()
+    calendar: CalendarPart | None = None
     # Development/E2E convenience for the outbox provider (contract §9); contain raw tokens.
     pass_url: str | None = field(default=None, repr=False)
     reset_url: str | None = field(default=None, repr=False)

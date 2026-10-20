@@ -16,7 +16,7 @@ from tests.integration.test_migrations import _downgrade_racing
 from tests.png_support import SAMPLE_ICON, SAMPLE_LOGO
 from tests.support import ThrowawayDatabase, World, alembic_config
 
-HEAD = "0015"
+HEAD = "0017"
 COMPANY_ID = "00000000-0000-0000-0000-000000000001"
 NEW_COMPANY = "INSERT INTO companies (id, name, slug, timezone) VALUES (:id, :name, :slug, 'UTC')"
 NEW_IMAGE = (

@@ -377,7 +377,9 @@ class RecordingCanceller:
         self.cancelled = cancelled
         self.calls: list[tuple[str, str]] = []
 
-    def cancel_hosted_visits(self, db, *, host, actor, context, now: datetime) -> HostedVisitCancellation:
+    def cancel_hosted_visits(
+        self, db, *, host, actor, context, now: datetime, quota
+    ) -> HostedVisitCancellation:
         self.calls.append((str(host.id), str(actor.user_id)))
         return HostedVisitCancellation(cancelled=self.cancelled)
 

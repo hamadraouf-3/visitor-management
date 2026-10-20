@@ -175,7 +175,15 @@ def _queue(service: EmailService, kind: str, company: Company, visit: Visit):
             return service.queue_visit_cancelled(
                 visit, "Change of plans", company=company, recipient="dana@example.com", host_email=None
             ).email
+        case "VISITOR_CALENDAR":
+            return service.queue_visitor_calendar(
+                visit, company=company, recipient="dana@example.com", host_email=None
+            ).email
     host = _user(company, "Omar Khalil", "omar@acme.example", "en")
+    if kind.startswith("HOST_VISIT_"):
+        return service.queue_host_visit(
+            visit, kind=EmailKind(kind), company=company, host=host, reason="Change of plans"
+        ).email
     return service.queue_host_arrival(visit, company=company, host=host).email
 
 
@@ -680,7 +688,7 @@ HEAVIEST_HEADERS = {"wordmark and dark mark": ("navy", "mark"), "emblem and dark
 
 @pytest.mark.parametrize("header", HEAVIEST_HEADERS)
 @pytest.mark.parametrize("lead", [AR, EN])
-@pytest.mark.parametrize("kind", EDITABLE_EMAIL_KINDS, ids=str)
+@pytest.mark.parametrize("kind", [*EDITABLE_EMAIL_KINDS, EmailKind.VISITOR_CALENDAR], ids=str)
 def test_the_largest_e_mail_a_company_s_texts_can_make(kind: EmailKind, lead: Language, header: str) -> None:
     """The reviewer measured 329 KiB of HTML and 285 KiB of text from one field. With every field of a
     kind at its worst (the longest texts that can be saved, every value at the longest the API stores,
@@ -689,7 +697,9 @@ def test_the_largest_e_mail_a_company_s_texts_can_make(kind: EmailKind, lead: La
 
     Since Phase 13 (B13-8) with the header at its heaviest too (`HEAVIEST_HEADERS`) and both designs'
     style sheets, below 95 KiB. Measured without logos this guard missed that the worst invitation had
-    reached 101,655 bytes, a few hundred under Gmail's clip."""
+    reached 101,655 bytes, a few hundred under Gmail's clip. Since Phase 14 the host's e-mails of a visit
+    and the visitor's calendar invitation too (which takes the invitation's texts, B14-10); Gmail counts
+    the HTML part, not the calendar parts beside it (B14-8)."""
     worst = "&"  # five characters in HTML
     company = _company(name=worst * 200, name_ar=worst * 200, address=None, default_language=lead)
     visit = _visit(
@@ -703,8 +713,9 @@ def test_the_largest_e_mail_a_company_s_texts_can_make(kind: EmailKind, lead: La
     )
     light, dark = (drawn_logo(name) for name in HEAVIEST_HEADERS[header])
     logos = CompanyLogos(light, *png_size(light), dark=dark)
+    texts_of = EmailKind.VISITOR_INVITATION if kind == EmailKind.VISITOR_CALENDAR else kind
     email = _queue(
-        _service({kind.value: _largest_texts(kind)}, brand_images=logos), kind.value, company, visit
+        _service({texts_of.value: _largest_texts(texts_of)}, brand_images=logos), kind.value, company, visit
     )
     plain = _queue(_service(brand_images=logos), kind.value, company, visit)
     top = email.html[email.html.index('class="vbr"') : email.html.index("<h1")]
@@ -714,7 +725,7 @@ def test_the_largest_e_mail_a_company_s_texts_can_make(kind: EmailKind, lead: La
     # What the texts add to the product's own e-mail with the same values: the rendered limit of every
     # field, in both languages, at the worst escaping, and nothing that a value's length can move.
     rendered = sum(
-        RENDERED_FACTOR * field.max_length for field in EDITABLE[kind].fields if field.name != "subject"
+        RENDERED_FACTOR * field.max_length for field in EDITABLE[texts_of].fields if field.name != "subject"
     )
     assert text_size - len(plain.text.encode("utf-8")) <= 2 * rendered
     assert html_size - len(plain.html.encode("utf-8")) <= 2 * rendered * len("&amp;") * 2  # the button twice

@@ -134,6 +134,19 @@ _ARRIVAL_VARIABLES = (
     "timezone",
     "purpose",
 )
+# The host's e-mails of a scheduled visit (Phase 14, B14-2): who visits, from where, when, and what for.
+# `time` is the visit's time range, as in the visitor's e-mails.
+_HOST_VISIT_VARIABLES = (
+    "host_name",
+    "visitor_name",
+    "visitor_company",
+    "company",
+    "date",
+    "time",
+    "timezone",
+    "department",
+    "purpose",
+)
 
 
 def _common_fields(*, greeting_name: str) -> tuple[EditableField, ...]:
@@ -200,6 +213,39 @@ def _host_arrival() -> EditableKind:
     )
 
 
+def _host_visit_kind(kind: EmailKind, prefix: str) -> EditableKind:
+    """The host's notice of a new visit, of its new time or of its cancellation (B14-2): the host's
+    arrival notice's fields, with the visit's own variables."""
+    greeting, closing, footer_note = _common_fields(greeting_name="host_name")
+    return EditableKind(
+        kind,
+        _HOST_VISIT_VARIABLES,
+        (
+            # The host must be able to tell from the subject whose visit it is (B11-25).
+            EditableField(
+                TemplateField.SUBJECT,
+                f"{prefix}.subject",
+                False,
+                SUBJECT_MAX,
+                {"visitor": "visitor_name", "date": "date"},
+                required=("visitor_name",),
+                forbidden=NOT_IN_SUBJECTS,
+            ),
+            EditableField(TemplateField.HEADING, f"{prefix}.heading", False, LINE_MAX),
+            greeting,
+            EditableField(
+                TemplateField.INTRO,
+                f"{prefix}.intro",
+                True,
+                PARAGRAPH_MAX,
+                {"visitor": "visitor_name", "zone": "timezone"},
+            ),
+            closing,
+            footer_note,
+        ),
+    )
+
+
 EDITABLE: dict[EmailKind, EditableKind] = {
     EmailKind.VISITOR_INVITATION: _visitor_kind(
         EmailKind.VISITOR_INVITATION, "invitation", "invitation.invited", button="invitation.open_pass"
@@ -211,6 +257,9 @@ EDITABLE: dict[EmailKind, EditableKind] = {
         EmailKind.VISIT_CANCELLED, "cancelled", "cancelled.intro", button=None
     ),
     EmailKind.HOST_ARRIVAL: _host_arrival(),
+    EmailKind.HOST_VISIT_SCHEDULED: _host_visit_kind(EmailKind.HOST_VISIT_SCHEDULED, "host_scheduled"),
+    EmailKind.HOST_VISIT_RESCHEDULED: _host_visit_kind(EmailKind.HOST_VISIT_RESCHEDULED, "host_rescheduled"),
+    EmailKind.HOST_VISIT_CANCELLED: _host_visit_kind(EmailKind.HOST_VISIT_CANCELLED, "host_cancelled"),
 }
 assert tuple(EDITABLE) == EDITABLE_EMAIL_KINDS  # noqa: S101 - one list of editable kinds
 

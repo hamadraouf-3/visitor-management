@@ -75,7 +75,7 @@ visitor-management/
 ├── frontend/                        React 19 + TypeScript SPA (Vite 8)
 │   ├── src/
 │   │   ├── api/                     client.ts (fetch, CSRF header, error envelope), one module per resource, queryKeys, queryClient
-│   │   ├── appearance/              the device's appearance (Light, Dark, System), its colour scheme on the document, the switch
+│   │   ├── appearance/              the device's appearance (its own, or Light or Dark), its colour scheme on the document, the toggle
 │   │   ├── auth/                    AuthProvider, guards (RequireAuth, RequireRole), roles.ts (SECTION_ACCESS, landing pages)
 │   │   ├── components/              ui/ (design system), qr/, print/, app/ (logo lockup, language switch, error boundaries, status screens)
 │   │   ├── i18n/                    i18next instance, catalogs locales/{ar,en}/<namespace>.json, language rules, catalog and source tests
@@ -270,17 +270,18 @@ Components use the semantic names only (`bg-surface`, `text-fg-muted`, `bg-accen
 is dark from edge to edge declares `handle: DARK_SURFACE_HANDLE` (`layouts/shellSurface.ts`); it is
 drawn light on a device that chose Light.
 
-**The dark colour scheme is the device's appearance** (Phase 13): Light, Dark or System (the device's own
-`prefers-color-scheme`). It is `data-scheme="light|dark"` on the root element, put there before the first
-paint by `public/appearance.js` and kept by `src/appearance/appearance.ts`. Everything that means dark
+**The dark colour scheme is the device's appearance** (Phase 13): the device's own `prefers-color-scheme`
+until the appearance toggle is pressed, then Light or Dark (F13-25). It is `data-scheme="light|dark"` on
+the root element, put there before the first paint by `public/appearance.js` and kept by
+`src/appearance/appearance.ts`. Everything that means dark
 goes through one switch: the `scheme-dark` variant of `index.css` (`@variant scheme-dark { … }` in CSS,
 `scheme-dark:` on a class), and `useColorScheme()` in script. Never write `@media (prefers-color-scheme)`
 or Tailwind's own `dark:`, which follow the device and not the choice; `appearance/appearance.test.ts`
 fails on either.
 
-**A choice shown by its fill alone** (the appearance's segments, a menu's choice tiles) also takes
-`FORCED_COLORS_CHOSEN` (`components/ui/buttonStyles.ts`): a forced-colours mode (Windows' contrast themes)
-draws every fill as the system's `Canvas`, and the chosen one would look like the others (Phase 13, F13-18).
+**Never show a state by its fill alone**: a forced-colours mode (Windows' contrast themes) draws every fill
+as the system's `Canvas`. The appearance toggle shows its state by its symbol (the moon or the sun, F13-25),
+the language switch by its letters, the kit's segmented `RadioGroup` by a check mark.
 
 **Contrast notes** (WCAG 2.x, written beside each token):
 
@@ -423,11 +424,11 @@ Start from the contract. A new endpoint, field or table is a contract change: up
 
    ```powershell
    cd backend
-   .\.venv\Scripts\python.exe -m alembic revision -m "short description" --rev-id 0016
+   .\.venv\Scripts\python.exe -m alembic revision -m "short description" --rev-id 0018
    ```
 
-   (The next free number is `0016`: revision `0013` is Phase 11's, `0014` its security review's and `0015`
-   Phase 12's, a company's brand.) This writes
+   (The next free number is `0018`: revision `0015` is Phase 12's, a company's brand, and `0016` and
+   `0017` Phase 14's, the calendars.) This writes
    `alembic/versions/<yyyymmdd>_<rev-id>_short_description.py` with `down_revision` set to the current head.
    Keep the four-digit numbering of the existing files, and run `ruff format` on the new file.
    `--autogenerate` (it needs `MIGRATION_DATABASE_URL`) can draft the operations. Review what it

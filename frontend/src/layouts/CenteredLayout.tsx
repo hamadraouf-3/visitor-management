@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { AppearanceSwitch } from '../appearance/AppearanceSwitch'
+import { AppearanceToggle } from '../appearance/AppearanceToggle'
 import { IdentityLockup, NeutralMark } from '../components/app/IdentityLockup'
 import { LanguageSwitcher } from '../components/app/LanguageSwitcher'
 import { useIdentity } from '../identity/useIdentity'
@@ -21,10 +21,9 @@ interface CenteredLayoutProps {
 /**
  * Public pages (sign-in, password reset, errors): the page's identity above a card-width column on
  * the canvas, and the language switch pinned to the window's top inline-end corner (top right in
- * English, top left in Arabic), within the page gutter at every width, with the device's appearance
- * (Light, Dark, System: Phase 13) beside it. Where the two do not fit one row (a narrow screen, a
- * larger text size, wider text spacing) the language switch moves to a row of its own: never under
- * the appearance's segments.
+ * English, top left in Arabic), within the page gutter at every width, with the appearance toggle
+ * (Phase 13) beside it, on its inline-start side. Where the two would not fit one row (a larger text
+ * size on a narrow screen) the language switch moves to a row of its own: never under the toggle.
  *
  * The identity (Phase 12) is the company's logo or wordmark on its own pages, the product's lockup
  * in the platform owner's area, and on a neutral page no logo and no name: only `neutralIcon`'s
@@ -37,14 +36,14 @@ export function CenteredLayout({ children, eyebrow, languageSwitch, neutralIcon 
   return (
     <div className="flex min-h-dvh flex-col items-center bg-canvas px-4 pt-4 pb-10 sm:px-6 sm:pt-5 sm:pb-16">
       <header data-public-header="" className="flex w-full flex-wrap justify-end gap-2">
-        <AppearanceSwitch />
+        <AppearanceToggle />
         {languageSwitch ?? <LanguageSwitcher />}
       </header>
       <div className="flex w-full flex-1 flex-col items-center pt-6 sm:justify-center sm:pt-0">
         <main id="main-content" className="w-full max-w-md">
           {hasHead && (
             <div data-page-identity="" className="mb-8 flex flex-col items-center gap-3 text-center">
-              {/* As tall as a logo on its plate (3.5rem of picture, 1.5rem of padding, its edge): the card below does not move when the logo arrives. */}
+              {/* As tall as a logo in its room (3.5rem of picture, 1.5rem of padding, its edge): the card below does not move when the logo arrives. */}
               <div className="flex min-h-[5.125rem] items-center justify-center">
                 <IdentityLockup surface="page" size="lg" neutral={neutralIcon ? <NeutralMark icon={neutralIcon} /> : null} />
               </div>

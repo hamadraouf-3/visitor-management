@@ -184,7 +184,9 @@ def test_the_tag_ends_with_the_temporary_password(
     assert tag is not None and len(tag) == 64 and tag == temporary_password_tag(admin.id, temporary)
     assert temporary[:TAGGED_LENGTH] not in tag and temporary not in admin.password_hash
     assert holds_temporary_password(admin, temporary, now=clock.now())
-    assert not holds_temporary_password(admin, "x" + temporary[1:], now=clock.now())
+    # Another first character (a generated password may itself start with "x").
+    other_first = "y" if temporary.startswith("x") else "x"
+    assert not holds_temporary_password(admin, other_first + temporary[1:], now=clock.now())
     assert not holds_temporary_password(admin, temporary[: TAGGED_LENGTH - 1], now=clock.now())
     # Another account's tag of the same characters is another tag.
     other = PlatformAdmin(email="other@platform.example", full_name="Other", password_hash="x")

@@ -9,6 +9,17 @@ https://resend.com/docs/dashboard/emails/embed-inline-images on 2026-10-05):
   from the HTML as `<img src="cid:<content_id>">` (content IDs under 128 characters).
 * `Idempotency-Key` (≤ 256 characters, kept for 24 hours) is the e-mail row's ID, so a retry after a
   timeout whose request did reach Resend cannot send the message twice.
+* A visit's calendar event (Phase 14, B14-7, checked against the same page on 2026-10-19) can only be an
+  attachment: the API takes `html`, `text` and `attachments` and has no way to add a `text/calendar`
+  alternative. It is sent as `invite.ics` with `content_type` `text/calendar` (B14-22). The page calls the
+  field the attachment's "Content type", "derived from the filename property" when it is not set, and
+  says nothing of parameters; its list of refused attachments
+  (https://resend.com/docs/knowledge-base/what-attachment-types-are-not-supported) names extensions only,
+  and not `.ics`. A plain media type is what the page's words cover, so a parameter (`method=…`,
+  `charset=…`) cannot get the notice refused; the object names its method itself (`METHOD:` inside it),
+  where Gmail and Apple Mail read it. Outlook does not import an attachment as an invitation
+  ([MS-STANOICAL]): its users get the file to open, and a new time or a cancellation is not applied to
+  their calendar by itself. The SMTP provider has no such limit; production sends through it.
 
 Errors: 429 (rate limit or quota), 5xx, timeouts and connection failures are transient; so is 409
 `concurrent_idempotent_requests` (the same key is still in flight). Other 4xx are permanent. Error
@@ -23,9 +34,17 @@ from typing import Any
 import httpx
 from pydantic import SecretStr
 
-from app.email.providers.base import EmailDeliveryError, OutgoingEmail, ProviderResult
+from app.email.providers.base import (
+    CALENDAR_FILE,
+    CALENDAR_METHODS,
+    EmailDeliveryError,
+    OutgoingEmail,
+    ProviderResult,
+)
 
 RESEND_EMAILS_URL = "https://api.resend.com/emails"
+# The media type of the calendar event's attachment, without parameters (B14-22).
+CALENDAR_CONTENT_TYPE = "text/calendar"
 # Per attempt: at most 5 s to connect and 10 s for each read or write, and never beyond the time the
 # dispatcher has left for the message (`timeout_seconds`): a provider that stops answering ends a
 # message after about 20 s (two attempts) instead of 49 s.
@@ -66,16 +85,28 @@ class ResendProvider:
         }
         if email.reply_to:
             body["reply_to"] = email.reply_to
-        if email.inline_images:
-            body["attachments"] = [
+        attachments: list[dict[str, str]] = [
+            {
+                "filename": image.filename,
+                "content": base64.b64encode(image.content).decode("ascii"),
+                "content_type": image.mime_type,
+                "content_id": image.content_id,
+            }
+            for image in email.inline_images
+        ]
+        calendar = email.calendar
+        if calendar is not None:
+            if calendar.method not in CALENDAR_METHODS:
+                raise EmailDeliveryError("The calendar event has an unknown method.", transient=False)
+            attachments.append(
                 {
-                    "filename": image.filename,
-                    "content": base64.b64encode(image.content).decode("ascii"),
-                    "content_type": image.mime_type,
-                    "content_id": image.content_id,
+                    "filename": CALENDAR_FILE,
+                    "content": base64.b64encode(calendar.content).decode("ascii"),
+                    "content_type": CALENDAR_CONTENT_TYPE,
                 }
-                for image in email.inline_images
-            ]
+            )
+        if attachments:
+            body["attachments"] = attachments
         return body
 
     def _headers(self, email: OutgoingEmail) -> dict[str, str]:

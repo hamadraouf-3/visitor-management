@@ -4,17 +4,27 @@ import { OUTBOX_DIR } from './paths.ts'
 import { sleep } from './processes.ts'
 
 /*
- * The outbox e-mail provider (contract §9) writes `<id>.json` last, after `<id>.html`, `<id>.txt` and
- * the inline images `<id>-<cid>.png`, so a message whose JSON exists is complete. Delivery runs after
- * the API response (a background task), so readers poll.
+ * The outbox e-mail provider (contract §9) writes `<id>.json` last, after `<id>.html`, `<id>.txt`,
+ * the inline images `<id>-<cid>.png` and, for a message that carries a calendar event (Phase 14),
+ * `<id>.ics`, so a message whose JSON exists is complete. Delivery runs after the API response (a
+ * background task), so readers poll.
  */
 
-/** `PLATFORM_ACTION_NOTICE`: to a company's other active administrators when the platform owner adds an administrator or sends a reset link (B11-43). */
+/**
+ * `PLATFORM_ACTION_NOTICE`: to a company's other active administrators when the platform owner adds an administrator or sends a reset link (B11-43).
+ * `VISITOR_CALENDAR` (Phase 14): the short e-mail that follows every invitation sent to a visitor and carries the visitor's calendar event (the
+ * invitation itself carries none: a calendar copies an invitation's body, pass link and QR code included), a `REQUEST`; or, to an address the
+ * visitor no longer has, the event's withdrawal, a `CANCEL` (B14-17): read `calendar.method`. The `HOST_VISIT_*` kinds carry the host's.
+ */
 export type EmailKind =
   | 'VISITOR_INVITATION'
+  | 'VISITOR_CALENDAR'
   | 'VISIT_RESCHEDULED'
   | 'VISIT_CANCELLED'
   | 'HOST_ARRIVAL'
+  | 'HOST_VISIT_SCHEDULED'
+  | 'HOST_VISIT_RESCHEDULED'
+  | 'HOST_VISIT_CANCELLED'
   | 'PASSWORD_RESET'
   | 'PASSWORD_CHANGED'
   | 'PLATFORM_ACTION_NOTICE'
@@ -27,8 +37,16 @@ export interface OutboxMessage {
   created_at: string
   pass_url: string | null
   reset_url: string | null
+  /** The calendar event the message carries (Phase 14): its iTIP method, UID and SEQUENCE; null for none. */
+  calendar: OutboxCalendar | null
   html: string
   text: string
+}
+
+export interface OutboxCalendar {
+  method: 'REQUEST' | 'CANCEL'
+  uid: string
+  sequence: number
 }
 
 export function readOutbox(): OutboxMessage[] {
@@ -57,6 +75,17 @@ function matches(query: MessageQuery) {
 
 export function findMessages(query: MessageQuery): OutboxMessage[] {
   return readOutbox().filter(matches(query))
+}
+
+/** The iCalendar object a message carries (`<id>.ics`), its octets as written; null when it carries none. */
+export function calendarBytes(message: OutboxMessage): Buffer | null {
+  const file = path.join(OUTBOX_DIR, `${message.message_id}.ics`)
+  return existsSync(file) ? readFileSync(file) : null
+}
+
+/** The same object as text. */
+export function calendarFile(message: OutboxMessage): string | null {
+  return calendarBytes(message)?.toString('utf8') ?? null
 }
 
 /** The latest message of a kind to a recipient, waiting for it to be written. */

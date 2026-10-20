@@ -16,7 +16,8 @@ from sqlalchemy.orm import QueryableAttribute, Session, aliased
 
 from app.core.policy import GRACE_MINUTES_MAX
 from app.core.text import escape_like
-from app.models import EmailKind, EmailMessage, EmailStatus, Visit, Visitor, VisitStatus
+from app.models import EmailKind, EmailMessage, EmailStatus, EventMethod, Visit, Visitor, VisitStatus
+from app.repositories.email_messages import VISITOR_EVENT_KINDS
 from app.repositories.pagination import Page, paginate
 from app.repositories.scope import owned_by, visitor_readable_by
 
@@ -59,6 +60,7 @@ class VisitRecord(NamedTuple):
     created_by_id: UUID
     created_at: datetime
     updated_at: datetime
+    calendar_sequence: int
 
 
 _RECORD_COLUMNS = tuple(getattr(Visit, name) for name in VisitRecord._fields)
@@ -95,10 +97,10 @@ def _expected_by(end: datetime) -> list[ColumnElement[bool]]:
     ]
 
 
-def latest_invitation_status() -> ColumnElement[str | None]:
-    """Status of the visit's latest VISITOR_INVITATION e-mail (NULL when none exists)."""
+def _latest_invitation[T](column: QueryableAttribute[T]) -> ColumnElement[T | None]:
+    """`column` of the visit's latest VISITOR_INVITATION e-mail (NULL when none exists)."""
     return (
-        select(EmailMessage.status)
+        select(column)
         .where(
             EmailMessage.company_id == Visit.company_id,
             EmailMessage.visit_id == Visit.id,
@@ -111,15 +113,59 @@ def latest_invitation_status() -> ColumnElement[str | None]:
     )
 
 
+def latest_invitation_status() -> ColumnElement[str | None]:
+    """Status of the visit's latest VISITOR_INVITATION e-mail (NULL when none exists)."""
+    return _latest_invitation(EmailMessage.status)
+
+
+def calendar_invitation_failed() -> ColumnElement[bool]:
+    """Whether a calendar invitation that followed the visit's latest invitation to the visitor's address
+    FAILED and nothing sent to that address since put the event in the calendar: no later REQUEST that
+    went out or is on its way, no CANCEL (B14-18; `calendar_state.failed_calendar_invitation`, which also
+    reads the address's other spellings). A withdrawal (B14-17) never goes to the visitor's address of the
+    moment."""
+    calendar, later = aliased(EmailMessage), aliased(EmailMessage)
+    visitor_email = (
+        select(Visitor.email)
+        .where(Visitor.company_id == Visit.company_id, Visitor.id == Visit.visitor_id)
+        .correlate(Visit)
+        .scalar_subquery()
+    )
+    reached_since = exists().where(
+        later.company_id == calendar.company_id,
+        later.visit_id == calendar.visit_id,
+        later.to_email == calendar.to_email,
+        later.kind.in_([kind.value for kind in VISITOR_EVENT_KINDS]),
+        later.calendar_method.is_not(None),
+        later.created_at > calendar.created_at,
+        or_(later.calendar_method != EventMethod.REQUEST.value, later.status != EmailStatus.FAILED.value),
+    )
+    return (
+        exists()
+        .where(
+            calendar.company_id == Visit.company_id,
+            calendar.visit_id == Visit.id,
+            calendar.kind == EmailKind.VISITOR_CALENDAR.value,
+            calendar.calendar_method == EventMethod.REQUEST.value,
+            calendar.status == EmailStatus.FAILED.value,
+            calendar.to_email == visitor_email,
+            calendar.created_at > _latest_invitation(EmailMessage.created_at),
+            ~reached_since,
+        )
+        .correlate(Visit)
+    )
+
+
 def needs_attention() -> ColumnElement[bool]:
     """Contract §8.1: SCHEDULED visits whose latest invitation FAILED, or that have none although one was
-    requested."""
+    requested, or whose calendar invitation FAILED after it (B14-18): the host's resend puts each right."""
     latest = latest_invitation_status()
     return and_(
         Visit.status == VisitStatus.SCHEDULED.value,
         or_(
             latest == EmailStatus.FAILED.value,
             and_(latest.is_(None), Visit.invitation_requested.is_(True)),
+            calendar_invitation_failed(),
         ),
     )
 

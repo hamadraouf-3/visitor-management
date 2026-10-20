@@ -52,6 +52,11 @@ describe('a visitor without an email address', () => {
     expect(wantsVisitorCorrection(noAddress)).toBe(true)
     expect(wantsVisitorCorrection(makeVisit({ invitation: { status: 'FAILED', sent_at: null } }))).toBe(true)
     expect(wantsVisitorCorrection(makeVisit())).toBe(false)
+    // Only the calendar invitation failed: the invitation reached that address, which is no reason to doubt.
+    const calendarFailed = makeVisit({ invitation: { status: 'FAILED', sent_at: null, calendar_failed: true } })
+    expect(wantsVisitorCorrection(calendarFailed)).toBe(false)
+    // The page still leads with the failure and its resend.
+    expect(hasFailedInvitation(calendarFailed)).toBe(true)
     // An address on file but no invitation requested: nothing to correct.
     expect(wantsVisitorCorrection(makeVisit({ invitation: NOT_SENT }))).toBe(false)
   })
