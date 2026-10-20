@@ -20,3 +20,5 @@
 **/*.local
 **/node_modules
 **/.DS_Store
+# The checks of the E2E suite's own helpers: they import e2e/, which is not in the context.
+config/e2e*.test.ts
