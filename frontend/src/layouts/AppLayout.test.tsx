@@ -95,9 +95,9 @@ describe('AppLayout', () => {
     await screen.findByRole('heading', { level: 1, name: 'Admin dashboard' })
     const sidebar = screen.getByRole('complementary')
     switchesIn(sidebar)
-    // In the sidebar's top inline-end corner, the company's identity under them.
+    // In the sidebar's top inline-start corner (the screen's), the company's identity under them.
     const switches = sidebar.querySelector('[data-shell-switches]')!
-    expect(switches).toHaveClass('justify-end')
+    expect(switches).toHaveClass('justify-start')
     expect(switches.compareDocumentPosition(within(sidebar).getByText('Acme Holdings')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 

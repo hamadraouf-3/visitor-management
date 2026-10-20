@@ -604,6 +604,15 @@ identity page); the page right after a press; the header at 320 px with a 20 px 
 spacing; forced colours; the reception before and after a press. No sideways scroll on any. What they
 showed and changed: the 320 px top bar ran a wide logo's plate under the toggle (F13-25's narrow bar).
 
+## The owner's follow-up (2026-10-20): the sidebar's switches in the screen's corner
+
+In the sidebar's top inline-end corner the two switches stood at the sidebar's inner edge, about a fifth
+of the way across the screen. The owner asked for them in the screen's corner: top left in English, top
+right in Arabic. They now start the sidebar's head on its inline-start side (`justify-start`), in the same
+order (the toggle, then the language switch), with the lockup still under them at the sidebar's whole
+width. The public pages and the phone's top bar keep the switches in the inline-end corner, which there
+is already the screen's.
+
 ## Open items
 
 - **Under System on a light device the reception screen still loads through a light frame**: the page is

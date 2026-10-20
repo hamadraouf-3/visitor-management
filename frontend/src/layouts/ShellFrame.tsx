@@ -37,9 +37,9 @@ export interface ShellFrameProps {
  * 12), shared by the company app (`AppLayout`) and the platform owner's area (Phase 11):
  *
  * - Desktop (lg+): a fixed sidebar on the inline-start side (left in English, right in Arabic): the
- *   appearance toggle and the language switch in its top inline-end corner with the lockup under
- *   them, the grouped navigation, and the user block at its foot; no top bar (it would hold nothing
- *   else).
+ *   appearance toggle and the language switch in its top inline-start corner, which is the screen's
+ *   (the owner's choice, 2026-10-20), with the lockup under them, the grouped navigation, and the user
+ *   block at its foot; no top bar (it would hold nothing else).
  * - Tablet/mobile: a sticky top bar with a menu button that opens the navigation in a modal drawer
  *   of the same colour, the lockup, the appearance toggle, the language switch and the account menu.
  *
@@ -80,10 +80,10 @@ export function ShellFrame({ entries, shellTheme, darkSurface = false, renderLoc
 
       {/* The shell ends at a line (`shell-edge`) only where its colour would blend into the canvas: a near-white company's. */}
       <aside className={cn(shellTheme, 'fixed inset-y-0 start-0 z-30 hidden w-64 flex-col border-e border-shell-edge bg-shell text-fg lg:flex print:hidden')}>
-        {/* The two switches in its top inline-end corner, as on every page; the identity under them, with the sidebar's whole width. */}
+        {/* The two switches in its top inline-start corner, the screen's corner, not mid-screen at the sidebar's edge; the identity under them, with the sidebar's whole width. */}
         <div className="flex flex-col gap-2 ps-5 pe-4 pt-4 pb-2">
           {desktop && (
-            <div data-shell-switches="" className="flex justify-end gap-2">
+            <div data-shell-switches="" className="flex justify-start gap-2">
               <AppearanceToggle darkSurface={darkSurface} />
               {languageSwitch}
             </div>
