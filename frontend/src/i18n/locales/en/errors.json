@@ -40,6 +40,9 @@
     "INTERNAL_ERROR": "Something went wrong. Please try again.",
     "COMPANY_INACTIVE": "This company is deactivated.",
     "ACCOUNT_INACTIVE": "This account is deactivated.",
+    "TRACKING_NOT_AVAILABLE": "Tracking is not available now.",
+    "TRACKING_KEY_LIMIT": "Two keys are already in use. Revoke one first.",
+    "LOCATION_IN_USE": "It still has active floors, zones or cameras. Archive those first.",
     "NETWORK_ERROR": "We could not reach the server. Check your connection and try again.",
     "UNEXPECTED_RESPONSE": "Something went wrong. Please try again."
   },
@@ -126,6 +129,7 @@
     "invalid_image": "Choose a valid image.",
     "image_too_small": "Choose an image of at least {{min_width}} by {{min_height}} pixels.",
     "image_too_large": "Choose an image of at most {{max_width}} by {{max_height}} pixels.",
-    "image_not_square": "Choose a square image: its width must equal its height."
+    "image_not_square": "Choose a square image: its width must equal its height.",
+    "location_archived": "This place is archived."
   }
 }

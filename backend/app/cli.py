@@ -15,6 +15,11 @@
   prune-sessions    Delete sessions that ended more than N days ago (default 30); runs as the schema
                     owner (MIGRATION_DATABASE_URL); allowed in production
   e2e-time-travel   Move one visit and its passes N minutes into the past (refused in production)
+  prune-journeys    Delete visitor journey events and ended tracking associations older than each
+                    company's retention (default 30 days); runs as the schema owner
+                    (MIGRATION_DATABASE_URL); allowed in production
+  simulate-journey  Send synthetic observations for a visit's simulator tracking association through the
+                    ingestion service, marked Simulated (refused in production; TRACKING_PROVIDER=simulator)
   send-test-email   Send a short test message with a sample QR code through the configured e-mail
                     provider (EMAIL_PROVIDER) and print the result; Arabic first unless
                     --language en; allowed in production
@@ -43,6 +48,7 @@ from app.email.providers.factory import create_email_provider, email_configurati
 from app.email.rendering import EmailRenderer
 from app.email.service import TEST_EMAIL_SAMPLE_FRAGMENT, build_test_email
 from app.models import DEFAULT_LANGUAGE, Language
+from app.models.enums import ObservationMatch
 from app.schemas.common import EmailAddress, Name200, RequestModel
 from app.security.passwords import PasswordHasherService, password_policy_error
 from app.services.bootstrap import AdminBootstrapService, BootstrapError
@@ -62,6 +68,7 @@ from app.services.seeding import (
     SeedPlatformAdmin,
     SeedReport,
 )
+from app.services.tracking_maintenance import TrackingMaintenanceError, prune_journeys, simulate_journey
 
 EXIT_USAGE = 2
 # A test e-mail gets what a real message gets: the dispatcher's per-message deadline (one attempt here).
@@ -272,6 +279,39 @@ def _time_travel(settings: Settings, args: argparse.Namespace) -> None:
     )
 
 
+def _prune_journeys(settings: Settings) -> None:
+    engine = create_db_engine(settings.migration_url, pool_size=1, application_name="vms-maintenance")
+    try:
+        pruned = prune_journeys(engine, now=app_time.now())
+    finally:
+        engine.dispose()
+    print(
+        f"journey events deleted: {pruned.events}; ended tracking associations deleted: "
+        f"{pruned.associations} (older than each company's retention)"
+    )
+
+
+def _simulate_journey(settings: Settings, args: argparse.Namespace) -> None:
+    _refuse_in_production(settings, "simulate-journey")
+    _connect(settings)
+    with session_factory() as db:
+        try:
+            result = simulate_journey(
+                db,
+                settings,
+                visit_id=args.visit,
+                steps=args.steps,
+                interval=timedelta(seconds=args.interval_seconds),
+                match=ObservationMatch(args.match),
+                confidence=args.confidence,
+                now=app_time.now(),
+            )
+        except TrackingMaintenanceError as exc:
+            raise CommandError(str(exc)) from None
+    outcomes = ", ".join(f"{name}: {count}" for name, count in sorted(result.results.items()))
+    print(f"simulated observations for association {result.association_id}: {outcomes} (marked Simulated)")
+
+
 def _send_test_email(settings: Settings, args: argparse.Namespace) -> None:
     """One attempt through the configured provider, without the database (nothing is stored or audited:
     S10-6). Prints where the message went or the classified error; never a credential."""
@@ -355,6 +395,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
     travel.add_argument("--visit-id", required=True, type=_visit_id)
     travel.add_argument("--minutes", required=True, type=int, help="how far into the past, in minutes")
+    commands.add_parser(
+        "prune-journeys",
+        help="delete journey events and ended tracking associations past each company's retention "
+        "(schema owner)",
+    )
+    simulate = commands.add_parser(
+        "simulate-journey",
+        help="send synthetic observations for a visit's simulator association (non-production)",
+    )
+    simulate.add_argument("--visit", required=True, type=_visit_id, help="the visit's ID")
+    simulate.add_argument("--steps", type=int, default=3, help="how many observations (default 3)")
+    simulate.add_argument(
+        "--interval-seconds",
+        type=int,
+        default=120,
+        # Two confirmed observations of different floors within a minute make a journey UNCERTAIN.
+        help="the time between two observations (default 120)",
+    )
+    simulate.add_argument(
+        "--match",
+        choices=[match.value for match in ObservationMatch],
+        default=ObservationMatch.CONFIRMED.value,
+        help="the simulated provider's own judgement of each observation (default CONFIRMED)",
+    )
+    simulate.add_argument(
+        "--confidence",
+        type=float,
+        default=None,
+        help="a synthetic confidence (0-1) to send with each observation; none by default",
+    )
     test_email = commands.add_parser(
         "send-test-email", help="send a test message through the configured e-mail provider"
     )
@@ -387,6 +457,10 @@ def main(argv: Sequence[str] | None = None, *, settings: Settings | None = None)
                 _prune_sessions(settings, args)
             case "e2e-time-travel":
                 _time_travel(settings, args)
+            case "prune-journeys":
+                _prune_journeys(settings)
+            case "simulate-journey":
+                _simulate_journey(settings, args)
             case "send-test-email":
                 _send_test_email(settings, args)
     except CommandError as exc:

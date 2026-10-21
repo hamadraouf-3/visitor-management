@@ -59,6 +59,7 @@ from app.services.audit import SecurityAudit, SecurityEventCoalescer
 from app.services.environment import ServiceEnvironment
 from app.services.health import DatabaseProbe
 from app.services.seed_guard import require_no_seed_accounts
+from app.services.tracking_provider import TrackingProvider, create_tracking_provider
 from app.services.users import HostedVisitCanceller
 from app.services.visit_hooks import HostedVisitCancellations, VisitSnapshots
 from app.services.visit_snapshots import VisitSnapshotRefresher
@@ -121,6 +122,7 @@ def create_app(
     hosted_visit_canceller: HostedVisitCanceller | None = None,
     visit_snapshot_refresher: VisitSnapshotRefresher | None = None,
     warm_email_logos: bool = False,
+    tracking_provider: TrackingProvider | None = None,
 ) -> FastAPI:
     """The application. `warm_email_logos`: draw the e-mails' logos ahead of the requests that send
     them (B13-7), in threads of their own that read the database; on in the application `app.serve`
@@ -201,6 +203,8 @@ def create_app(
         limiter=rate_limiter or create_rate_limiter(settings),
         policies=RatePolicies.from_settings(settings),
         logo_warm_up=logo_warm_up,
+        # The Visitor Journey's provider (TRACKING_PROVIDER, Phase 15): disabled unless configured.
+        tracking=tracking_provider or create_tracking_provider(settings),
     )
     app.state.service_environment = environment
     # The visit service's side of the user/department hooks (D-18, D-17).

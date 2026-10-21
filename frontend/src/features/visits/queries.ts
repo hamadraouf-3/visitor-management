@@ -47,6 +47,8 @@ export function refreshAfterVisitChange(queryClient: QueryClient, visit?: Visit)
   void queryClient.invalidateQueries({ queryKey: queryKeys.reception.all })
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.employee })
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.admin })
+  // A check-out or a cancellation ends the visit's tracking (Phase 15), in the same transaction.
+  void queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all })
 }
 
 /**

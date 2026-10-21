@@ -75,6 +75,11 @@ export interface Me {
      */
     address: string | null
     address_ar: string | null
+    /**
+     * Phase 15: the platform owner allows the company's visitor tracking. Without it the Visitor Journey and
+     * visitor tracking's administration are not offered at all (the lead's decision, F15-1).
+     */
+    tracking_allowed: boolean
   }
 }
 
@@ -463,6 +468,8 @@ export interface PlatformCompany {
   }
   /** The company's identity (Phase 12): lists show its logo. */
   brand: CompanyBrand
+  /** Phase 15: the platform owner allows the company's visitor tracking (default false). */
+  tracking_allowed: boolean
 }
 
 /** One of a company's administrators (SYSTEM_ADMIN): the only users the platform owner sees. */
@@ -631,6 +638,352 @@ export interface ReportSummary {
   check_ins_by_hour: { hour: number; count: number }[]
 }
 
+/* Phase 15: the Visitor Journey (docs/visitor-journey-design.md, docs/decisions/phase-15-backend.md) ----- */
+
+/** The deployment's tracking provider (`TRACKING_PROVIDER`): `disabled` in production, `simulator` in development and E2E only. */
+export type TrackingProviderName = 'disabled' | 'simulator'
+/** The journey state of a visit, computed by the server (one value). */
+export type JourneyState = 'DISABLED' | 'NOT_ENROLLED' | 'PENDING' | 'ACTIVE' | 'UNCERTAIN' | 'STALE' | 'UNAVAILABLE' | 'ENDED'
+export type TrackingAssociationStatus = 'PENDING' | 'ACTIVE' | 'ENDED'
+export type TrackingEndReason = 'CHECKED_OUT' | 'REVOKED' | 'EXPIRED' | 'ENROLLMENT_FAILED' | 'VISIT_CANCELLED'
+export type JourneyEventType = 'ENROLLED' | 'OBSERVED' | 'LOST'
+/** What the provider said of an observation; what the application counts is the event's `confirmed`. */
+export type ObservationMatch = 'CONFIRMED' | 'UNCERTAIN'
+/** Why a visit cannot be enrolled now (`VisitJourney.enroll_blocker`): said as a short state beside the action. */
+export type EnrollBlocker =
+  | 'PROVIDER_DISABLED'
+  | 'NOT_ALLOWED'
+  | 'NOT_ENABLED'
+  | 'NOT_CHECKED_IN'
+  | 'ALREADY_ENROLLED'
+  | 'NO_ENROLLMENT_POINT'
+  | 'NOT_PERMITTED'
+/** Why the ingestion refused a provider's event, counted in the company's tracking health. */
+export type TrackingRejectReason =
+  | 'TRACKING_OFF'
+  | 'UNKNOWN_ASSOCIATION'
+  | 'ASSOCIATION_ENDED'
+  | 'ALREADY_ENROLLED'
+  | 'NOT_ACTIVE'
+  | 'UNKNOWN_CAMERA'
+  | 'CAMERA_MISMATCH'
+  | 'TOO_OLD'
+  | 'IN_FUTURE'
+  | 'BEFORE_ASSOCIATION'
+/** A call of the application to the provider whose failures the health counts. */
+export type TrackingProviderOperation = 'ENROLL' | 'REVOKE'
+
+/** A building or zone as other resources embed it: its two names (the Arabic one shown in the Arabic UI when set). */
+interface LocationRef {
+  id: string
+  name: string
+  name_ar: string | null
+}
+
+/** A floor as other resources embed it; `level` orders floors (negative below ground). */
+interface FloorRef {
+  id: string
+  name: string
+  name_ar: string | null
+  level: number
+}
+
+/** A zone with its floor and building: what a camera covers, where a visitor was seen. Never coordinates. */
+interface JourneyLocation {
+  building: LocationRef
+  floor: FloorRef
+  zone: LocationRef
+}
+
+interface CameraRef {
+  id: string
+  name: string
+}
+
+/** GET /tracking/status (all three roles): the journey pages' one-line banner. */
+export interface TrackingStatus {
+  provider: TrackingProviderName
+  /** The provider is the simulator: «محاكاة» / "Simulated". */
+  simulated: boolean
+  /** The deployment has a provider (`provider !== 'disabled'`). */
+  available: boolean
+  /** The platform owner's switch. */
+  allowed: boolean
+  /** The company administrator's switch. */
+  enabled: boolean
+  last_contact_at: string | null
+  /** Available, allowed and enabled, the provider healthy and heard from within 5 minutes. */
+  healthy: boolean
+}
+
+/** The company's tracking health: contact, the last accepted event, refusals by reason (never payloads). */
+interface TrackingHealth {
+  last_contact_at: string | null
+  last_accepted_event_at: string | null
+  /** Only reasons with a count. */
+  rejected_last_24h: { reason: TrackingRejectReason; count: number }[]
+  provider_errors_last_24h: { operation: TrackingProviderOperation; count: number }[]
+}
+
+/** GET/PATCH /tracking/settings (administrators). */
+export interface TrackingSettings {
+  /** Read-only: the deployment's provider. */
+  provider: TrackingProviderName
+  /** Read-only: the platform owner's switch. */
+  allowed: boolean
+  enabled: boolean
+  /** 0–1; null: no observation counts as confirmed (the threshold must come from an evaluation on site footage). */
+  min_confidence: number | null
+  /** 1–240, default 15. */
+  stale_after_minutes: number
+  /** 1–90, default 30. */
+  retention_days: number
+  health: TrackingHealth
+}
+
+/**
+ * PATCH /tracking/settings: omitted fields are unchanged. `enabled: true` while not allowed → 409
+ * `TRACKING_NOT_AVAILABLE`; `enabled: false` ends every running association of the company.
+ */
+export interface TrackingSettingsUpdate {
+  enabled?: boolean
+  /** null clears it. */
+  min_confidence?: number | null
+  stale_after_minutes?: number
+  retention_days?: number
+}
+
+/** A provider credential of the company (administrators): its label and prefix; the key itself is never shown again. */
+export interface TrackingKey {
+  id: string
+  label: string
+  /** For display only, e.g. `vtk_Ab3d`. */
+  prefix: string
+  created_at: string
+  created_by: UserRef | null
+  last_used_at: string | null
+  revoked_at: string | null
+}
+
+/** POST /tracking/keys (201): the only response that carries the key. */
+export interface TrackingKeyCreated {
+  id: string
+  label: string
+  prefix: string
+  created_at: string
+  created_by: UserRef | null
+  last_used_at: string | null
+  revoked_at: string | null
+  /** The key: "vtk_" and 43 characters, shown once. */
+  secret: string
+}
+
+/** POST /tracking/keys: 1–100 characters, one line. A third unrevoked key → 409 `TRACKING_KEY_LIMIT`. */
+export interface TrackingKeyCreate {
+  label: string
+}
+
+/** A camera the provider reports by its own ID, in a zone. No address, stream or credential is kept in the application. */
+export interface TrackingCamera {
+  id: string
+  /** The provider's ID: visible ASCII, 1–128 characters, unique in the company. */
+  provider_camera_id: string
+  name: string
+  zone_id: string
+  /** The zone with its floor and building. */
+  location: JourneyLocation
+  /** A reception camera: where a visitor's tracking can start. */
+  is_enrollment_point: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface TrackingCameraCreate {
+  provider_camera_id: string
+  name: string
+  zone_id: string
+  is_enrollment_point?: boolean
+}
+
+/** Archive: `is_active: false`; restore: `is_active: true`. Every field may be omitted, none sent as null. */
+export interface TrackingCameraUpdate {
+  provider_camera_id?: string
+  name?: string
+  zone_id?: string
+  is_enrollment_point?: boolean
+  is_active?: boolean
+}
+
+export interface Building {
+  id: string
+  name: string
+  name_ar: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Floor {
+  id: string
+  building_id: string
+  name: string
+  name_ar: string | null
+  level: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Zone {
+  id: string
+  floor_id: string
+  name: string
+  name_ar: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+interface FloorNode extends Floor {
+  zones: Zone[]
+}
+
+interface BuildingNode extends Building {
+  floors: FloorNode[]
+}
+
+/** GET /locations: the company's buildings (by name), their floors (by level) and zones (by name), archived ones included. */
+export interface LocationTree {
+  buildings: BuildingNode[]
+}
+
+export interface BuildingCreate {
+  name: string
+  name_ar?: string | null
+}
+
+export interface BuildingUpdate {
+  name?: string
+  name_ar?: string | null
+  is_active?: boolean
+}
+
+export interface FloorCreate {
+  building_id: string
+  name: string
+  name_ar?: string | null
+  /** −20 to 200; unique in the building. */
+  level: number
+}
+
+export interface FloorUpdate {
+  name?: string
+  name_ar?: string | null
+  level?: number
+  is_active?: boolean
+}
+
+export interface ZoneCreate {
+  floor_id: string
+  name: string
+  name_ar?: string | null
+}
+
+export interface ZoneUpdate {
+  name?: string
+  name_ar?: string | null
+  is_active?: boolean
+}
+
+/** A visit as a journey shows it. */
+interface JourneyVisitSummary {
+  id: string
+  status: VisitStatus
+  visitor: { id: string; full_name: string; company_name: string | null }
+  host: UserRef
+  department: DepartmentRef | null
+  scheduled_start: string
+  scheduled_end: string
+  check_in_at: string | null
+  check_out_at: string | null
+}
+
+/** A row of GET /journeys. */
+export interface JourneyListItem {
+  visit: JourneyVisitSummary
+  state: JourneyState
+  /** The latest association was made by the simulator. */
+  simulated: boolean
+  /** From a confirmed observation only; null: «غير معروف» / "Unknown". */
+  last_location: JourneyLocation | null
+  last_observed_at: string | null
+  /** The server's now − `last_observed_at`, whole seconds; null without a confirmed observation. */
+  freshness_seconds: number | null
+}
+
+/** A visit's latest tracking association. */
+interface TrackingAssociation {
+  id: string
+  status: TrackingAssociationStatus
+  provider: TrackingProviderName
+  simulated: boolean
+  created_at: string
+  activated_at: string | null
+  ended_at: string | null
+  ended_reason: TrackingEndReason | null
+  expires_at: string
+  enrollment_camera: CameraRef | null
+}
+
+/** One event of a journey, append-only. */
+interface JourneyEvent {
+  id: string
+  type: JourneyEventType
+  observed_at: string
+  received_at: string
+  camera: CameraRef | null
+  /** As resolved when the event arrived: a later camera move never rewrites it. */
+  location: JourneyLocation | null
+  /** OBSERVED only: what the provider said. */
+  match: ObservationMatch | null
+  /** Only when the provider sent one. */
+  confidence: number | null
+  /** What the application counts: match CONFIRMED and confidence at least the company's threshold. The mark shown. */
+  confirmed: boolean
+  model_version: string | null
+}
+
+/** GET /visits/{id}/journey (and the tracking actions' answer). */
+export interface VisitJourney {
+  visit: JourneyVisitSummary
+  state: JourneyState
+  association: TrackingAssociation | null
+  /** Only ever from a confirmed observation. */
+  last_location: JourneyLocation | null
+  last_observed_at: string | null
+  /** The server's now − `last_observed_at`, whole seconds. */
+  freshness_seconds: number | null
+  /** By `observed_at`, oldest first; at most the latest 500. */
+  timeline: JourneyEvent[]
+  timeline_total: number
+  can_enroll: boolean
+  /** Null exactly when `can_enroll`. */
+  enroll_blocker: EnrollBlocker | null
+  can_revoke: boolean
+}
+
+/** POST /visits/{id}/tracking/enroll: the application's id of an active enrollment camera. */
+export interface TrackingEnrollRequest {
+  camera_id: string
+}
+
+/** PATCH /platform/companies/{id}/tracking: off also switches the company's tracking off and ends its associations. */
+export interface PlatformTrackingUpdate {
+  allowed: boolean
+}
+
+
 /* ------------------------------------------------------------------------------------------ */
 /* 2. Envelopes (§8, §8.2)                                                                     */
 /* ------------------------------------------------------------------------------------------ */
@@ -683,6 +1036,12 @@ export type ApiErrorCode =
   | 'COMPANY_INACTIVE'
   /** Phase 11: the platform owner asked for a reset link of a deactivated administrator (409). */
   | 'ACCOUNT_INACTIVE'
+  /** Phase 15: tracking cannot be used now (409); `details.reason` says why (the provider, a switch, the visit's window). */
+  | 'TRACKING_NOT_AVAILABLE'
+  /** Phase 15: a company holds at most two unrevoked tracking keys (409). */
+  | 'TRACKING_KEY_LIMIT'
+  /** Phase 15: a building, floor or zone with active floors, zones or cameras cannot be archived (409). */
+  | 'LOCATION_IN_USE'
 
 /**
  * The machine code of one field error of a 422 VALIDATION_ERROR (backend B10-18): one per kind of
@@ -778,6 +1137,8 @@ export type FieldErrorCode =
   | 'image_too_large'
   /** Phase 12: an icon whose width is not its height. */
   | 'image_not_square'
+  /** Phase 15: a building, floor or zone that is archived (or under an archived one). */
+  | 'location_archived'
 
 /** `details.field_codes[path]`: the code and exactly the parameters it declares (`{}` for most). */
 export interface FieldErrorCodeEntry {
@@ -828,6 +1189,8 @@ export type AuditLogPage = Paginated<AuditLog>
 export type PlatformCompanyPage = Paginated<PlatformCompany>
 /** GET /platform/audit-logs */
 export type PlatformAuditLogPage = Paginated<PlatformAuditLog>
+/** GET /journeys (Phase 15) */
+export type JourneyPage = Paginated<JourneyListItem>
 
 /* ------------------------------------------------------------------------------------------ */
 /* 3. Request bodies, query parameters and small responses from the §8 endpoint table          */
@@ -1072,6 +1435,21 @@ export interface EmailPreviewDocumentParams {
  */
 export interface BrandImageParams {
   v?: string | null
+}
+
+/**
+ * GET /journeys (Phase 15): every visit inside during a company-local day (`YYYY-MM-DD`, default today), newest
+ * check-in first. `q`: the visitor's name or company (contains, any case). `state`: sent comma-separated.
+ */
+export interface JourneyListParams extends PageParams {
+  day?: string
+  q?: string
+  state?: JourneyState[]
+}
+
+/** GET /tracking/cameras: archived cameras too (administrators only). */
+export interface TrackingCameraListParams {
+  include_archived?: boolean
 }
 
 /** PATCH /platform/companies/{id}/brand: the company's colour (`#rrggbb`), or null for the default palette. */

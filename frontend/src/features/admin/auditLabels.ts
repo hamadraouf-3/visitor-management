@@ -76,6 +76,29 @@ const ACTION_GROUP_CODES = [
     ],
   },
   { key: 'passes', actions: ['PASS_ISSUED', 'PASS_REVOKED', 'PASS_SCANNED', 'INVITATION_QUEUED', 'INVITATION_SENT', 'INVITATION_FAILED'] },
+  // Phase 15: visitor tracking (a visit's tracking, the switches and settings, keys, cameras, places, a journey opened).
+  {
+    key: 'tracking',
+    actions: [
+      'TRACKING_ENROLLMENT_REQUESTED',
+      'TRACKING_ASSOCIATION_ACTIVATED',
+      'TRACKING_ASSOCIATION_ENDED',
+      'TRACKING_ASSOCIATION_REVOKED',
+      'JOURNEY_VIEWED',
+      'JOURNEY_LIST_VIEWED',
+      'TRACKING_ENABLED',
+      'TRACKING_DISABLED',
+      'TRACKING_ALLOWED',
+      'TRACKING_DISALLOWED',
+      'TRACKING_SETTINGS_UPDATED',
+      'TRACKING_KEY_CREATED',
+      'TRACKING_KEY_REVOKED',
+      'TRACKING_CAMERA_CREATED',
+      'TRACKING_CAMERA_UPDATED',
+      'LOCATION_CREATED',
+      'LOCATION_UPDATED',
+    ],
+  },
 ] as const satisfies readonly { key: string; actions: readonly string[] }[]
 
 type ActionGroupKey = (typeof ACTION_GROUP_CODES)[number]['key']
@@ -166,6 +189,12 @@ export const AUDIT_ENTITY_LABELS: Readonly<Record<string, string>> = lazyTexts({
   session: () => t('audit.entities.session'),
   email_template: () => t('audit.entities.email_template'),
   platform_admin: () => t('audit.entities.platform_admin'),
+  // Phase 15: the places and the tracking's cameras and keys.
+  building: () => t('audit.entities.building'),
+  floor: () => t('audit.entities.floor'),
+  zone: () => t('audit.entities.zone'),
+  tracking_camera: () => t('audit.entities.tracking_camera'),
+  tracking_key: () => t('audit.entities.tracking_key'),
 })
 
 /**

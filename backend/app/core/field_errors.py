@@ -114,6 +114,8 @@ class FieldCode(StrEnum):
     IMAGE_TOO_SMALL = "image_too_small"  # fewer than `min_width` x `min_height` pixels
     IMAGE_TOO_LARGE = "image_too_large"  # more than `max_width` x `max_height` pixels
     IMAGE_NOT_SQUARE = "image_not_square"  # an icon whose width is not its height
+    # ---- the Visitor Journey's location registry (Phase 15, B15-5) ----------------------------------
+    LOCATION_ARCHIVED = "location_archived"  # the building, floor or zone (or a parent of it) is archived
 
 
 # The parameters each code carries (every other code carries none).

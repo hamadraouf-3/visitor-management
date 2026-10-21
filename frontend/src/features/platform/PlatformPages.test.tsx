@@ -240,6 +240,50 @@ describe('a company’s page', () => {
     ])
   })
 
+  it('allows the company’s visitor tracking at once, and stops it after one line (Phase 15)', async () => {
+    let current = NOVA
+    const { requests, user } = setupCompanyPage(NOVA, {
+      [`GET /platform/companies/${NOVA.id}`]: () => jsonResponse(current),
+      [`PATCH /platform/companies/${NOVA.id}/tracking`]: (request) => {
+        current = { ...current, tracking_allowed: (request.body as { allowed: boolean }).allowed }
+        return jsonResponse(current)
+      },
+    })
+    const toggle = await screen.findByRole('switch', { name: 'Tracking allowed' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    await user.click(toggle)
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+    expect(await screen.findByText('Tracking allowed for Nova Labs')).toBeInTheDocument()
+
+    await user.click(toggle)
+    const dialog = await screen.findByRole('alertdialog', { name: 'Stop tracking for Nova Labs?' })
+    expect(dialog).toHaveAccessibleDescription('The company’s tracking is turned off, and every visitor being tracked stops being tracked.')
+    await user.click(within(dialog).getByRole('button', { name: 'Stop tracking' }))
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'))
+    expect(requests.filter((request) => request.method === 'PATCH').map((request) => request.body)).toEqual([{ allowed: true }, { allowed: false }])
+  })
+
+  it('clears a refused stop when its confirmation is cancelled, as Escape does (Phase 15)', async () => {
+    const allowed = { ...NOVA, tracking_allowed: true }
+    const { user } = setupCompanyPage(allowed, {
+      [`GET /platform/companies/${NOVA.id}`]: () => jsonResponse(allowed),
+      [`PATCH /platform/companies/${NOVA.id}/tracking`]: () => errorResponse(503, 'SERVICE_UNAVAILABLE', 'The service is busy.'),
+    })
+    const toggle = await screen.findByRole('switch', { name: 'Tracking allowed' })
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+
+    await user.click(toggle)
+    let dialog = await screen.findByRole('alertdialog', { name: 'Stop tracking for Nova Labs?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Stop tracking' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('The service is busy.')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+
+    await user.click(toggle)
+    dialog = await screen.findByRole('alertdialog', { name: 'Stop tracking for Nova Labs?' })
+    expect(within(dialog).queryByRole('alert')).toBeNull()
+  })
+
   it('sends a password reset link and says where; a refusal says why', async () => {
     let refuse = false
     const { user } = setupCompanyPage(NOVA, {
@@ -448,7 +492,7 @@ describe('the platform’s audit log', () => {
     expect(record.parentElement).toHaveTextContent('Userنادية حداد9c000000-0000-4000-8000-000000000001')
   })
 
-  it('offers the trail’s nineteen events as its filter, and words the refusals of the final contract and a change of identity', async () => {
+  it('offers the trail’s twenty-one events as its filter, and words the refusals of the final contract and a change of identity', async () => {
     mockApi({
       ...platformRoutes(),
       'GET /platform/audit-logs': () =>
@@ -489,9 +533,9 @@ describe('the platform’s audit log', () => {
     expect(within(items[6]!).getAllByText('Logo for dark surfaces')).toHaveLength(2)
 
     const options = within(screen.getByRole('combobox', { name: 'Event' })).getAllByRole('option').map((option) => option.textContent)
-    expect(options).toHaveLength(20)
-    expect(options).toEqual(expect.arrayContaining(['All events', 'User change refused', 'Access denied', 'Too many requests', 'User created', 'Company identity updated']))
-    expect(new Set(options).size).toBe(20)
+    expect(options).toHaveLength(22)
+    expect(options).toEqual(expect.arrayContaining(['All events', 'User change refused', 'Access denied', 'Too many requests', 'User created', 'Company identity updated', 'Tracking allowed', 'Tracking no longer allowed']))
+    expect(new Set(options).size).toBe(22)
   })
 
   it('keeps its rows stacked until there is room for the company column, which a company’s own log does not have (UX review H1)', async () => {

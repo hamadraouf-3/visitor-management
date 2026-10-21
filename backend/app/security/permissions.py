@@ -54,6 +54,11 @@ class Capability(StrEnum):
     VIEW_REPORTS = "view_reports"  # GET /reports/summary
     ADMINISTER = "administer"  # users, departments, company settings (write)
     READ_AUDIT = "read_audit"  # GET /audit-logs
+    # The Visitor Journey (Phase 15, B15-13): journeys, the tracking status and the location tree; hosts
+    # who are only employees are refused (least privilege: a host has no need for a visitor's movements).
+    VIEW_JOURNEYS = "view_journeys"
+    # Enroll a checked-in visit with the tracking provider, revoke it, read the enrollment cameras.
+    TRACK_VISITS = "track_visits"
 
 
 _ALL = frozenset(Role)
@@ -82,6 +87,8 @@ CAPABILITY_ROLES: dict[Capability, frozenset[Role]] = {
     Capability.VIEW_REPORTS: frozenset({Role.SYSTEM_ADMIN, Role.MANAGEMENT}),
     Capability.ADMINISTER: _ADMIN,
     Capability.READ_AUDIT: _ADMIN,
+    Capability.VIEW_JOURNEYS: _COMPANY_WIDE_READERS,
+    Capability.TRACK_VISITS: frozenset({Role.SYSTEM_ADMIN, Role.RECEPTIONIST}),
 }
 
 

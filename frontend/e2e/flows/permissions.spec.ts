@@ -11,7 +11,24 @@ import { uniqueTag } from '../support/ui.ts'
  * the UI shows.
  */
 
-const ALL_LINKS = ['Reception', 'My visits', 'Invite visitor', 'Visitors', 'Inside now', 'Visit history', 'Reports', 'Dashboard', 'Users', 'Departments', 'Company settings', 'Email texts', 'Audit log']
+const ALL_LINKS = [
+  'Reception',
+  'My visits',
+  'Invite visitor',
+  'Visitors',
+  'Inside now',
+  // Phase 15: administrators, management and reception; never a host.
+  'Visitor Journey',
+  'Visit history',
+  'Reports',
+  'Dashboard',
+  'Users',
+  'Departments',
+  'Company settings',
+  'Email texts',
+  'Visitor tracking',
+  'Audit log',
+]
 
 async function expectNavigation(page: Page, allowed: readonly string[]) {
   const nav = page.getByRole('navigation', { name: 'Main navigation' })
@@ -63,7 +80,7 @@ test.describe('permission violations per role', () => {
     await page.goto('/')
     await expect(page).toHaveURL(/\/visits$/)
     await expectNavigation(page, ['My visits', 'Invite visitor', 'Visitors'])
-    await expectRedirects(page, ['/reception', '/history', '/inside', '/reports', '/admin', '/admin/users', '/admin/audit', '/admin/settings', '/admin/email-templates'], /\/visits$/)
+    await expectRedirects(page, ['/reception', '/history', '/inside', '/journey', '/reports', '/admin', '/admin/users', '/admin/audit', '/admin/settings', '/admin/email-templates', '/admin/tracking'], /\/visits$/)
     await page.goto(`/visits/${foreign.visit.id}`)
     await expect(page.getByRole('heading', { level: 1, name: 'Visit not found' })).toBeVisible()
     await page.goto(`/visitors/${foreign.visit.visitor.id}`)
@@ -80,6 +97,10 @@ test.describe('permission violations per role', () => {
       ['GET', '/users'],
       ['POST', '/departments', { name: 'Not allowed' }],
       ['PATCH', '/company/settings', { allow_walk_ins: false }],
+      // Phase 15: a host reads no journey, not even the tracking's status.
+      ['GET', '/journeys'],
+      ['GET', '/tracking/status'],
+      ['GET', '/locations'],
     ])
     // Denials are recorded (§7.4).
     const me = await api.me()
@@ -91,8 +112,8 @@ test.describe('permission violations per role', () => {
     const { page, api } = await open({ as: 'reception' })
     await page.goto('/')
     await expect(page).toHaveURL(/\/reception$/)
-    await expectNavigation(page, ['Reception', 'Visitors', 'Inside now', 'Visit history'])
-    await expectRedirects(page, ['/visits', '/visits/new', '/reports', '/admin', '/admin/departments', '/admin/audit'], /\/reception$/)
+    await expectNavigation(page, ['Reception', 'Visitors', 'Inside now', 'Visitor Journey', 'Visit history'])
+    await expectRedirects(page, ['/visits', '/visits/new', '/reports', '/admin', '/admin/departments', '/admin/audit', '/admin/tracking'], /\/reception$/)
     const now = Date.now()
     await expectForbidden(api, [
       ['POST', '/visits', { visitor: { full_name: 'Not allowed' }, host_id: (await api.me()).user.id, purpose: 'x', scheduled_start: new Date(now + minutes(10)).toISOString(), scheduled_end: new Date(now + minutes(70)).toISOString(), send_invitation: false }],
@@ -102,6 +123,10 @@ test.describe('permission violations per role', () => {
       ['POST', '/departments', { name: 'Not allowed' }],
       ['PATCH', '/company/settings', { allow_walk_ins: false }],
       ['GET', '/dashboard/employee'],
+      // Phase 15: tracking is set up by administrators only.
+      ['GET', '/tracking/settings'],
+      ['POST', '/tracking/keys', { label: 'Not allowed' }],
+      ['POST', '/locations/buildings', { name: 'Not allowed' }],
     ])
   })
 
@@ -113,8 +138,8 @@ test.describe('permission violations per role', () => {
     const { page, api } = await open({ as: 'management' })
     await page.goto('/')
     await expect(page).toHaveURL(/\/reports$/)
-    await expectNavigation(page, ['Visitors', 'Inside now', 'Visit history', 'Reports'])
-    await expectRedirects(page, ['/reception', '/visits', '/visits/new', '/admin', '/admin/users'], /\/reports$/)
+    await expectNavigation(page, ['Visitors', 'Inside now', 'Visitor Journey', 'Visit history', 'Reports'])
+    await expectRedirects(page, ['/reception', '/visits', '/visits/new', '/admin', '/admin/users', '/admin/tracking'], /\/reports$/)
     // Read-only: the visit opens, without any action.
     await page.goto(`/visits/${visit.visit.id}`)
     await expect(page.getByRole('heading', { level: 1, name: visit.visit.visitor.full_name })).toBeVisible()
@@ -136,6 +161,10 @@ test.describe('permission violations per role', () => {
       ['POST', '/reception/check-out-stale', { reason: 'Not allowed' }],
       ['GET', '/audit-logs'],
       ['GET', '/users'],
+      // Phase 15: management reads journeys, and neither starts nor stops one, nor sets tracking up.
+      ['POST', `/visits/${visit.visit.id}/tracking/enroll`, { camera_id: visit.visit.id }],
+      ['POST', `/visits/${visit.visit.id}/tracking/revoke`],
+      ['PATCH', '/tracking/settings', { enabled: false }],
     ])
     expect((await host.visit(visit.visit.id)).status).toBe('SCHEDULED')
   })
@@ -155,6 +184,8 @@ test.describe('permission violations per role', () => {
       ['/reports', 'Reports'],
       ['/history', 'Visit history'],
       ['/inside', 'Inside now'],
+      ['/journey', 'Visitor Journey'],
+      ['/admin/tracking', 'Visitor tracking'],
       ['/visits', 'My visits'],
       ['/visits/new', 'Invite visitor'],
     ] as const) {

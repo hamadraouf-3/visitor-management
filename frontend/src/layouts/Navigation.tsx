@@ -18,6 +18,7 @@ type NavItemKey =
   | 'nav.items.inviteVisitor'
   | 'nav.items.visitors'
   | 'nav.items.inside'
+  | 'nav.items.journey'
   | 'nav.items.history'
   | 'nav.items.reports'
   | 'nav.items.adminDashboard'
@@ -26,6 +27,7 @@ type NavItemKey =
   | 'nav.items.adminSettings'
   | 'nav.items.adminAudit'
   | 'nav.items.adminEmailTemplates'
+  | 'nav.items.adminTracking'
   | 'nav.items.platformCompanies'
   | 'nav.items.platformAudit'
 
@@ -39,6 +41,7 @@ const NAV_LABEL_KEYS: Readonly<Record<string, NavItemKey>> = {
   [paths.inviteVisitor]: 'nav.items.inviteVisitor',
   [paths.visitors]: 'nav.items.visitors',
   [paths.inside]: 'nav.items.inside',
+  [paths.journey]: 'nav.items.journey',
   [paths.history]: 'nav.items.history',
   [paths.reports]: 'nav.items.reports',
   [paths.adminDashboard]: 'nav.items.adminDashboard',
@@ -47,6 +50,7 @@ const NAV_LABEL_KEYS: Readonly<Record<string, NavItemKey>> = {
   [paths.adminSettings]: 'nav.items.adminSettings',
   [paths.adminAudit]: 'nav.items.adminAudit',
   [paths.adminEmailTemplates]: 'nav.items.adminEmailTemplates',
+  [paths.adminTracking]: 'nav.items.adminTracking',
   [paths.platformCompanies]: 'nav.items.platformCompanies',
   [paths.platformAudit]: 'nav.items.platformAudit',
 }

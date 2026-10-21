@@ -50,6 +50,8 @@ def test_login_success_sets_cookies_and_returns_me(client: TestClient, world: Wo
         "default_language": "en",
         # Its identity (B12-11): no logo, icon or colour yet.
         "brand": no_brand(),
+        # The platform owner's switch of the Visitor Journey (Phase 15, B15-27): off until allowed.
+        "tracking_allowed": False,
     }
 
     cookies = {c.split("=", 1)[0]: c for c in response.headers.get_list("set-cookie")}

@@ -27,6 +27,7 @@ import { CompanyAdmins } from './CompanyAdmins'
 import { CompanyIdentityCard } from './CompanyIdentityCard'
 import { CompanyLogoTile } from './CompanyLogoTile'
 import { CompanyStatusBadge } from './CompanyStatusBadge'
+import { CompanyTrackingCard } from './CompanyTrackingCard'
 import { EditCompanyDialog } from './EditCompanyDialog'
 import { usePlatformCompany, useSetCompanyActive } from './queries'
 
@@ -184,6 +185,7 @@ function CompanyView({ company }: { company: PlatformCompany }) {
           <div className="flex min-w-0 flex-col gap-6">
             <CompanyFacts company={company} />
             <CompanyIdentityCard company={company} displayName={displayName} />
+            <CompanyTrackingCard company={company} displayName={displayName} />
           </div>
           <CompanyAdmins company={company} displayName={displayName} />
         </div>

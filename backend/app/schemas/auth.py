@@ -48,6 +48,9 @@ class MeCompany(ResponseModel):
     timezone: str
     default_language: Language
     brand: CompanyBrand  # its logo, icon, colour and palette (B12-11)
+    # The platform owner's switch for the company (Phase 15, B15-27): the interface shows the Visitor
+    # Journey and its administration only while it is true.
+    tracking_allowed: bool
 
 
 class Me(ResponseModel):

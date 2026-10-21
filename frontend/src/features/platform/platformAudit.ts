@@ -11,6 +11,9 @@ export const PLATFORM_AUDIT_ACTIONS = [
   'COMPANY_REACTIVATED',
   // A company's logo or colour, set or removed (Phase 12).
   'COMPANY_BRAND_UPDATED',
+  // A company's visitor tracking allowed, or no longer (Phase 15).
+  'TRACKING_ALLOWED',
+  'TRACKING_DISALLOWED',
   'USER_CREATED',
   // An address that cannot be used, when a company or an administrator is created (B11-42).
   'USER_CHANGE_REFUSED',

@@ -323,6 +323,37 @@ class OverrideNotAllowed(AppError):
     default_message = "This visit cannot be checked in with an override."
 
 
+class TrackingNotAvailable(AppError):
+    """Visitor tracking cannot be used for this request (Phase 15, B15-14): the deployment's provider is
+    `disabled`, the platform owner has not allowed it for the company, or the company has not switched it
+    on. `details.reason` says which (`PROVIDER_DISABLED`, `NOT_ALLOWED`, `NOT_ENABLED`)."""
+
+    status_code = 409
+    code = "TRACKING_NOT_AVAILABLE"
+    default_message = "Visitor tracking is not available for this request."
+
+    def __init__(self, reason: str, message: str | None = None) -> None:
+        super().__init__(message, details={"reason": reason})
+        self.reason = reason
+
+
+class TrackingKeyLimit(AppError):
+    """A company holds at most two unrevoked tracking keys, for a rotation (B15-10)."""
+
+    status_code = 409
+    code = "TRACKING_KEY_LIMIT"
+    default_message = "This company already has two active tracking keys. Revoke one first."
+
+
+class LocationInUse(AppError):
+    """A building, floor or zone cannot be archived while it holds active floors, zones or cameras
+    (B15-5)."""
+
+    status_code = 409
+    code = "LOCATION_IN_USE"
+    default_message = "Archive the floors, zones and cameras in it first."
+
+
 # ---- 410 ----------------------------------------------------------------------------------------
 
 

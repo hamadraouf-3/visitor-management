@@ -7,6 +7,7 @@ import { adminFeature } from './features/admin/routes'
 import { authFeature } from './features/auth/routes'
 import { historyFeature } from './features/history/routes'
 import { insideFeature } from './features/inside/routes'
+import { journeyFeature } from './features/journey/routes'
 import { passFeature } from './features/pass/routes'
 import { platformFeature } from './features/platform/routes'
 import { receptionFeature } from './features/reception/routes'
@@ -26,6 +27,7 @@ const features: readonly FeatureModule[] = [
   visitsFeature,
   visitorsFeature,
   insideFeature,
+  journeyFeature,
   historyFeature,
   reportsFeature,
   adminFeature,

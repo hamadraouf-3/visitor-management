@@ -27,7 +27,9 @@ count against the checking-in user's daily budget (HOST_ARRIVAL_DAILY_LIMIT, `Em
 check-in or walk-in still succeeds without the e-mail, and the audit row says which budget left it out.
 
 Check-out: QR (any pass of this visit, as §6 row 4), MANUAL, or CORRECTED (an earlier time between the
-check-in and now, with a note). The pass is revoked (VISIT_COMPLETED).
+check-in and now, with a note). The pass is revoked (VISIT_COMPLETED). The visit's tracking association,
+if one is open, ends in the same transaction (CHECKED_OUT, Phase 15, B15-14); the tracking provider is
+asked to forget it after the commit.
 
 Bulk (POST /reception/check-out-stale): every visit still checked in from before company-local today
 whose scheduled end has passed is checked out with method BULK and the reason as its note, at its
@@ -113,6 +115,7 @@ from app.services.passes import PassService, invalid_pass
 from app.services.results import Mutation
 from app.services.scan import ScanOutcome, ScanSubject, count_scan, evaluate_scan, scan_error
 from app.services.scoping import FieldErrors, require_found
+from app.services.tracking_lifecycle import TrackingLifecycle
 from app.services.visit_lifecycle import begin_visit_change
 from app.services.visit_references import active_host, can_host, visit_department
 from app.services.visit_views import Viewer, VisitViewBuilder
@@ -269,6 +272,8 @@ class AttendanceService:
         self.emails = env.email_service(db)
         self.quota = env.email_quota()
         self.resolver = VisitorResolver(db)
+        # The Visitor Journey (Phase 15): a check-out ends the visit's tracking association.
+        self.tracking = TrackingLifecycle(db, env.tracking)
 
     # ---- check-in -------------------------------------------------------------------------------
 
@@ -443,6 +448,7 @@ class AttendanceService:
         )
         payload = VisitViewBuilder(self.db, viewer, now=now).one(visit)
         self.db.commit()
+        self.tracking.after_commit(now=now)
         return payload
 
     def check_out_stale(
@@ -513,6 +519,7 @@ class AttendanceService:
             metadata={"count": len(visits), "checked_in_before": checked_in_before},
         )
         self.db.commit()
+        self.tracking.after_commit(now=now)
 
     def _record_check_out(
         self,
@@ -536,6 +543,7 @@ class AttendanceService:
         self.passes.revoke_active(
             visit, reason=PassRevokeReason.VISIT_COMPLETED, actor_id=auth.user_id, context=context, now=now
         )
+        self.tracking.end_for_check_out(visit, actor_id=auth.user_id, context=context, now=now)
         self._audit(
             auth,
             AuditAction.VISIT_CHECKED_OUT,

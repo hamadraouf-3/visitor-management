@@ -48,10 +48,10 @@ export const publicBrandOf = (company: MockCompany, files: MockFiles = {}): Publ
   brand: brandOf(company, files),
 })
 
-export function meOf(company: MockCompany, language: Language, files: MockFiles = {}, roles: Role[] = ['SYSTEM_ADMIN', 'EMPLOYEE', 'RECEPTIONIST']): Me {
+export function meOf(company: MockCompany, language: Language, files: MockFiles = {}, roles: Role[] = ['SYSTEM_ADMIN', 'EMPLOYEE', 'RECEPTIONIST'], trackingAllowed = false): Me {
   return {
     user: { id: uuid('00', 1), full_name: 'Lina Haddad', email: 'lina.haddad@example.com', phone: null, roles, department: null, must_change_password: false, preferred_language: language },
-    company: { id: COMPANY_ID, name: company.name, name_ar: company.name_ar, slug: company.slug, timezone: 'Asia/Amman', default_language: 'en', brand: brandOf(company, files), address: null, address_ar: null },
+    company: { id: COMPANY_ID, name: company.name, name_ar: company.name_ar, slug: company.slug, timezone: 'Asia/Amman', default_language: 'en', brand: brandOf(company, files), address: null, address_ar: null, tracking_allowed: trackingAllowed },
   }
 }
 
@@ -70,6 +70,7 @@ export const platformCompanyOf = (company: MockCompany, files: MockFiles = {}): 
   updated_at: '2026-10-13T08:00:00Z',
   counts: { active_users: 12, visits_last_30_days: 84 },
   brand: brandOf(company, files),
+  tracking_allowed: false,
 })
 
 const iso = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString()

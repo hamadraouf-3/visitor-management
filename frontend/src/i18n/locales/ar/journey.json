@@ -1,0 +1,131 @@
+{
+  "title": "رحلة الزائر",
+  "banner": {
+    "label": "التتبّع",
+    "off": "التتبّع غير مفعّل",
+    "notConnected": "مزوّد التتبّع غير متصل",
+    "noProvider": "لا يوجد مزوّد تتبّع"
+  },
+  "simulated": "محاكاة",
+  "unknown": "غير معروف",
+  "inferredLocation": "موقع مُستنتج",
+  "locationSeparator": "،",
+  "confidence": "الثقة {{value}}",
+  "state": {
+    "DISABLED": "غير مفعّل",
+    "NOT_ENROLLED": "لم يبدأ",
+    "PENDING": "قيد البدء",
+    "ACTIVE": "نشط",
+    "UNCERTAIN": "غير مؤكد",
+    "STALE": "قديم",
+    "UNAVAILABLE": "غير متصل",
+    "ENDED": "انتهى"
+  },
+  "mark": {
+    "confirmed": "مؤكد",
+    "uncertain": "غير مؤكد"
+  },
+  "blocker": {
+    "PROVIDER_DISABLED": "لا يوجد مزوّد تتبّع",
+    "NOT_ALLOWED": "التتبّع غير مسموح به",
+    "NOT_ENABLED": "التتبّع غير مفعّل",
+    "NOT_CHECKED_IN": "الزائر ليس في الداخل",
+    "NO_ENROLLMENT_POINT": "لا توجد كاميرا استقبال"
+  },
+  "endReason": {
+    "CHECKED_OUT": "خرج الزائر",
+    "REVOKED": "أُوقف",
+    "EXPIRED": "انتهت مدته",
+    "ENROLLMENT_FAILED": "تعذّر البدء",
+    "VISIT_CANCELLED": "أُلغيت الزيارة"
+  },
+  "list": {
+    "count_zero": "لا زيارات",
+    "count_one": "زيارة واحدة",
+    "count_two": "زيارتان",
+    "count_few": "{{formatted}} زيارات",
+    "count_many": "{{formatted}} زيارة",
+    "count_other": "{{formatted}} زيارة",
+    "found_zero": "لم يُعثر على زيارات.",
+    "found_one": "عُثر على زيارة واحدة.",
+    "found_two": "عُثر على زيارتين.",
+    "found_few": "عُثر على {{count}} زيارات.",
+    "found_many": "عُثر على {{count}} زيارة.",
+    "found_other": "عُثر على {{count}} زيارة.",
+    "filters": {
+      "search": "بحث",
+      "searchPlaceholder": "اسم الزائر أو شركته",
+      "state": "الحالة",
+      "allStates": "كل الحالات",
+      "date": "التاريخ",
+      "clear": "مسح عوامل التصفية"
+    },
+    "columns": {
+      "visitor": "الزائر",
+      "host": "المضيف",
+      "state": "الحالة",
+      "location": "موقع مُستنتج"
+    },
+    "empty": {
+      "title": "لا توجد زيارات في هذا اليوم",
+      "filteredTitle": "لا توجد زيارات تطابق عوامل التصفية هذه",
+      "pageTitle": "هذه الصفحة فارغة",
+      "firstPage": "الانتقال إلى الصفحة الأولى"
+    },
+    "loadError": "تعذّر تحميل رحلات الزوار",
+    "noAccess": "لا تملك صلاحية الوصول إلى رحلة الزائر",
+    "pagesLabel": "صفحات رحلات الزوار"
+  },
+  "detail": {
+    "title": "الرحلة",
+    "loading": "جارٍ تحميل الرحلة",
+    "loadError": "تعذّر تحميل الرحلة",
+    "back": "العودة إلى رحلة الزائر",
+    "backToJourney": "العودة إلى الرحلة",
+    "notFound": {
+      "title": "الرحلة غير موجودة",
+      "heading": "لم يُعثر على هذه الزيارة"
+    },
+    "noAccess": {
+      "title": "لا صلاحية",
+      "heading": "لا تملك صلاحية الوصول إلى هذه الرحلة"
+    },
+    "location": {
+      "observed": "وقت الرصد"
+    },
+    "visit": {
+      "title": "الزيارة",
+      "host": "المضيف",
+      "status": "الحالة",
+      "checkedIn": "وقت الدخول",
+      "checkedOut": "وقت الخروج",
+      "open": "فتح الزيارة"
+    },
+    "tracking": {
+      "title": "التتبّع",
+      "started": "البدء",
+      "ended": "الانتهاء",
+      "reason": "سبب الانتهاء",
+      "camera": "كاميرا الاستقبال",
+      "start": "بدء التتبّع",
+      "stop": "إيقاف التتبّع",
+      "startedToast": "بدأ التتبّع",
+      "stoppedToast": "أُوقف التتبّع",
+      "startFailed": "تعذّر بدء التتبّع",
+      "stopTitle": "إيقاف تتبّع {{name}}؟",
+      "keep": "متابعة التتبّع",
+      "requested": "طُلب البدء",
+      "camerasLoadError": "تعذّر تحميل كاميرات الاستقبال"
+    },
+    "timeline": {
+      "title": "السجل الزمني",
+      "empty": "لا يوجد رصد",
+      "latest": "آخر {{shown}} من {{total}}",
+      "events": {
+        "ENROLLED": "بدأ التتبّع",
+        "OBSERVED": "رُصد",
+        "LOST": "فُقد الأثر"
+      }
+    }
+  }
+}

@@ -16,28 +16,36 @@
   `app.schemas.common`); dependencies run first, so unauthorized callers get 401/403 before any 422.
 """
 
+import json
 from collections.abc import Callable
 from typing import Annotated
 
 import anyio
 from fastapi import Depends, Request
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from starlette.requests import ClientDisconnect
 
 from app.core import time as app_time
 from app.core.config import Settings
 from app.core.errors import (
+    INVALID_JSON_MESSAGE,
     BadRequest,
     Forbidden,
     NotAuthenticated,
+    NotFound,
     PasswordChangeRequired,
     RateLimited,
     RequestTimeout,
     UnsupportedMediaType,
+    ValidationFailed,
+    validation_problems,
 )
+from app.core.field_errors import FieldCode, FieldProblem
 from app.core.request_context import RequestContext
 from app.db.session import get_db
 from app.email.dispatcher import EmailDispatcher
+from app.schemas.tracking import TrackingEventBatch
 from app.security.passwords import PasswordHasherService
 from app.security.permissions import Capability, has_capability, parse_roles
 from app.security.platform_sessions import (
@@ -61,12 +69,16 @@ from app.services.dashboard import DashboardService
 from app.services.departments import DepartmentsService
 from app.services.email_templates import EmailTemplatesService
 from app.services.environment import ServiceEnvironment
+from app.services.journeys import JourneyService
+from app.services.locations import LocationsService
 from app.services.platform_auth import PlatformAuthService
 from app.services.platform_companies import PlatformCompaniesService
 from app.services.preferences import PreferencesService
 from app.services.reception import ReceptionService
 from app.services.reports import ReportsService
 from app.services.scan import ReceptionScanService
+from app.services.tracking_ingestion import TrackingIngestion, TrackingKeyContext, authenticate_key, limit_key
+from app.services.tracking_settings import TrackingSettingsService
 from app.services.users import HostedVisitCanceller, UsersService
 from app.services.visit_snapshots import VisitSnapshotRefresher
 from app.services.visitors import VisitorsService
@@ -169,6 +181,9 @@ EmployeeDashboardAuth = Annotated[AuthContext, Depends(require_capability(Capabi
 AdminDashboardAuth = Annotated[AuthContext, Depends(require_capability(Capability.ADMIN_DASHBOARD))]
 ReportsAuth = Annotated[AuthContext, Depends(require_capability(Capability.VIEW_REPORTS))]
 AuditAuth = Annotated[AuthContext, Depends(require_capability(Capability.READ_AUDIT))]
+# The Visitor Journey (Phase 15, B15-13).
+ViewJourneysAuth = Annotated[AuthContext, Depends(require_capability(Capability.VIEW_JOURNEYS))]
+TrackVisitsAuth = Annotated[AuthContext, Depends(require_capability(Capability.TRACK_VISITS))]
 
 
 # ---- the platform owner (B11-6) -----------------------------------------------------------------
@@ -253,6 +268,58 @@ async def read_png_upload(request: Request, auth: PlatformAuth) -> bytes:
 
 
 PngUpload = Annotated[bytes, Depends(read_png_upload)]
+
+
+# ---- the tracking provider's ingestion (Phase 15, B15-17) -----------------------------------------
+
+JSON_MEDIA_TYPE = "application/json"
+NOT_JSON = "Send the events as JSON (Content-Type: application/json)."
+INVALID_JSON = FieldProblem(FieldCode.INVALID_JSON, INVALID_JSON_MESSAGE)
+
+
+def get_tracking_key(
+    request: Request, db: DbSession, settings: SettingsDep, env: ServiceEnvironmentDep
+) -> TrackingKeyContext:
+    """The provider's key (`Authorization: Bearer <key>`), never a cookie. With the provider `disabled`
+    the route behaves as absent: 404 before anything else (B15-1)."""
+    if not env.tracking.enabled:
+        raise NotFound()
+    key = authenticate_key(
+        db,
+        request.headers.get("authorization"),
+        client_ip=request.scope.get("state", {}).get("client_ip"),
+        secret_key=settings.secret_key.get_secret_value(),
+        limiter=env.limiter,
+        policies=env.policies,
+    )
+    request.state.auth = key  # the access log and a RATE_LIMITED row name the company
+    limit_key(key, limiter=env.limiter, policies=env.policies)
+    return key
+
+
+TrackingKeyAuth = Annotated[TrackingKeyContext, Depends(get_tracking_key)]
+
+
+async def read_tracking_batch(request: Request, key: TrackingKeyAuth) -> TrackingEventBatch:
+    """The batch, read only once the key is accepted (401, 404 and 429 come first, so nothing of the
+    body of a stranger is parsed). Its size is bounded by `BodySizeLimitMiddleware` (64 KiB); a body that
+    is not JSON or not a valid batch answers 422 with the paths of its problems."""
+    media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+    if media_type != JSON_MEDIA_TYPE:
+        raise UnsupportedMediaType(NOT_JSON)
+    try:
+        payload = json.loads(await request.body())
+    except ClientDisconnect:
+        raise BadRequest(UPLOAD_INTERRUPTED) from None
+    except ValueError, RecursionError:  # not JSON, not UTF-8, or nested past the parser's depth
+        raise ValidationFailed({"body": INVALID_JSON}) from None
+    try:
+        return TrackingEventBatch.model_validate(payload)
+    except ValidationError as exc:
+        raise ValidationFailed(validation_problems(exc.errors(), payload)) from None
+
+
+TrackingBatch = Annotated[TrackingEventBatch, Depends(read_tracking_batch)]
 
 
 # ---- services -----------------------------------------------------------------------------------
@@ -378,6 +445,7 @@ def get_platform_companies_service(
         policies=env.policies,
         emails=env.email_service(db),
         brands=BrandReader(db),
+        tracking=env.tracking,
     )
 
 
@@ -405,6 +473,22 @@ def get_public_brand_service(
     return PublicBrandService(db, settings=settings, limiter=env.limiter, policies=env.policies)
 
 
+def get_journey_service(db: DbSession, env: ServiceEnvironmentDep) -> JourneyService:
+    return JourneyService(db, env.tracking)
+
+
+def get_locations_service(db: DbSession) -> LocationsService:
+    return LocationsService(db)
+
+
+def get_tracking_settings_service(db: DbSession, env: ServiceEnvironmentDep) -> TrackingSettingsService:
+    return TrackingSettingsService(db, env.tracking)
+
+
+def get_tracking_ingestion(db: DbSession, env: ServiceEnvironmentDep) -> TrackingIngestion:
+    return TrackingIngestion(db, env.tracking)
+
+
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 PasswordResetIssuerDep = Annotated[PasswordResetIssuer, Depends(get_password_reset_issuer)]
 UsersServiceDep = Annotated[UsersService, Depends(get_users_service)]
@@ -426,3 +510,7 @@ EmailTemplatesServiceDep = Annotated[EmailTemplatesService, Depends(get_email_te
 BrandReaderDep = Annotated[BrandReader, Depends(get_brand_reader)]
 PlatformBrandServiceDep = Annotated[PlatformBrandService, Depends(get_platform_brand_service)]
 PublicBrandServiceDep = Annotated[PublicBrandService, Depends(get_public_brand_service)]
+JourneyServiceDep = Annotated[JourneyService, Depends(get_journey_service)]
+LocationsServiceDep = Annotated[LocationsService, Depends(get_locations_service)]
+TrackingSettingsServiceDep = Annotated[TrackingSettingsService, Depends(get_tracking_settings_service)]
+TrackingIngestionDep = Annotated[TrackingIngestion, Depends(get_tracking_ingestion)]

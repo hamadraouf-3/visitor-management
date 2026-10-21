@@ -66,6 +66,10 @@ def test_the_response_time_excludes_background_work(
     background_app: FastAPI, caplog: pytest.LogCaptureFixture
 ) -> None:
     client = TestClient(background_app, base_url="https://testserver", client=TEST_CLIENT_ADDRESS)
+    # A fresh app's first request pays one-time costs (the first database connection among them), which
+    # took it past the bound on a loaded machine; this test measures the response, not those.
+    assert client.get("/api/v1/health").status_code == 200
+    caplog.clear()
     with caplog.at_level(logging.INFO):
         assert client.post("/api/v1/test-background").status_code == 202
 

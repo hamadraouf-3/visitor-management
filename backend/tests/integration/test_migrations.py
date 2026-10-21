@@ -312,6 +312,7 @@ def test_triggers_and_extension_exist(connection: Connection) -> None:
         "visits_terminal_immutable": "visits",
         "audit_logs_immutable": "audit_logs",
         "platform_audit_logs_immutable": "platform_audit_logs",  # revision 0013 (B11-4)
+        "visitor_journey_events_immutable": "visitor_journey_events",  # revision 0018 (B15-9)
     }
     assert (
         connection.execute(text("SELECT count(*) FROM pg_extension WHERE extname = 'pg_trgm'")).scalar_one()

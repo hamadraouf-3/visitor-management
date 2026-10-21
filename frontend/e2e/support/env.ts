@@ -50,6 +50,9 @@ const RATE_LIMIT_DEFAULTS = {
   RATE_LIMIT_PUBLIC_BRAND_PER_IP: '600',
   RATE_LIMIT_PUBLIC_BRAND_PER_PREFIX: '6000',
   RATE_LIMIT_BRAND_CHANGES_PER_HOUR: '120',
+  // Phase 15: the tracking provider's ingestion, per key a minute and refused keys per client address.
+  RATE_LIMIT_TRACKING_REQUESTS_PER_MINUTE: '120',
+  RATE_LIMIT_TRACKING_KEY_FAILURES_PER_IP: '30',
 } as const
 
 const url = (role: string, password: string) =>
@@ -87,6 +90,10 @@ export function backendEnv(): NodeJS.ProcessEnv {
     // The calendar e-mails (Phase 14) are on, as by default; production starts with them off (its
     // deploy template). Set here so a developer's `.env` cannot turn off what the suite checks.
     CALENDAR_INVITATIONS_ENABLED: 'true',
+    // The Visitor Journey (Phase 15) runs on the simulator, which the settings refuse in production: the
+    // suite enrolls visits and sends observations through it (`simulate-journey`). Set here so a
+    // developer's `.env` (where the default is `disabled`) cannot change what the suite checks.
+    TRACKING_PROVIDER: 'simulator',
     LOG_LEVEL: 'INFO',
     LOG_JSON: 'true',
     SEED_COMPANY_TIMEZONE: 'Asia/Amman',

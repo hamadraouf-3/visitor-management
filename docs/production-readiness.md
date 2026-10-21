@@ -604,6 +604,7 @@ Compose restarts `postgres`, the four API processes and `frontend` with `unless-
 |---|---|---|
 | NO_SHOW marking | Happens lazily on reads. Optionally also `python -m app.cli mark-no-shows` nightly. | Verified in every round: marks only expired visits, in every company. A rerun changes nothing. 1.6–2.1 s on 60,000 visits. The audit row has no actor. |
 | Session pruning | `python -m app.cli prune-sessions` weekly, as the schema owner, from the `migrate` service | Verified (success, and the refusal of 0 days) |
+| Journey pruning (Phase 15) | `python -m app.cli prune-journeys` daily, as the schema owner, from the `migrate` service: each company's `journey_retention_days` | Verified by the backend suite (`test_tracking_cli.py`); nothing to prune while tracking is off |
 | Interrupted e-mail sweep | Inside every API process, at start-up and every 60 s | Verified (RR1-04), including three overlapping sweeps (§4.4) |
 | Backups | Cron on the host (runbook example: every 6 hours) | Scripts verified; scheduling is the operator's |
 
@@ -1715,6 +1716,7 @@ and government deployments.
 - [ ] **(B for bank/gov)** Continuous WAL archiving (pgBackRest or WAL-G) for point-in-time recovery,
   RPO about 1 minute.
 - [ ] **B** `prune-sessions` scheduled weekly. **R** `mark-no-shows` nightly (optional).
+- [ ] **B** `prune-journeys` scheduled daily (Phase 15; deploy/README.md), even while tracking is off.
 - [ ] **B** Upgrade procedure: back up first. For an existing large database, create the revision-0010
   indexes `CONCURRENTLY` before migrating. Downgrade only with the API stopped.
 - [ ] **B** Incident runbook available to the on-call team: restore and rename, secret rotation, the
@@ -1755,6 +1757,33 @@ and government deployments.
   with E2E checks at 1440, 820 and 390 px in both languages). Re-check on the real tablet in the pilot.
 - [ ] **R** A login storm at shift start, through the real network address translation.
 - [ ] **R** A screen-reader spot check (NVDA or VoiceOver) of sign-in, invite and reception.
+
+### J. Visitor Journey (Phase 15): before any real visitor is tracked
+
+The Visitor Journey ships **off** (`TRACKING_PROVIDER=disabled`; [visitor-journey-design.md](visitor-journey-design.md)).
+None of these is needed to go live without it; every one is blocking before a company's tracking is
+allowed with a real provider:
+
+- [ ] **B** A real provider adapter exists, reviewed and tested on site. Today it is **BLOCKED BY
+  ENVIRONMENT** ([visitor-tracking-model-assessment.md](visitor-tracking-model-assessment.md); what it still
+  needs: [visitor-tracking-integration.md](visitor-tracking-integration.md) §9). No real-model test has run.
+- [ ] **B** The **privacy owner's written approval** of: the purpose; the lawful basis under Jordan's
+  Personal Data Protection Law (No. 24 of 2023); the notice visitors are given before enrollment; who may
+  see journeys (the product allows administrators, management and reception); the retention
+  (`journey_retention_days`, 1–90) and the provider's own retention of images, crops and galleries; and,
+  where required, a privacy impact assessment. The building's and tenants' contracts allow the camera use.
+- [ ] **B** An **evaluation-based confidence threshold**: the model's true and false match rates measured on
+  this site's footage, and from them the company's `min_confidence`. Until it is set, no observation counts
+  as confirmed and no location is shown (by design).
+- [ ] **B** The placeholder constants reviewed against the cameras' analysis classes and the evaluation:
+  the 60-second conflict window, the 5-minute contact timeout, the 2-minute clock tolerance, the
+  10-minute time to activate an enrollment, the 12-hour association limit after activation, the stale
+  threshold (decisions/phase-15-backend.md B15-16).
+- [ ] **B** `TRACKING_PROVIDER` never `simulator` on production (the API refuses to start with it); the
+  provider's key created by the company's administrator, stored only in the provider's secret store, and
+  rotated through the two-key slot.
+- [ ] **B** Reception trained: enrollment binds "the person at the reception camera now"; the screen shows an
+  **inferred** location, never a guaranteed one.
 
 ---
 

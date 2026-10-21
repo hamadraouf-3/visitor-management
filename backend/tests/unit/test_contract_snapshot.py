@@ -44,6 +44,7 @@ def test_snapshot_publishes_queries_and_envelopes() -> None:
         "AuditLogPage",
         "PlatformCompanyPage",  # Phase 11
         "PlatformAuditLogPage",
+        "JourneyPage",  # Phase 15
     } == set(snapshot["envelopes"])
     # Query models reject unknown parameters, like request bodies reject unknown fields.
     definitions = snapshot["$defs"]

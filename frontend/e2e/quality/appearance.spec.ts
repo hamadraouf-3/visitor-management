@@ -81,6 +81,12 @@ const ADMIN: PageCheck[] = [
   { name: 'admin: company settings', path: () => '/admin/settings', ready: (page) => page.getByRole('textbox', { name: 'Company name' }) },
   { name: 'admin: audit log', path: () => '/admin/audit', ready: (page) => page.getByRole('list', { name: 'Audit events, newest first' }) },
   { name: 'reports', path: () => '/reports', ready: h1('Reports') },
+  // Phase 15: the Visitor Journey and visitor tracking's administration (before the e-mail texts: the saved
+  // e-mail's test below opens the last page of this list).
+  { name: 'visitor journey', path: () => '/journey', ready: (page) => page.locator('[data-location-path]').first() },
+  { name: 'a visitor’s journey', path: (data) => `/journey/${data.trackedVisitId}`, ready: (page) => page.locator('[data-journey-timeline]') },
+  { name: 'admin: visitor tracking', path: () => '/admin/tracking', ready: (page) => page.getByRole('switch', { name: 'Visitor tracking' }) },
+  { name: 'admin: tracking locations', path: () => '/admin/tracking?tab=locations', ready: (page) => page.getByRole('list', { name: 'Floors of Mawdoo3 HQ' }) },
   { name: 'admin: e-mail texts editor', path: () => '/admin/email-templates/VISITOR_INVITATION', ready: (page) => page.locator('[data-preview-subject]') },
   // Phase 14: one of the host's e-mails of a visit.
   { name: 'admin: e-mail texts editor (host)', path: () => '/admin/email-templates/HOST_VISIT_SCHEDULED', ready: (page) => page.locator('[data-preview-subject]') },

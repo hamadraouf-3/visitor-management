@@ -3,10 +3,12 @@ import type {
   DepartmentListParams,
   EmailTemplateKind,
   HostSearchParams,
+  JourneyListParams,
   PageParams,
   PlatformAuditLogListParams,
   PlatformCompanyListParams,
   ReportSummaryParams,
+  TrackingCameraListParams,
   UserListParams,
   VisitListParams,
   VisitorSearchParams,
@@ -74,6 +76,26 @@ export const queryKeys = {
     detail: (kind: EmailTemplateKind) => ['email-templates', 'detail', kind] as const,
     /** A draft's rendering (POST preview): the request body is part of the key. */
     preview: (kind: EmailTemplateKind, body: unknown) => ['email-templates', 'preview', kind, body] as const,
+  },
+
+  /** Visitor tracking (Phase 15): its status, settings, keys, cameras and the location registry. */
+  tracking: {
+    all: ['tracking'] as const,
+    status: ['tracking', 'status'] as const,
+    settings: ['tracking', 'settings'] as const,
+    keys: ['tracking', 'keys'] as const,
+    cameras: {
+      all: ['tracking', 'cameras'] as const,
+      list: (params: TrackingCameraListParams = {}) => ['tracking', 'cameras', params] as const,
+    },
+    locations: ['tracking', 'locations'] as const,
+  },
+
+  /** The Visitor Journey (Phase 15): the day's journeys and one visit's. */
+  journeys: {
+    all: ['journeys'] as const,
+    list: (params: JourneyListParams = {}) => ['journeys', 'list', params] as const,
+    detail: (visitId: string) => ['journeys', 'detail', visitId] as const,
   },
 
   /** A company's public identity (Phase 12), asked for by slug without a session: display data, nobody's own. */

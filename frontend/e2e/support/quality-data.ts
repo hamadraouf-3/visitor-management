@@ -3,6 +3,7 @@ import path from 'node:path'
 import { Api } from './api.ts'
 import { RUN_DIR } from './paths.ts'
 import { localDate, minutes, wallTimeToInstant } from './time.ts'
+import { enrollVisit, simulateJourney } from './tracking.ts'
 
 /*
  * Data the quality specs (e2e/quality) look at, created once per run by the global setup so every
@@ -22,6 +23,8 @@ export interface QualityData {
   expectedVisitId: string
   /** A pass link, for the public pass page. */
   passUrl: string
+  /** Phase 15: the inside visitor's visit, tracked by the simulator, with observations (its journey page). */
+  trackedVisitId: string
 }
 
 const FILE = path.join(RUN_DIR, 'quality-data.json')
@@ -49,6 +52,9 @@ export async function createQualityData(): Promise<QualityData> {
       purpose: 'Server room maintenance',
     })
     await reception.checkIn(inside.visit.id, { method: 'MANUAL' })
+    // Phase 15: tracked by the simulator, past the setup's two cameras (prepareTracking ran first).
+    await enrollVisit(reception, inside.visit.id)
+    await simulateJourney(inside.visit.id)
     const phoneOnly = await host.createVisit({
       visitor: { full_name: 'Grace Lee', phone: '+962 79 555 0172' },
       start: new Date(now - minutes(2)),
@@ -70,6 +76,7 @@ export async function createQualityData(): Promise<QualityData> {
       phoneOnlyVisitorName: phoneOnly.visit.visitor.full_name,
       expectedVisitId: expected.visit.id,
       passUrl: scheduled.pass_url,
+      trackedVisitId: inside.visit.id,
     }
     writeFileSync(FILE, JSON.stringify(data, null, 2))
     return data

@@ -12,6 +12,7 @@ import {
   reactivatePlatformCompany,
   sendCompanyAdminPasswordReset,
   updateCompanyBrand,
+  updateCompanyTracking,
   updatePlatformCompany,
   uploadCompanyBrandAsset,
 } from '../../api/platform'
@@ -124,6 +125,16 @@ export function useSetCompanyActive(id: string) {
   return useMutation({
     mutationKey: MUTATION('company-active'),
     mutationFn: (active: boolean) => (active ? reactivatePlatformCompany(id) : deactivatePlatformCompany(id)),
+    onSuccess: changed,
+  })
+}
+
+/** The platform owner's switch of a company's visitor tracking (Phase 15). */
+export function useSetCompanyTracking(id: string) {
+  const changed = useCompanyChanged()
+  return useMutation({
+    mutationKey: MUTATION('company-tracking'),
+    mutationFn: (allowed: boolean) => updateCompanyTracking(id, { allowed }),
     onSuccess: changed,
   })
 }

@@ -83,6 +83,8 @@ class PolicyName(StrEnum):
     PUBLIC_BRAND_IP = "public_brand_ip"
     PUBLIC_BRAND_PREFIX = "public_brand_prefix"
     BRAND_CHANGES_PER_USER = "brand_changes_per_user"
+    TRACKING_REQUESTS_PER_KEY = "tracking_requests_per_key"
+    TRACKING_KEY_FAILURES_IP = "tracking_key_failures_ip"
     API_PER_USER = "api_per_user"
 
 
@@ -198,6 +200,8 @@ class RatePolicies:
     public_brand_ip: RatePolicy
     public_brand_prefix: RatePolicy
     brand_changes_per_user: RatePolicy
+    tracking_requests_per_key: RatePolicy
+    tracking_key_failures_ip: RatePolicy
     api_per_user: RatePolicy
 
     @classmethod
@@ -374,6 +378,18 @@ class RatePolicies:
             # Not in §7.3 (B12-7): changes of companies' brands per platform account and hour.
             brand_changes_per_user=RatePolicy(
                 PolicyName.BRAND_CHANGES_PER_USER, settings.rate_limit_brand_changes_per_hour, 60 * 60
+            ),
+            # Not in §7.3 (Phase 15, B15-17): the tracking provider's ingestion requests per key and minute
+            # (keys exist: bounded), and requests with a wrong, revoked or absent key per client address and
+            # 5 minutes, which bounds the key lookups an anonymous client can cause.
+            tracking_requests_per_key=RatePolicy(
+                PolicyName.TRACKING_REQUESTS_PER_KEY, settings.rate_limit_tracking_requests_per_minute, 60
+            ),
+            tracking_key_failures_ip=RatePolicy(
+                PolicyName.TRACKING_KEY_FAILURES_IP,
+                settings.rate_limit_tracking_key_failures_per_ip,
+                five_minutes,
+                scope=network,
             ),
             api_per_user=RatePolicy(PolicyName.API_PER_USER, settings.rate_limit_api_per_minute, 60),
         )

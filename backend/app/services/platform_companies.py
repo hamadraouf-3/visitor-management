@@ -70,6 +70,7 @@ from app.repositories.platform import (
     PlatformAuditLogRepository,
     PlatformCompanyRepository,
 )
+from app.repositories.tracking import TrackingSettingsRepository
 from app.repositories.users import UserRepository
 from app.schemas.platform import (
     CompanyAdminCreate,
@@ -92,6 +93,8 @@ from app.services.authorization import require_platform_still_authorized
 from app.services.brand import BrandReader
 from app.services.company import UNKNOWN_TIMEZONE, CompanyService
 from app.services.scoping import FieldErrors, require_found
+from app.services.tracking_lifecycle import EndTrigger, TrackingLifecycle
+from app.services.tracking_provider import DisabledProvider, TrackingProvider
 from app.services.users import EMAIL_CONSTRAINT
 
 SLUG_CONSTRAINT = "uq_companies_slug"
@@ -110,6 +113,7 @@ class PlatformCompaniesService:
         policies: RatePolicies,
         emails: EmailService,
         brands: BrandReader,
+        tracking: TrackingProvider | None = None,
     ) -> None:
         self.db = db
         self.settings = settings
@@ -118,6 +122,7 @@ class PlatformCompaniesService:
         self.policies = policies
         self.emails = emails
         self.brands = brands
+        self.tracking = tracking or DisabledProvider()
         self.companies = CompanyRepository(db)
         self.platform = PlatformCompanyRepository(db)
         self.users = UserRepository(db)
@@ -140,6 +145,7 @@ class PlatformCompaniesService:
     def _views(self, companies: Sequence[Company]) -> list[PlatformCompany]:
         counts = self.platform.counts([company.id for company in companies], now=app_time.now())
         brands = self.brands.of_many(companies)  # one query for the page (B12-7)
+        allowed = TrackingSettingsRepository(self.db).allowed_of([company.id for company in companies])
         return [
             PlatformCompany.build(
                 company,
@@ -148,6 +154,7 @@ class PlatformCompaniesService:
                     visits_last_30_days=counts[company.id].visits_last_30_days,
                 ),
                 brands[company.id],
+                tracking_allowed=allowed[company.id],
             )
             for company in companies
         ]
@@ -390,6 +397,7 @@ class PlatformCompaniesService:
             return self._views([company])[0]
         now = app_time.now()
         metadata: dict[str, object] = {}
+        lifecycle = TrackingLifecycle(self.db, self.tracking)
         if active:
             company.is_active = True
             company.deactivated_at = None
@@ -400,9 +408,56 @@ class PlatformCompaniesService:
             self.db.flush()  # the company row first, then its users' sessions and links
             metadata["revoked_sessions"] = self.platform.revoke_sessions(company.id, now=now)
             metadata["invalidated_reset_links"] = self.platform.invalidate_reset_tokens(company.id, now=now)
+            # Nobody of the company can check its visitors out any more: their tracking ends now (B15-14).
+            ended = lifecycle.end_all_of_company(
+                company.id,
+                trigger=EndTrigger.COMPANY_DEACTIVATED,
+                now=now,
+                context=audit.without_network_details(context),
+                extra=audit.platform_source(auth.platform_admin_id),
+            )
+            if ended:
+                metadata["ended_tracking"] = ended
             action = AuditAction.COMPANY_DEACTIVATED
         self._audit(auth, action, company.id, AuditEntity.COMPANY, company.id, context, metadata)
         self.db.commit()
+        lifecycle.after_commit(now=now)
+        return self._views([company])[0]
+
+    # ---- the Visitor Journey (Phase 15, B15-2) ------------------------------------------------------
+
+    def set_tracking_allowed(
+        self, auth: PlatformAuthContext, company_id: UUID, allowed: bool, context: RequestContext
+    ) -> PlatformCompany:
+        """Allow or disallow visitor tracking for a company; doing it again changes and audits nothing.
+        Disallowing also switches the company's own setting off and ends its open associations
+        (REVOKED), in the same transaction."""
+        company = self._lock_company(auth, company_id, RowLock.UPDATE)
+        settings = TrackingSettingsRepository(self.db)
+        current = settings.get(company.id)
+        if (current.allowed if current is not None else False) == allowed:
+            return self._views([company])[0]
+        now = app_time.now()
+        row = settings.lock(company.id, now=now)
+        row.allowed = allowed
+        metadata: dict[str, object] = {}
+        lifecycle = TrackingLifecycle(self.db, self.tracking)
+        if not allowed:
+            metadata["was_enabled"] = row.enabled
+            row.enabled = False
+            metadata["ended_tracking"] = lifecycle.end_all_of_company(
+                company.id,
+                trigger=EndTrigger.TRACKING_DISALLOWED,
+                now=now,
+                context=audit.without_network_details(context),
+                extra=audit.platform_source(auth.platform_admin_id),
+            )
+        row.updated_at = now
+        self.db.flush()
+        action = AuditAction.TRACKING_ALLOWED if allowed else AuditAction.TRACKING_DISALLOWED
+        self._audit(auth, action, company.id, AuditEntity.COMPANY, company.id, context, metadata)
+        self.db.commit()
+        lifecycle.after_commit(now=now)
         return self._views([company])[0]
 
     # ---- an administrator's reset link ----------------------------------------------------------

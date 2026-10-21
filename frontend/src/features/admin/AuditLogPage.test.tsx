@@ -218,6 +218,12 @@ describe('Audit log', () => {
       'Email',
       'Session',
       'Email texts',
+      // Phase 15: the places and the tracking's cameras and keys.
+      'Building',
+      'Floor',
+      'Zone',
+      'Camera',
+      'Provider key',
     ])
     // The platform's own actions were never offered either.
     expect(within(screen.getByRole('combobox', { name: 'Event' })).queryByRole('option', { name: /Platform account/ })).toBeNull()

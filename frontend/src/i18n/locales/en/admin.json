@@ -8,7 +8,8 @@
       "reception": "Reception",
       "passes": "Passes and invitations",
       "emailTexts": "Email texts",
-      "platform": "Platform accounts"
+      "platform": "Platform accounts",
+      "tracking": "Visitor tracking"
     },
     "actions": {
       "AUTH_LOGIN_SUCCEEDED": "Signed in",
@@ -62,7 +63,24 @@
       "EMAIL_TEMPLATE_RESET": "Email texts reset",
       "EMAIL_TEMPLATE_TEST_SENT": "Test email sent",
       "PLATFORM_ADMIN_CREATED": "Platform account created",
-      "PLATFORM_ADMIN_PASSWORD_SET": "Platform account password set"
+      "PLATFORM_ADMIN_PASSWORD_SET": "Platform account password set",
+      "TRACKING_ENROLLMENT_REQUESTED": "Visit tracking requested",
+      "TRACKING_ASSOCIATION_ACTIVATED": "Visit tracking started",
+      "TRACKING_ASSOCIATION_ENDED": "Visit tracking ended",
+      "TRACKING_ASSOCIATION_REVOKED": "Visit tracking stopped",
+      "JOURNEY_VIEWED": "Visitor journey opened",
+      "TRACKING_ENABLED": "Tracking turned on",
+      "TRACKING_DISABLED": "Tracking turned off",
+      "TRACKING_ALLOWED": "Tracking allowed",
+      "TRACKING_DISALLOWED": "Tracking no longer allowed",
+      "TRACKING_SETTINGS_UPDATED": "Tracking settings updated",
+      "TRACKING_KEY_CREATED": "Provider key created",
+      "TRACKING_KEY_REVOKED": "Provider key revoked",
+      "TRACKING_CAMERA_CREATED": "Camera added",
+      "TRACKING_CAMERA_UPDATED": "Camera updated",
+      "LOCATION_CREATED": "Place added",
+      "LOCATION_UPDATED": "Place updated",
+      "JOURNEY_LIST_VIEWED": "Journey list viewed"
     },
     "entities": {
       "visit": "Visit",
@@ -74,7 +92,12 @@
       "email": "Email",
       "session": "Session",
       "email_template": "Email texts",
-      "platform_admin": "Platform account"
+      "platform_admin": "Platform account",
+      "building": "Building",
+      "floor": "Floor",
+      "zone": "Zone",
+      "tracking_camera": "Camera",
+      "tracking_key": "Provider key"
     },
     "eventsFor": {
       "visit": "Events for this visit",
@@ -213,7 +236,29 @@
       "HOST_VISIT_RESCHEDULED": "Visit rescheduled (host)",
       "HOST_VISIT_CANCELLED": "Visit cancelled (host)",
       "PASSWORD_RESET": "Password reset",
-      "PASSWORD_CHANGED": "Password changed"
+      "PASSWORD_CHANGED": "Password changed",
+      "tracking_requests_per_key": "Tracking requests per key",
+      "tracking_key_failures_ip": "Refused tracking keys (network address)",
+      "simulator": "Simulator",
+      "disabled": "No provider",
+      "REVOKED": "Stopped",
+      "EXPIRED": "Expired",
+      "ENROLLMENT_FAILED": "Could not start",
+      "USER": "By a person",
+      "CHECK_OUT": "Check-out",
+      "EXPIRY": "Time over",
+      "PROVIDER": "The provider",
+      "TRACKING_DISABLED": "Tracking turned off",
+      "TRACKING_DISALLOWED": "Tracking no longer allowed",
+      "COMPANY_DEACTIVATED": "Company deactivated",
+      "enabled": "Tracking",
+      "min_confidence": "Minimum confidence",
+      "stale_after_minutes": "Not recent after",
+      "retention_days": "Journeys kept",
+      "provider_camera_id": "Provider camera ID",
+      "zone_id": "Zone",
+      "is_enrollment_point": "Reception camera",
+      "level": "Level"
     },
     "metadataKeys": {
       "outcome": "Outcome",
@@ -275,7 +320,15 @@
       "language": "Language",
       "draft": "Unsaved draft",
       "changed": "Texts changed",
-      "reset": "Texts reset"
+      "reset": "Texts reset",
+      "association_id": "Tracking",
+      "camera_id": "Camera",
+      "provider": "Provider",
+      "revoked": "Visitors no longer tracked",
+      "ended_tracking": "Visitors no longer tracked",
+      "was_enabled": "Tracking was on",
+      "day": "Day",
+      "located": "With a location"
     },
     "systemActor": "System or anonymous",
     "failure": "Failure or denial:",
@@ -663,5 +716,194 @@
       "en": "English"
     },
     "fieldIn": "{{field}} ({{language}})"
+  },
+  "tracking": {
+    "title": "Visitor tracking",
+    "tabs": {
+      "label": "Visitor tracking sections",
+      "settings": "Settings",
+      "locations": "Locations",
+      "cameras": "Cameras"
+    },
+    "cancel": "Cancel",
+    "save": "Save",
+    "add": "Add",
+    "settings": {
+      "switchTitle": "Tracking",
+      "switch": "Visitor tracking",
+      "notAllowed": "Not allowed",
+      "provider": "Provider",
+      "providers": {
+        "simulator": "Simulator",
+        "disabled": "None"
+      },
+      "turnedOn": "Tracking turned on",
+      "turnedOff": "Tracking turned off",
+      "turnOnFailed": "Tracking could not be turned on",
+      "turnOffTitle": "Turn tracking off?",
+      "turnOffDescription": "Every visitor being tracked now stops being tracked.",
+      "keepOn": "Keep it on",
+      "turnOff": "Turn off",
+      "thresholdsTitle": "Thresholds and retention",
+      "minConfidence": "Minimum confidence (%)",
+      "staleAfter": "Not recent after",
+      "retention": "Keep journeys for",
+      "minutesUnit": "min",
+      "daysUnit": "days",
+      "saved": "Tracking settings saved",
+      "unsavedDescription": "Your changes to the tracking settings have not been saved.",
+      "loadError": "The tracking settings could not be loaded",
+      "loading": "Loading the tracking settings",
+      "validation": {
+        "confidence": "Enter a percentage from 1 to 100.",
+        "range": "Enter a whole number from {{min}} to {{max}}."
+      }
+    },
+    "health": {
+      "title": "Provider health",
+      "never": "Never",
+      "none": "None",
+      "lastContact": "Last contact",
+      "lastEvent": "Last accepted event",
+      "rejected": "Refused in 24 hours",
+      "providerErrors": "Provider errors in 24 hours",
+      "reasons": {
+        "TRACKING_OFF": "Tracking off",
+        "UNKNOWN_ASSOCIATION": "Unknown association",
+        "ASSOCIATION_ENDED": "Ended association",
+        "ALREADY_ENROLLED": "Already started",
+        "UNKNOWN_CAMERA": "Unknown camera",
+        "CAMERA_MISMATCH": "Camera mismatch",
+        "TOO_OLD": "Too old",
+        "IN_FUTURE": "In the future",
+        "BEFORE_ASSOCIATION": "Before tracking started",
+        "NOT_ACTIVE": "Not started yet"
+      },
+      "operations": {
+        "ENROLL": "Start tracking",
+        "REVOKE": "Stop tracking"
+      }
+    },
+    "keys": {
+      "title": "Provider keys",
+      "create": "Create key",
+      "createConfirm": "Create",
+      "label": "Label",
+      "created": {
+        "title": "Key “{{label}}” created",
+        "description": "The key is shown only once.",
+        "key": "Key",
+        "copy": "Copy key",
+        "copied": "Copied",
+        "done": "Done"
+      },
+      "revokeTitle": "Revoke the key “{{label}}”?",
+      "revokeDescription": "The provider’s requests with this key are refused from then on.",
+      "keep": "Keep key",
+      "revoke": "Revoke",
+      "revokeNamed": "Revoke {{label}}",
+      "revoked": "Key “{{label}}” revoked",
+      "limit": "Two keys in use",
+      "loadError": "The keys could not be loaded",
+      "loading": "Loading the keys",
+      "empty": "No keys",
+      "revokedBadge": "Revoked",
+      "inUse": "In use",
+      "createdByOn": "Created by {{name}} on {{when}}",
+      "createdOn": "Created on {{when}}",
+      "revokedOn": "Revoked on {{when}}",
+      "lastUsed": "Last used {{when}}",
+      "neverUsed": "Not used yet",
+      "validation": {
+        "labelRequired": "Enter a label.",
+        "oneLine": "Write the label on one line."
+      }
+    },
+    "locations": {
+      "archived": "Archived",
+      "actionsFor": "Actions for {{name}}",
+      "edit": {
+        "building": "Edit building {{name}}",
+        "floor": "Edit floor {{name}}",
+        "zone": "Edit zone {{name}}"
+      },
+      "add": {
+        "building": "Add building",
+        "floor": "Add floor",
+        "zone": "Add zone",
+        "floorIn": "Add a floor to {{name}}",
+        "zoneIn": "Add a zone to {{name}}"
+      },
+      "editAction": "Edit",
+      "saved": "{{name}} saved",
+      "added": "{{name}} added",
+      "name": "Name",
+      "nameAr": "Arabic name",
+      "level": "Level",
+      "archive": "Archive",
+      "archiveTitle": "Archive {{name}}?",
+      "archivedToast": "{{name}} archived",
+      "keep": "Keep it",
+      "restore": "Restore",
+      "restored": "{{name}} restored",
+      "restoreFailed": "{{name}} could not be restored",
+      "floorsOf": "Floors of {{name}}",
+      "zonesOf": "Zones of {{name}}",
+      "noFloors": "No floors",
+      "noZones": "No zones",
+      "showArchived": "Show archived",
+      "empty": "No buildings yet",
+      "emptyActive": "No active buildings",
+      "loadError": "The locations could not be loaded",
+      "loading": "Loading the locations",
+      "validation": {
+        "nameRequired": "Enter a name.",
+        "duplicate": "This name is already used here.",
+        "level": "Enter a whole number from {{min}} to {{max}}.",
+        "levelTaken": "This building already has a floor at this level."
+      }
+    },
+    "cameras": {
+      "title": "Cameras",
+      "columns": {
+        "name": "Camera",
+        "location": "Location",
+        "reception": "Reception",
+        "actions": "Actions"
+      },
+      "archived": "Archived",
+      "enrollmentPoint": "Reception camera",
+      "enrollmentPointLabel": "Reception camera",
+      "add": "Add camera",
+      "edit": "Edit",
+      "editNamed": "Edit {{name}}",
+      "archive": "Archive",
+      "archiveNamed": "Archive {{name}}",
+      "archiveTitle": "Archive {{name}}?",
+      "archivedToast": "{{name}} archived",
+      "keep": "Keep it",
+      "restore": "Restore",
+      "restoreNamed": "Restore {{name}}",
+      "restored": "{{name}} restored",
+      "restoreFailed": "{{name}} could not be restored",
+      "saved": "{{name}} saved",
+      "added": "{{name}} added",
+      "providerId": "Provider camera ID",
+      "name": "Name",
+      "zone": "Zone",
+      "chooseZone": "Choose a zone",
+      "noZones": "Add a zone before adding a camera",
+      "openLocations": "Open locations",
+      "showArchived": "Show archived",
+      "loadError": "The cameras could not be loaded",
+      "empty": "No cameras yet",
+      "validation": {
+        "idRequired": "Enter the provider’s camera ID.",
+        "idFormat": "Use Latin letters, digits and symbols, without spaces.",
+        "idTaken": "A camera with this ID already exists.",
+        "nameRequired": "Enter a name.",
+        "zoneRequired": "Choose a zone."
+      }
+    }
   }
 }

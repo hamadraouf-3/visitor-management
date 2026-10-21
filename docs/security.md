@@ -1562,8 +1562,28 @@ store and SIEM as to the database.
 | E-mail log | `email_messages`: recipient address, subject, status, sanitised error. **Bodies and links are never stored.** Subjects contain the company name (visitor e-mails in both languages); host-arrival subjects contain the visitor's name | Yes |
 | Audit trail | `audit_logs`: IDs, enums, counts, IP address, user agent, request ID | Yes |
 
-**Not collected:** national ID or document numbers, photos or other biometric data, dates of birth,
-signatures or vehicle data; there is no custom-field mechanism. A QR code carries only the pass link
+**Not collected:** national ID or document numbers, photos, biometric templates (no image, crop,
+embedding or template of a person is received, stored or logged, Visitor Journey included), dates of
+birth, signatures or vehicle data; there is no custom-field mechanism.
+
+**Visitor Journey (Phase 15; off by default).** With an external tracking provider configured
+(`TRACKING_PROVIDER`; `disabled` by default and in production) and allowed and enabled for a company, the
+application stores, per enrolled visit: a random association reference, its lifecycle, and the **floor and
+zone observations** the provider reports (`visitor_journey_events`: time, camera, building, floor, zone,
+the provider's match judgement and confidence). That is **personal movement data**: it is kept for the
+company's `journey_retention_days` (1–90, default 30; `cli prune-journeys`), read only by administrators,
+management and reception (hosts get 403), and every opening of a visit's journey is audited
+(`JOURNEY_VIEWED`, at most once per user and visit an hour), as is reading the day's list when it shows
+anyone's location (`JOURNEY_LIST_VIEWED`, at most once per user an hour). Rejected events are counted,
+never stored: unknown people (refs), unknown cameras, and every sighting of an association the provider
+never activated (still PENDING, or ended without ever being active), which binds nobody; the journey and
+its timeline ignore any such event. The provider processes camera images on its side, under its own
+policy; enrollment is a binding request (a reference and a camera ID), never an image. Provider keys are
+stored as SHA-256 digests and shown once; refs, keys and event payloads are never logged. No real provider
+is connected (BLOCKED BY ENVIRONMENT). Real use requires the privacy owner's approval (purpose, lawful basis
+under Jordan's PDPL, notice, access, retention) and an evaluation-based confidence threshold
+([production-readiness.md](production-readiness.md) §15 J); see
+[visitor-journey-design.md](visitor-journey-design.md) §6. A QR code carries only the pass link
 (`{QR_BASE_URL}/pass?c=<slug>#<token>`: the company's public slug and the token), never personal data. The e-mails load nothing remote, so opening one
 tells no third party that it was read. Request models refuse unknown fields, so a client cannot store extra
 data. Free text exists only in the fields listed above (purpose, reasons, notes, company address).
@@ -1575,6 +1595,7 @@ data. Free text exists only in the fields listed above (purpose, reasons, notes,
 | Visitors and visits | **Never deleted** (D-12). The runtime role has no `DELETE` privilege. Visitor edits overwrite the visitor row; visit snapshots are frozen from check-in, and checked-out or cancelled visits cannot be updated by any role (`visits_terminal_immutable`) |
 | Staff accounts, departments | Deactivated, never deleted |
 | Sessions | Revoked or expired rows remain until `python -m app.cli prune-sessions` deletes those that ended more than N days ago (default 30, minimum 1; runs as the schema owner) |
+| Visitor journeys (Phase 15) | Journey events are append-only (no UPDATE for the runtime role, a trigger refuses it for anyone). `python -m app.cli prune-journeys` (schema owner) deletes events observed, and ended associations that ended, more than the company's `journey_retention_days` ago (default 30, 1–90). Rejected events (sightings of an association the provider never activated among them) are never stored |
 | Reset tokens | Remain (hash, times, requesting IP); no prune command |
 | E-mail log | Remains |
 | Audit trail | Append-only; neither the runtime role nor the owner can update or delete rows while the trigger is enabled ([§8.4](#84-immutability)); no prune command |

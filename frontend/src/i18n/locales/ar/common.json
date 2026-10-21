@@ -19,6 +19,7 @@
       "inviteVisitor": "دعوة زائر",
       "visitors": "الزوار",
       "inside": "داخل المبنى الآن",
+      "journey": "رحلة الزائر",
       "history": "سجل الزيارات",
       "reports": "التقارير",
       "adminDashboard": "لوحة التحكم",
@@ -27,6 +28,7 @@
       "adminSettings": "إعدادات الشركة",
       "adminAudit": "سجل التدقيق",
       "adminEmailTemplates": "نصوص الرسائل",
+      "adminTracking": "تتبّع الزوار",
       "platformCompanies": "الشركات",
       "platformAudit": "سجل التدقيق"
     }

@@ -123,11 +123,14 @@ def test_runtime_role_privileges_match_contract(connection: Connection) -> None:
     # The platform's trail likewise (revision 0013, B11-4).
     assert grants.pop("platform_audit_logs") == "SELECT"
     assert grants.pop("alembic_version", None) is None
+    # The visitor journey's events are append-only: no UPDATE either (revision 0018, B15-9).
+    assert grants.pop("visitor_journey_events") == "INSERT,SELECT"
     # No DELETE anywhere (revision 0006): the application deletes nothing (D-12).
     assert set(grants.values()) == {"INSERT,SELECT,UPDATE"}
     # The nine tables of revisions 0001-0012, platform_admins, platform_sessions and
-    # email_template_overrides (revision 0013), and company_brand_assets (revision 0015).
-    assert len(grants) == 13 and "company_brand_assets" in grants
+    # email_template_overrides (revision 0013), company_brand_assets (revision 0015), and the nine other
+    # tables of the visitor journey (revision 0018).
+    assert len(grants) == 22 and "company_brand_assets" in grants and "tracking_associations" in grants
     insertable = connection.execute(
         text(
             "SELECT column_name FROM information_schema.column_privileges "

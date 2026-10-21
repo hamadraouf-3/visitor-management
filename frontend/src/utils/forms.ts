@@ -87,3 +87,12 @@ export function mergeFormErrors<K extends string>(fields: readonly K[], client: 
 export function invalidFields<K extends string>(fields: readonly K[], errors: FormErrors<K>): K[] {
   return fields.filter((field) => Boolean(errors[field]))
 }
+
+/**
+ * The message of a failed action outside a form (a button, a menu item, a confirmation): a 422's own field
+ * messages (translated, B10-18), since no field is there to show them and "Please correct the highlighted
+ * fields" would point at nothing; any other failure's message as usual.
+ */
+export function actionErrorMessage(error: unknown): string {
+  return resolveServerErrors(error, {}).formError ?? getErrorMessage(error)
+}

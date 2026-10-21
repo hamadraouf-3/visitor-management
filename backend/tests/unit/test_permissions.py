@@ -110,6 +110,9 @@ EXPECTED_MATRIX: dict[Capability, set[Role]] = {
     Capability.VIEW_REPORTS: {A, M},  # GET /reports/summary
     Capability.ADMINISTER: {A},  # users, departments, company settings (write)
     Capability.READ_AUDIT: {A},  # GET /audit-logs
+    # Phase 15 (B15-13): journeys, the tracking status and the location tree; hosts are refused.
+    Capability.VIEW_JOURNEYS: {A, R, M},
+    Capability.TRACK_VISITS: {A, R},  # enroll, revoke, the enrollment cameras
 }
 
 

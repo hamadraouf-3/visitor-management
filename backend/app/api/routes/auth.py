@@ -1,4 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Request, Response, status
+from sqlalchemy.orm import Session
 
 from app.api.cookies import clear_session_cookies, set_device_cookie, set_session_cookies
 from app.api.deps import (
@@ -14,6 +15,7 @@ from app.api.deps import (
 )
 from app.email.dispatcher import schedule_delivery
 from app.models import Language, User
+from app.repositories.tracking import TrackingSettingsRepository
 from app.schemas.auth import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
@@ -32,10 +34,11 @@ from app.services.brand import BrandReader
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def me_payload(user: User, brands: BrandReader) -> Me:
+def me_payload(user: User, brands: BrandReader, db: Session) -> Me:
     """Who is signed in, and their company with its identity (B12-11): its slug (its own sign-in page is
-    /c/<slug>) and its brand."""
+    /c/<slug>) and its brand; and whether the platform owner allows it visitor tracking (B15-27)."""
     company = user.company
+    tracking = TrackingSettingsRepository(db).get(company.id)
     return Me(
         user=MeUser.model_validate(user),
         company=MeCompany(
@@ -48,6 +51,7 @@ def me_payload(user: User, brands: BrandReader) -> Me:
             timezone=company.timezone,
             default_language=Language(company.default_language),
             brand=brands.of(company),
+            tracking_allowed=tracking.allowed if tracking is not None else False,
         ),
     )
 
@@ -61,6 +65,7 @@ def login(
     settings: SettingsDep,
     context: ContextDep,
     brands: BrandReaderDep,
+    db: DbSession,
 ) -> Me:
     names = cookie_names(settings.cookie_secure)
     result = service.login(
@@ -72,7 +77,7 @@ def login(
     )
     set_session_cookies(response, settings, result.issued)
     set_device_cookie(response, settings, result.device_cookie)
-    return me_payload(result.user, brands)
+    return me_payload(result.user, brands, db)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -86,17 +91,21 @@ def logout(
 
 
 @router.get("/me", response_model=Me)
-def me(auth: SessionAuth, brands: BrandReaderDep) -> Me:
-    return me_payload(auth.user, brands)
+def me(auth: SessionAuth, brands: BrandReaderDep, db: DbSession) -> Me:
+    return me_payload(auth.user, brands, db)
 
 
 @router.patch("/preferences", response_model=Me)
 def update_preferences(
-    body: PreferencesUpdate, auth: SessionAuth, service: PreferencesServiceDep, brands: BrandReaderDep
+    body: PreferencesUpdate,
+    auth: SessionAuth,
+    service: PreferencesServiceDep,
+    brands: BrandReaderDep,
+    db: DbSession,
 ) -> Me:
     """The caller's language (B10-3). `SessionAuth`, not `CurrentAuth`: allowed while a password change is
     required, so the forced-change screen can switch language."""
-    return me_payload(service.set_language(auth, body.language), brands)
+    return me_payload(service.set_language(auth, body.language), brands, db)
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)

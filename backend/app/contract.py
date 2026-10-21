@@ -41,10 +41,13 @@ from app.schemas import (
     dashboard,
     departments,
     email_templates,
+    journeys,
+    locations,
     platform,
     reception,
     reports,
     system,
+    tracking,
     users,
     visitors,
     visits,
@@ -102,6 +105,18 @@ RESPONSES: dict[str, Any] = {
     "PublicCompanyBrand": brand.PublicCompanyBrand,
     # Phase 14 (docs/decisions/phase-14-backend.md, B14-31): POST /visits/{id}/invitation
     "VisitResendResult": visits.VisitResendResult,
+    # Phase 15 (docs/decisions/phase-15-backend.md): the Visitor Journey
+    "TrackingStatus": tracking.TrackingStatus,
+    "TrackingSettings": tracking.TrackingSettings,
+    "TrackingKey": tracking.TrackingKey,
+    "TrackingKeyCreated": tracking.TrackingKeyCreated,
+    "TrackingCamera": tracking.TrackingCamera,
+    "LocationTree": locations.LocationTree,
+    "Building": locations.Building,
+    "Floor": locations.Floor,
+    "Zone": locations.Zone,
+    "VisitJourney": journeys.VisitJourney,
+    "JourneyListItem": journeys.JourneyListItem,
 }
 
 REQUESTS: dict[str, Any] = {
@@ -138,6 +153,19 @@ REQUESTS: dict[str, Any] = {
     # Phase 12 (docs/decisions/phase-12-backend.md)
     "CompanyBrandUpdate": brand.CompanyBrandUpdate,
     "BrandPaletteRequest": brand.BrandPaletteRequest,
+    # Phase 15 (docs/decisions/phase-15-backend.md)
+    "TrackingSettingsUpdate": tracking.TrackingSettingsUpdate,
+    "TrackingKeyCreate": tracking.TrackingKeyCreate,
+    "TrackingCameraCreate": tracking.TrackingCameraCreate,
+    "TrackingCameraUpdate": tracking.TrackingCameraUpdate,
+    "BuildingCreate": locations.BuildingCreate,
+    "BuildingUpdate": locations.BuildingUpdate,
+    "FloorCreate": locations.FloorCreate,
+    "FloorUpdate": locations.FloorUpdate,
+    "ZoneCreate": locations.ZoneCreate,
+    "ZoneUpdate": locations.ZoneUpdate,
+    "TrackingEnrollRequest": journeys.TrackingEnrollRequest,
+    "PlatformTrackingUpdate": platform.PlatformTrackingUpdate,
 }
 
 # Query parameters (§8): TypeScript name -> backend model.
@@ -154,6 +182,9 @@ QUERIES: dict[str, type[common.QueryModel]] = {
     "PlatformAuditLogListParams": platform.PlatformAuditLogQuery,
     "EmailPreviewDocumentParams": email_templates.EmailPreviewDocumentQuery,
     "BrandImageParams": brand.BrandImageQuery,
+    # Phase 15
+    "JourneyListParams": journeys.JourneyListQuery,
+    "TrackingCameraListParams": tracking.TrackingCameraListQuery,
 }
 
 # The error envelope (§8) and `Paginated<T>` of each paginated endpoint: TypeScript name -> model.
@@ -165,6 +196,7 @@ ENVELOPES: dict[str, Any] = {
     "AuditLogPage": common.Paginated[audit.AuditLog],
     "PlatformCompanyPage": common.Paginated[platform.PlatformCompany],
     "PlatformAuditLogPage": common.Paginated[platform.PlatformAuditLog],
+    "JourneyPage": common.Paginated[journeys.JourneyListItem],  # Phase 15
 }
 
 # (method, route template) -> the query model of that §8 endpoint.
@@ -185,6 +217,8 @@ QUERY_ROUTES: dict[tuple[str, str], type[common.QueryModel]] = {
         "/api/v1/platform/companies/{company_id}/email-templates/{kind}/preview",
     ): email_templates.EmailPreviewDocumentQuery,
     ("GET", "/api/v1/public/companies/{slug}/brand/{kind}.png"): brand.BrandImageQuery,
+    ("GET", "/api/v1/journeys"): journeys.JourneyListQuery,
+    ("GET", "/api/v1/tracking/cameras"): tracking.TrackingCameraListQuery,
 }
 
 _SERIALIZED = {"responses": RESPONSES, "envelopes": ENVELOPES}

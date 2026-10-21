@@ -34,6 +34,9 @@ export const paths = {
 
   history: '/history',
   inside: '/inside',
+  /** The Visitor Journey (Phase 15): the day's visits and their last inferred floor or zone. */
+  journey: '/journey',
+  journeyVisit: (visitId: string) => `/journey/${encodeURIComponent(visitId)}`,
   reports: '/reports',
 
   adminDashboard: '/admin',
@@ -43,6 +46,8 @@ export const paths = {
   adminAudit: '/admin/audit',
   adminEmailTemplates: '/admin/email-templates',
   adminEmailTemplate: (kind: string) => `/admin/email-templates/${encodeURIComponent(kind)}`,
+  /** Visitor tracking (Phase 15): the switch and thresholds, the provider's keys, the locations and the cameras. */
+  adminTracking: '/admin/tracking',
 
   /* The platform owner's area (Phase 11): another principal, with a session of its own. */
   platform: '/platform',

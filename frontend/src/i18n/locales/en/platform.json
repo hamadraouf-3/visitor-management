@@ -119,6 +119,16 @@
     "emailTexts": {
       "title": "Email texts",
       "open": "Edit email texts"
+    },
+    "tracking": {
+      "title": "Visitor tracking",
+      "allowed": "Tracking allowed",
+      "allowedToast": "Tracking allowed for {{name}}",
+      "stoppedToast": "Tracking stopped for {{name}}",
+      "failed": "Tracking could not be allowed",
+      "stopTitle": "Stop tracking for {{name}}?",
+      "stopDescription": "The company’s tracking is turned off, and every visitor being tracked stops being tracked.",
+      "stop": "Stop tracking"
     }
   },
   "form": {

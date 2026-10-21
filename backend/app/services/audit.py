@@ -107,6 +107,26 @@ class AuditAction(StrEnum):
     INVITATION_QUEUED = "INVITATION_QUEUED"
     INVITATION_SENT = "INVITATION_SENT"
     INVITATION_FAILED = "INVITATION_FAILED"
+    # the Visitor Journey (Phase 15, B15-19): IDs and enums only, never a ref, a key or an event
+    TRACKING_ENROLLMENT_REQUESTED = "TRACKING_ENROLLMENT_REQUESTED"
+    TRACKING_ASSOCIATION_ACTIVATED = "TRACKING_ASSOCIATION_ACTIVATED"
+    TRACKING_ASSOCIATION_ENDED = "TRACKING_ASSOCIATION_ENDED"  # `reason`, `trigger`
+    TRACKING_ASSOCIATION_REVOKED = "TRACKING_ASSOCIATION_REVOKED"  # by a user (receptionist or admin)
+    TRACKING_ENABLED = "TRACKING_ENABLED"
+    TRACKING_DISABLED = "TRACKING_DISABLED"
+    TRACKING_ALLOWED = "TRACKING_ALLOWED"  # by the platform owner
+    TRACKING_DISALLOWED = "TRACKING_DISALLOWED"
+    TRACKING_SETTINGS_UPDATED = "TRACKING_SETTINGS_UPDATED"
+    TRACKING_KEY_CREATED = "TRACKING_KEY_CREATED"
+    TRACKING_KEY_REVOKED = "TRACKING_KEY_REVOKED"
+    TRACKING_CAMERA_CREATED = "TRACKING_CAMERA_CREATED"
+    TRACKING_CAMERA_UPDATED = "TRACKING_CAMERA_UPDATED"
+    LOCATION_CREATED = "LOCATION_CREATED"
+    LOCATION_UPDATED = "LOCATION_UPDATED"
+    JOURNEY_VIEWED = "JOURNEY_VIEWED"  # coalesced: one row per user and visit per hour
+    # GET /journeys whose answer shows at least one location; coalesced: one row per user per hour
+    # (B15-31). `day`, `located` (how many rows of that answer showed one).
+    JOURNEY_LIST_VIEWED = "JOURNEY_LIST_VIEWED"
 
 
 class AuditEntity(StrEnum):
@@ -120,6 +140,12 @@ class AuditEntity(StrEnum):
     EMAIL = "email"
     PLATFORM_ADMIN = "platform_admin"  # B11-4
     EMAIL_TEMPLATE = "email_template"  # B11-30: `metadata.kind` names it
+    # the Visitor Journey (Phase 15)
+    BUILDING = "building"
+    FLOOR = "floor"
+    ZONE = "zone"
+    TRACKING_CAMERA = "tracking_camera"
+    TRACKING_KEY = "tracking_key"
 
 
 def _sanitize_value(value: Any, key: str) -> Any:

@@ -350,6 +350,16 @@ describe('AppLayout', () => {
     ])
   })
 
+  it('places the Visitor Journey after Inside now and Visitor tracking after Email texts, while tracking is allowed (Phase 15)', async () => {
+    mockApi({ 'GET /auth/me': () => jsonResponse(makeMe(['SYSTEM_ADMIN', 'EMPLOYEE'], {}, { tracking_allowed: true })), ...adminDashboardRoutes() })
+    renderRoutes(routes, { initialEntries: ['/admin'] })
+
+    const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
+    const links = within(nav).getAllByRole('link').map((link) => link.textContent)
+    expect(links.slice(links.indexOf('Inside now'), links.indexOf('Inside now') + 3)).toEqual(['Inside now', 'Visitor Journey', 'Visit history'])
+    expect(links.slice(links.indexOf('Email texts'), links.indexOf('Email texts') + 3)).toEqual(['Email texts', 'Visitor tracking', 'Audit log'])
+  })
+
   it('marks the current page as a pill in the shell accent', async () => {
     mockApi({ 'GET /auth/me': () => jsonResponse(makeMe(['SYSTEM_ADMIN'])), ...adminDashboardRoutes() })
     renderRoutes(routes, { initialEntries: ['/admin'] })

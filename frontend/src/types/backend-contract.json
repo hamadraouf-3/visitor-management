@@ -390,6 +390,201 @@
       "title": "BrandPaletteRequest",
       "type": "object"
     },
+    "Building": {
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Building",
+      "type": "object"
+    },
+    "BuildingCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "BuildingCreate",
+      "type": "object"
+    },
+    "BuildingNode": {
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "floors": {
+          "items": {
+            "$ref": "#/$defs/FloorNode"
+          },
+          "title": "Floors",
+          "type": "array"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "is_active",
+        "created_at",
+        "updated_at",
+        "floors"
+      ],
+      "title": "BuildingNode",
+      "type": "object"
+    },
+    "BuildingUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH: omitted fields are unchanged; `name_ar` null (or blank) clears it; `is_active` archives\n(false) or restores (true).",
+      "properties": {
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        }
+      },
+      "title": "BuildingUpdate",
+      "type": "object"
+    },
+    "CameraRef": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "CameraRef",
+      "type": "object"
+    },
     "ChangePasswordRequest": {
       "additionalProperties": false,
       "properties": {
@@ -1511,6 +1706,20 @@
       "title": "EmployeeDashboardCounts",
       "type": "object"
     },
+    "EnrollBlocker": {
+      "description": "Why a visit cannot be enrolled now: a short state the interface shows instead of a note.",
+      "enum": [
+        "PROVIDER_DISABLED",
+        "NOT_ALLOWED",
+        "NOT_ENABLED",
+        "NOT_CHECKED_IN",
+        "ALREADY_ENROLLED",
+        "NO_ENROLLMENT_POINT",
+        "NOT_PERMITTED"
+      ],
+      "title": "EnrollBlocker",
+      "type": "string"
+    },
     "ErrorBody": {
       "properties": {
         "code": {
@@ -1558,6 +1767,266 @@
         "request_id"
       ],
       "title": "ErrorEnvelope",
+      "type": "object"
+    },
+    "Floor": {
+      "properties": {
+        "building_id": {
+          "format": "uuid",
+          "title": "Building Id",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "building_id",
+        "name",
+        "name_ar",
+        "level",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Floor",
+      "type": "object"
+    },
+    "FloorCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "building_id": {
+          "format": "uuid",
+          "title": "Building Id",
+          "type": "string"
+        },
+        "level": {
+          "maximum": 200,
+          "minimum": -20,
+          "title": "Level",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "building_id",
+        "name",
+        "level"
+      ],
+      "title": "FloorCreate",
+      "type": "object"
+    },
+    "FloorNode": {
+      "properties": {
+        "building_id": {
+          "format": "uuid",
+          "title": "Building Id",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        },
+        "zones": {
+          "items": {
+            "$ref": "#/$defs/Zone"
+          },
+          "title": "Zones",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "building_id",
+        "name",
+        "name_ar",
+        "level",
+        "is_active",
+        "created_at",
+        "updated_at",
+        "zones"
+      ],
+      "title": "FloorNode",
+      "type": "object"
+    },
+    "FloorRef": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "level"
+      ],
+      "title": "FloorRef",
+      "type": "object"
+    },
+    "FloorUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "maximum": 200,
+              "minimum": -20,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Level"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        }
+      },
+      "title": "FloorUpdate",
       "type": "object"
     },
     "ForgotPasswordRequest": {
@@ -2056,6 +2525,323 @@
       "title": "InsideVisitor",
       "type": "object"
     },
+    "JourneyEvent": {
+      "properties": {
+        "camera": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CameraRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Confidence"
+        },
+        "confirmed": {
+          "title": "Confirmed",
+          "type": "boolean"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JourneyLocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "match": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObservationMatch"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Model Version"
+        },
+        "observed_at": {
+          "title": "Observed At",
+          "type": "string"
+        },
+        "received_at": {
+          "title": "Received At",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/JourneyEventType"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "observed_at",
+        "received_at",
+        "camera",
+        "location",
+        "match",
+        "confidence",
+        "confirmed",
+        "model_version"
+      ],
+      "title": "JourneyEvent",
+      "type": "object"
+    },
+    "JourneyEventType": {
+      "description": "What a stored journey event is (the provider's ENROLLMENT_FAILED and HEARTBEAT are not stored).",
+      "enum": [
+        "ENROLLED",
+        "OBSERVED",
+        "LOST"
+      ],
+      "title": "JourneyEventType",
+      "type": "string"
+    },
+    "JourneyListItem": {
+      "properties": {
+        "freshness_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Freshness Seconds"
+        },
+        "last_location": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JourneyLocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_observed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Observed At"
+        },
+        "simulated": {
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "state": {
+          "$ref": "#/$defs/JourneyState"
+        },
+        "visit": {
+          "$ref": "#/$defs/JourneyVisitSummary"
+        }
+      },
+      "required": [
+        "visit",
+        "state",
+        "simulated",
+        "last_location",
+        "last_observed_at",
+        "freshness_seconds"
+      ],
+      "title": "JourneyListItem",
+      "type": "object"
+    },
+    "JourneyListQuery": {
+      "additionalProperties": false,
+      "description": "GET /journeys: the visits that were inside during the company-local `day` (default today).",
+      "properties": {
+        "day": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Day"
+        },
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "q": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Q"
+        },
+        "state": {
+          "items": {
+            "$ref": "#/$defs/JourneyState"
+          },
+          "title": "State",
+          "type": "array"
+        }
+      },
+      "title": "JourneyListQuery",
+      "type": "object"
+    },
+    "JourneyLocation": {
+      "description": "A zone with its floor and building: where a camera is, or was when an event arrived.",
+      "properties": {
+        "building": {
+          "$ref": "#/$defs/LocationRef"
+        },
+        "floor": {
+          "$ref": "#/$defs/FloorRef"
+        },
+        "zone": {
+          "$ref": "#/$defs/LocationRef"
+        }
+      },
+      "required": [
+        "building",
+        "floor",
+        "zone"
+      ],
+      "title": "JourneyLocation",
+      "type": "object"
+    },
+    "JourneyState": {
+      "enum": [
+        "DISABLED",
+        "NOT_ENROLLED",
+        "PENDING",
+        "ACTIVE",
+        "UNCERTAIN",
+        "STALE",
+        "UNAVAILABLE",
+        "ENDED"
+      ],
+      "title": "JourneyState",
+      "type": "string"
+    },
+    "JourneyVisitSummary": {
+      "properties": {
+        "check_in_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check In At"
+        },
+        "check_out_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Check Out At"
+        },
+        "department": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DepartmentRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "host": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "scheduled_end": {
+          "title": "Scheduled End",
+          "type": "string"
+        },
+        "scheduled_start": {
+          "title": "Scheduled Start",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/VisitStatus"
+        },
+        "visitor": {
+          "$ref": "#/$defs/VisitVisitor"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "visitor",
+        "host",
+        "department",
+        "scheduled_start",
+        "scheduled_end",
+        "check_in_at",
+        "check_out_at"
+      ],
+      "title": "JourneyVisitSummary",
+      "type": "object"
+    },
     "Language": {
       "description": "A user's interface and e-mail language (Phase 10, B10-1). Arabic is the product's default.",
       "enum": [
@@ -2081,6 +2867,54 @@
         "en"
       ],
       "title": "LanguageTexts",
+      "type": "object"
+    },
+    "LocationRef": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar"
+      ],
+      "title": "LocationRef",
+      "type": "object"
+    },
+    "LocationTree": {
+      "description": "GET /locations: every building of the company, active and archived, by name; floors by level;\nzones by name.",
+      "properties": {
+        "buildings": {
+          "items": {
+            "$ref": "#/$defs/BuildingNode"
+          },
+          "title": "Buildings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "buildings"
+      ],
+      "title": "LocationTree",
       "type": "object"
     },
     "LoginRequest": {
@@ -2209,6 +3043,10 @@
         "timezone": {
           "title": "Timezone",
           "type": "string"
+        },
+        "tracking_allowed": {
+          "title": "Tracking Allowed",
+          "type": "boolean"
         }
       },
       "required": [
@@ -2220,7 +3058,8 @@
         "address_ar",
         "timezone",
         "default_language",
-        "brand"
+        "brand",
+        "tracking_allowed"
       ],
       "title": "MeCompany",
       "type": "object"
@@ -2308,6 +3147,15 @@
       ],
       "title": "Message",
       "type": "object"
+    },
+    "ObservationMatch": {
+      "description": "The provider's own judgement of an observation.",
+      "enum": [
+        "CONFIRMED",
+        "UNCERTAIN"
+      ],
+      "title": "ObservationMatch",
+      "type": "string"
     },
     "OptionalLanguageTexts": {
       "properties": {
@@ -2413,6 +3261,37 @@
         "total"
       ],
       "title": "Paginated[AuditLog]",
+      "type": "object"
+    },
+    "Paginated_JourneyListItem_": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/JourneyListItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "page_size",
+        "total"
+      ],
+      "title": "Paginated[JourneyListItem]",
       "type": "object"
     },
     "Paginated_PlatformAuditLog_": {
@@ -2863,6 +3742,10 @@
           "title": "Timezone",
           "type": "string"
         },
+        "tracking_allowed": {
+          "title": "Tracking Allowed",
+          "type": "boolean"
+        },
         "updated_at": {
           "title": "Updated At",
           "type": "string"
@@ -2880,7 +3763,8 @@
         "created_at",
         "updated_at",
         "counts",
-        "brand"
+        "brand",
+        "tracking_allowed"
       ],
       "title": "PlatformCompany",
       "type": "object"
@@ -3125,6 +4009,21 @@
       "title": "PlatformMe",
       "type": "object"
     },
+    "PlatformTrackingUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH /platform/companies/{id}/tracking. Turning it off also switches the company's tracking off\nand ends its open tracking associations.",
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "allowed"
+      ],
+      "title": "PlatformTrackingUpdate",
+      "type": "object"
+    },
     "PreferencesUpdate": {
       "additionalProperties": false,
       "description": "PATCH /auth/preferences: the caller's interface and e-mail language (B10-3).",
@@ -3138,6 +4037,15 @@
       ],
       "title": "PreferencesUpdate",
       "type": "object"
+    },
+    "ProviderOperation": {
+      "description": "A call of the application to the provider that failed (counted in the health record).",
+      "enum": [
+        "ENROLL",
+        "REVOKE"
+      ],
+      "title": "ProviderOperation",
+      "type": "string"
     },
     "PublicCompanyBrand": {
       "description": "GET /public/companies/{slug}/brand: what a sign-in page and a visitor's pass page may know of an\nactive company before anyone signs in: how it is named, its language and its identity.",
@@ -3309,6 +4217,23 @@
       ],
       "title": "ReceptionToday",
       "type": "object"
+    },
+    "RejectReason": {
+      "description": "Why an event was rejected. Rejected events are never stored, only counted (B15-9, B15-11).",
+      "enum": [
+        "TRACKING_OFF",
+        "UNKNOWN_ASSOCIATION",
+        "ASSOCIATION_ENDED",
+        "ALREADY_ENROLLED",
+        "NOT_ACTIVE",
+        "UNKNOWN_CAMERA",
+        "CAMERA_MISMATCH",
+        "TOO_OLD",
+        "IN_FUTURE",
+        "BEFORE_ASSOCIATION"
+      ],
+      "title": "RejectReason",
+      "type": "string"
     },
     "ReportSummary": {
       "properties": {
@@ -3673,6 +4598,709 @@
       ],
       "title": "TemplateField",
       "type": "string"
+    },
+    "TrackingAssociation": {
+      "description": "A visit's tracking association. Its reference is the provider's and is never answered (B15-6).",
+      "properties": {
+        "activated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Activated At"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ended At"
+        },
+        "ended_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrackingEndReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enrollment_camera": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CameraRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expires_at": {
+          "title": "Expires At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "provider": {
+          "enum": [
+            "disabled",
+            "simulator"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "simulated": {
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/TrackingAssociationStatus"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "provider",
+        "simulated",
+        "created_at",
+        "activated_at",
+        "ended_at",
+        "ended_reason",
+        "expires_at",
+        "enrollment_camera"
+      ],
+      "title": "TrackingAssociation",
+      "type": "object"
+    },
+    "TrackingAssociationStatus": {
+      "description": "A visit's tracking association: PENDING until the provider confirms the enrollment (ENROLLED),\nACTIVE until it ends; an ENDED association never becomes active again.",
+      "enum": [
+        "PENDING",
+        "ACTIVE",
+        "ENDED"
+      ],
+      "title": "TrackingAssociationStatus",
+      "type": "string"
+    },
+    "TrackingCamera": {
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "is_enrollment_point": {
+          "title": "Is Enrollment Point",
+          "type": "boolean"
+        },
+        "location": {
+          "$ref": "#/$defs/JourneyLocation"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "provider_camera_id": {
+          "title": "Provider Camera Id",
+          "type": "string"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        },
+        "zone_id": {
+          "format": "uuid",
+          "title": "Zone Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "provider_camera_id",
+        "name",
+        "zone_id",
+        "location",
+        "is_enrollment_point",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "TrackingCamera",
+      "type": "object"
+    },
+    "TrackingCameraCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "is_enrollment_point": {
+          "default": false,
+          "title": "Is Enrollment Point",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "provider_camera_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[!-~]+$",
+          "title": "Provider Camera Id",
+          "type": "string"
+        },
+        "zone_id": {
+          "format": "uuid",
+          "title": "Zone Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_camera_id",
+        "name",
+        "zone_id"
+      ],
+      "title": "TrackingCameraCreate",
+      "type": "object"
+    },
+    "TrackingCameraListQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "include_archived": {
+          "default": false,
+          "title": "Include Archived",
+          "type": "boolean"
+        }
+      },
+      "title": "TrackingCameraListQuery",
+      "type": "object"
+    },
+    "TrackingCameraUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH: omitted fields are unchanged; `is_active` archives (false) or restores (true).",
+      "properties": {
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "is_enrollment_point": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Enrollment Point"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "provider_camera_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[!-~]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Camera Id"
+        },
+        "zone_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Zone Id"
+        }
+      },
+      "title": "TrackingCameraUpdate",
+      "type": "object"
+    },
+    "TrackingEndReason": {
+      "enum": [
+        "CHECKED_OUT",
+        "REVOKED",
+        "EXPIRED",
+        "ENROLLMENT_FAILED",
+        "VISIT_CANCELLED"
+      ],
+      "title": "TrackingEndReason",
+      "type": "string"
+    },
+    "TrackingEnrollRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "camera_id": {
+          "format": "uuid",
+          "title": "Camera Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "camera_id"
+      ],
+      "title": "TrackingEnrollRequest",
+      "type": "object"
+    },
+    "TrackingHealth": {
+      "description": "Reasons and counts only, never an event's content (B15-11).",
+      "properties": {
+        "last_accepted_event_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Accepted Event At"
+        },
+        "last_contact_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Contact At"
+        },
+        "provider_errors_last_24h": {
+          "items": {
+            "$ref": "#/$defs/TrackingProviderErrorCount"
+          },
+          "title": "Provider Errors Last 24H",
+          "type": "array"
+        },
+        "rejected_last_24h": {
+          "items": {
+            "$ref": "#/$defs/TrackingRejectionCount"
+          },
+          "title": "Rejected Last 24H",
+          "type": "array"
+        }
+      },
+      "required": [
+        "last_contact_at",
+        "last_accepted_event_at",
+        "rejected_last_24h",
+        "provider_errors_last_24h"
+      ],
+      "title": "TrackingHealth",
+      "type": "object"
+    },
+    "TrackingKey": {
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "last_used_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Used At"
+        },
+        "prefix": {
+          "title": "Prefix",
+          "type": "string"
+        },
+        "revoked_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Revoked At"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "prefix",
+        "created_at",
+        "created_by",
+        "last_used_at",
+        "revoked_at"
+      ],
+      "title": "TrackingKey",
+      "type": "object"
+    },
+    "TrackingKeyCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "TrackingKeyCreate",
+      "type": "object"
+    },
+    "TrackingKeyCreated": {
+      "description": "POST /tracking/keys: the only answer that carries the key. It is stored as a SHA-256 digest.",
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "last_used_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Used At"
+        },
+        "prefix": {
+          "title": "Prefix",
+          "type": "string"
+        },
+        "revoked_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Revoked At"
+        },
+        "secret": {
+          "title": "Secret",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "prefix",
+        "created_at",
+        "created_by",
+        "last_used_at",
+        "revoked_at",
+        "secret"
+      ],
+      "title": "TrackingKeyCreated",
+      "type": "object"
+    },
+    "TrackingProviderErrorCount": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "operation": {
+          "$ref": "#/$defs/ProviderOperation"
+        }
+      },
+      "required": [
+        "operation",
+        "count"
+      ],
+      "title": "TrackingProviderErrorCount",
+      "type": "object"
+    },
+    "TrackingRejectionCount": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "reason": {
+          "$ref": "#/$defs/RejectReason"
+        }
+      },
+      "required": [
+        "reason",
+        "count"
+      ],
+      "title": "TrackingRejectionCount",
+      "type": "object"
+    },
+    "TrackingSettings": {
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "health": {
+          "$ref": "#/$defs/TrackingHealth"
+        },
+        "min_confidence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Min Confidence"
+        },
+        "provider": {
+          "enum": [
+            "disabled",
+            "simulator"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "retention_days": {
+          "title": "Retention Days",
+          "type": "integer"
+        },
+        "stale_after_minutes": {
+          "title": "Stale After Minutes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "provider",
+        "allowed",
+        "enabled",
+        "min_confidence",
+        "stale_after_minutes",
+        "retention_days",
+        "health"
+      ],
+      "title": "TrackingSettings",
+      "type": "object"
+    },
+    "TrackingSettingsUpdate": {
+      "additionalProperties": false,
+      "description": "PATCH /tracking/settings: omitted fields are unchanged; `min_confidence` null clears it.",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "min_confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Confidence"
+        },
+        "retention_days": {
+          "anyOf": [
+            {
+              "maximum": 90,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retention Days"
+        },
+        "stale_after_minutes": {
+          "anyOf": [
+            {
+              "maximum": 240,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stale After Minutes"
+        }
+      },
+      "title": "TrackingSettingsUpdate",
+      "type": "object"
+    },
+    "TrackingStatus": {
+      "description": "GET /tracking/status: one line for the Visitor Journey page's banner.",
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "healthy": {
+          "title": "Healthy",
+          "type": "boolean"
+        },
+        "last_contact_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Contact At"
+        },
+        "provider": {
+          "enum": [
+            "disabled",
+            "simulator"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "simulated": {
+          "title": "Simulated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "provider",
+        "simulated",
+        "available",
+        "allowed",
+        "enabled",
+        "last_contact_at",
+        "healthy"
+      ],
+      "title": "TrackingStatus",
+      "type": "object"
     },
     "User": {
       "properties": {
@@ -4505,6 +6133,102 @@
         "calendar_failed"
       ],
       "title": "VisitInvitation",
+      "type": "object"
+    },
+    "VisitJourney": {
+      "properties": {
+        "association": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrackingAssociation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "can_enroll": {
+          "title": "Can Enroll",
+          "type": "boolean"
+        },
+        "can_revoke": {
+          "title": "Can Revoke",
+          "type": "boolean"
+        },
+        "enroll_blocker": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EnrollBlocker"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freshness_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Freshness Seconds"
+        },
+        "last_location": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JourneyLocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_observed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Observed At"
+        },
+        "state": {
+          "$ref": "#/$defs/JourneyState"
+        },
+        "timeline": {
+          "items": {
+            "$ref": "#/$defs/JourneyEvent"
+          },
+          "title": "Timeline",
+          "type": "array"
+        },
+        "timeline_total": {
+          "title": "Timeline Total",
+          "type": "integer"
+        },
+        "visit": {
+          "$ref": "#/$defs/JourneyVisitSummary"
+        }
+      },
+      "required": [
+        "visit",
+        "state",
+        "association",
+        "last_location",
+        "last_observed_at",
+        "freshness_seconds",
+        "timeline",
+        "timeline_total",
+        "can_enroll",
+        "enroll_blocker",
+        "can_revoke"
+      ],
+      "title": "VisitJourney",
       "type": "object"
     },
     "VisitListQuery": {
@@ -5456,6 +7180,139 @@
       ],
       "title": "WalkInCreate",
       "type": "object"
+    },
+    "Zone": {
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "floor_id": {
+          "format": "uuid",
+          "title": "Floor Id",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "floor_id",
+        "name",
+        "name_ar",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Zone",
+      "type": "object"
+    },
+    "ZoneCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "floor_id": {
+          "format": "uuid",
+          "title": "Floor Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "floor_id",
+        "name"
+      ],
+      "title": "ZoneCreate",
+      "type": "object"
+    },
+    "ZoneUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "is_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Active"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Ar"
+        }
+      },
+      "title": "ZoneUpdate",
+      "type": "object"
     }
   },
   "description": "Generated by backend/app/contract.py (npm run contract:snapshot). Do not edit. Compare `requests` and `queries` in request mode, `responses` and `envelopes` in response mode.",
@@ -5465,6 +7322,9 @@
     },
     "AuditLogPage": {
       "$ref": "#/$defs/Paginated_AuditLog_"
+    },
+    "JourneyPage": {
+      "$ref": "#/$defs/Paginated_JourneyListItem_"
     },
     "PlatformAuditLogPage": {
       "$ref": "#/$defs/Paginated_PlatformAuditLog_"
@@ -5497,6 +7357,7 @@
     "INVALID_STATE_TRANSITION",
     "INVITATION_LIMIT",
     "LAST_ADMIN",
+    "LOCATION_IN_USE",
     "METHOD_NOT_ALLOWED",
     "NOT_AUTHENTICATED",
     "NOT_FOUND",
@@ -5510,6 +7371,8 @@
     "RATE_LIMITED",
     "SELF_MODIFICATION",
     "SERVICE_BUSY",
+    "TRACKING_KEY_LIMIT",
+    "TRACKING_NOT_AVAILABLE",
     "UNSUPPORTED_MEDIA_TYPE",
     "USER_EMAIL_UNAVAILABLE",
     "VALIDATION_ERROR",
@@ -5576,6 +7439,7 @@
     "invalid_text": [],
     "invalid_timezone": [],
     "line_breaks": [],
+    "location_archived": [],
     "markup_not_allowed": [],
     "not_allowed": [],
     "not_found": [],
@@ -5660,6 +7524,9 @@
     "HostSearchParams": {
       "$ref": "#/$defs/HostSearchQuery"
     },
+    "JourneyListParams": {
+      "$ref": "#/$defs/JourneyListQuery"
+    },
     "PageParams": {
       "$ref": "#/$defs/PageQuery"
     },
@@ -5671,6 +7538,9 @@
     },
     "ReportSummaryParams": {
       "$ref": "#/$defs/ReportSummaryQuery"
+    },
+    "TrackingCameraListParams": {
+      "$ref": "#/$defs/TrackingCameraListQuery"
     },
     "UserListParams": {
       "$ref": "#/$defs/UserListQuery"
@@ -5685,6 +7555,12 @@
   "requests": {
     "BrandPaletteRequest": {
       "$ref": "#/$defs/BrandPaletteRequest"
+    },
+    "BuildingCreate": {
+      "$ref": "#/$defs/BuildingCreate"
+    },
+    "BuildingUpdate": {
+      "$ref": "#/$defs/BuildingUpdate"
     },
     "ChangePasswordRequest": {
       "$ref": "#/$defs/ChangePasswordRequest"
@@ -5758,6 +7634,12 @@
     "EmailTemplateUpdate": {
       "$ref": "#/$defs/EmailTemplateUpdate"
     },
+    "FloorCreate": {
+      "$ref": "#/$defs/FloorCreate"
+    },
+    "FloorUpdate": {
+      "$ref": "#/$defs/FloorUpdate"
+    },
     "ForgotPasswordRequest": {
       "$ref": "#/$defs/ForgotPasswordRequest"
     },
@@ -5770,6 +7652,9 @@
     "PlatformCompanyUpdate": {
       "$ref": "#/$defs/PlatformCompanyUpdate"
     },
+    "PlatformTrackingUpdate": {
+      "$ref": "#/$defs/PlatformTrackingUpdate"
+    },
     "PreferencesUpdate": {
       "$ref": "#/$defs/PreferencesUpdate"
     },
@@ -5778,6 +7663,21 @@
     },
     "ScanRequest": {
       "$ref": "#/$defs/ScanRequest"
+    },
+    "TrackingCameraCreate": {
+      "$ref": "#/$defs/TrackingCameraCreate"
+    },
+    "TrackingCameraUpdate": {
+      "$ref": "#/$defs/TrackingCameraUpdate"
+    },
+    "TrackingEnrollRequest": {
+      "$ref": "#/$defs/TrackingEnrollRequest"
+    },
+    "TrackingKeyCreate": {
+      "$ref": "#/$defs/TrackingKeyCreate"
+    },
+    "TrackingSettingsUpdate": {
+      "$ref": "#/$defs/TrackingSettingsUpdate"
     },
     "UserCreate": {
       "$ref": "#/$defs/UserCreate"
@@ -5802,6 +7702,12 @@
     },
     "WalkInCreate": {
       "$ref": "#/$defs/WalkInCreate"
+    },
+    "ZoneCreate": {
+      "$ref": "#/$defs/ZoneCreate"
+    },
+    "ZoneUpdate": {
+      "$ref": "#/$defs/ZoneUpdate"
     }
   },
   "responses": {
@@ -5816,6 +7722,9 @@
     },
     "BrandPalette": {
       "$ref": "#/$defs/BrandPalette"
+    },
+    "Building": {
+      "$ref": "#/$defs/Building"
     },
     "CheckOutStaleResult": {
       "$ref": "#/$defs/StaleCheckOutResult"
@@ -5844,6 +7753,9 @@
     "EmployeeDashboard": {
       "$ref": "#/$defs/EmployeeDashboard"
     },
+    "Floor": {
+      "$ref": "#/$defs/Floor"
+    },
     "ForgotPasswordResponse": {
       "$ref": "#/$defs/Message"
     },
@@ -5858,6 +7770,12 @@
     },
     "InsideVisit": {
       "$ref": "#/$defs/InsideVisit"
+    },
+    "JourneyListItem": {
+      "$ref": "#/$defs/JourneyListItem"
+    },
+    "LocationTree": {
+      "$ref": "#/$defs/LocationTree"
     },
     "Me": {
       "$ref": "#/$defs/Me"
@@ -5895,6 +7813,21 @@
     "ScanWarning": {
       "$ref": "#/$defs/ScanWarning"
     },
+    "TrackingCamera": {
+      "$ref": "#/$defs/TrackingCamera"
+    },
+    "TrackingKey": {
+      "$ref": "#/$defs/TrackingKey"
+    },
+    "TrackingKeyCreated": {
+      "$ref": "#/$defs/TrackingKeyCreated"
+    },
+    "TrackingSettings": {
+      "$ref": "#/$defs/TrackingSettings"
+    },
+    "TrackingStatus": {
+      "$ref": "#/$defs/TrackingStatus"
+    },
     "User": {
       "$ref": "#/$defs/User"
     },
@@ -5907,6 +7840,9 @@
     "VisitCreateResult": {
       "$ref": "#/$defs/VisitCreateResult"
     },
+    "VisitJourney": {
+      "$ref": "#/$defs/VisitJourney"
+    },
     "VisitPassResult": {
       "$ref": "#/$defs/VisitPassResult"
     },
@@ -5918,6 +7854,9 @@
     },
     "VisitorSearchItem": {
       "$ref": "#/$defs/VisitorSearchItem"
+    },
+    "Zone": {
+      "$ref": "#/$defs/Zone"
     }
   }
 }

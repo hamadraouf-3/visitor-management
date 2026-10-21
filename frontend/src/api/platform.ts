@@ -26,6 +26,7 @@ import type {
   PlatformCompanyPage,
   PlatformCompanyUpdate,
   PlatformMe,
+  PlatformTrackingUpdate,
   PreferencesUpdate,
 } from '../types/api'
 import { apiRequest, apiUrl, segment, type CallOptions } from './client'
@@ -84,6 +85,14 @@ export function deactivatePlatformCompany(id: string, options?: CallOptions): Pr
 
 export function reactivatePlatformCompany(id: string, options?: CallOptions): Promise<PlatformCompany> {
   return apiRequest(`/platform/companies/${segment(id)}/reactivate`, { ...options, method: 'POST' })
+}
+
+/**
+ * Allows or stops a company's visitor tracking (Phase 15). Off also switches the company's own setting off and
+ * ends every association it has running.
+ */
+export function updateCompanyTracking(id: string, body: PlatformTrackingUpdate, options?: CallOptions): Promise<PlatformCompany> {
+  return apiRequest(`/platform/companies/${segment(id)}/tracking`, { ...options, method: 'PATCH', body })
 }
 
 /* A company's administrators ---------------------------------------------------------------- */

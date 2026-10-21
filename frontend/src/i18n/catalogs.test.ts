@@ -129,6 +129,9 @@ describe('translation catalogs', () => {
       INTERNAL_ERROR: true,
       COMPANY_INACTIVE: true,
       ACCOUNT_INACTIVE: true,
+      TRACKING_NOT_AVAILABLE: true,
+      TRACKING_KEY_LIMIT: true,
+      LOCATION_IN_USE: true,
       NETWORK_ERROR: true,
       UNEXPECTED_RESPONSE: true,
     }

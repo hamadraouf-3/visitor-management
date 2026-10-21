@@ -110,8 +110,33 @@ function enumValues(name: string): string[] {
   throw new Error(`${name} not found in backend/app`)
 }
 
-const METADATA_ENUMS = ['PolicyName', 'ScanOutcome', 'PassRevokeReason', 'Role', 'VisitStatus', 'CheckInMethod', 'CheckOutMethod', 'CsrfFailureReason', 'WalkInReason']
-const UPDATE_REQUESTS = ['CompanySettingsUpdate', 'DepartmentUpdate', 'UserUpdate', 'VisitUpdate', 'VisitorUpdate'] as const
+const METADATA_ENUMS = [
+  'PolicyName',
+  'ScanOutcome',
+  'PassRevokeReason',
+  'Role',
+  'VisitStatus',
+  'CheckInMethod',
+  'CheckOutMethod',
+  'CsrfFailureReason',
+  'WalkInReason',
+  // Phase 15: why a visit's tracking ended (`reason`), and the provider (`provider`).
+  'TrackingEndReason',
+  'TrackingProviderName',
+]
+const UPDATE_REQUESTS = [
+  'CompanySettingsUpdate',
+  'DepartmentUpdate',
+  'UserUpdate',
+  'VisitUpdate',
+  'VisitorUpdate',
+  // Phase 15: the fields a change of the tracking's settings, a camera or a place names (`changed_fields`).
+  'TrackingSettingsUpdate',
+  'TrackingCameraUpdate',
+  'BuildingUpdate',
+  'FloorUpdate',
+  'ZoneUpdate',
+] as const
 
 function backendValues(): Set<string> {
   const values = new Set<string>()

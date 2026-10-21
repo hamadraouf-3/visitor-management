@@ -1,8 +1,13 @@
 # API reference
 
 The HTTP API of Mawdoo3 Visitors («زوار موضوع»), the visitor-pass system; its OpenAPI title is "Mawdoo3
-Visitors API". Every endpoint in this document is registered in the application: 78 operations on 61
-paths, re-counted from the application's OpenAPI document on 2026-10-13. Phase 12 added a company's own
+Visitors API". Every endpoint in this document is registered in the application: 100 operations on 80
+paths, re-counted from the application's OpenAPI document on 2026-10-20. Phase 15 added the Visitor
+Journey ([`phase-15-backend.md`](decisions/phase-15-backend.md), [§10.14](#1014-the-visitor-journey)): the
+location registry (`/api/v1/locations`, 7 operations), tracking status, settings, keys, cameras and the
+provider's ingestion (`/api/v1/tracking`, 10), journeys and the tracking actions (4), and the platform
+owner's switch (1); `PlatformCompany` gained `tracking_allowed`. No real tracking provider is connected
+(BLOCKED BY ENVIRONMENT). Phase 12 added a company's own
 identity ([`phase-12-backend.md`](decisions/phase-12-backend.md)): the platform owner's brand endpoints (5
 operations) and its editing of a company's e-mail texts (7), and the public identity endpoints
 (`/api/v1/public`, 3 operations, the only ones without `no-store`); `Me` and `PlatformCompany` gained the
@@ -44,7 +49,7 @@ the design behind it see [`docs/architecture.md`](architecture.md); for the secu
 7. [Rate limits](#7-rate-limits)
 8. [Schemas](#8-schemas)
 9. [Endpoint index](#9-endpoint-index)
-10. [Endpoint reference](#10-endpoint-reference)
+10. [Endpoint reference](#10-endpoint-reference) (Phase 15: [§10.14 The Visitor Journey](#1014-the-visitor-journey))
 11. [Response headers](#11-response-headers)
 12. [How this reference was produced](#12-how-this-reference-was-produced)
 
@@ -249,7 +254,7 @@ Every non-2xx response has this body:
 
 ### 4.2 Error codes
 
-All 39 codes the API can return (the `error_codes` list of the contract snapshot):
+All 42 codes the API can return (the `error_codes` list of the contract snapshot):
 
 | HTTP | Code | Default message | Typical cause |
 |---|---|---|---|
@@ -264,7 +269,7 @@ All 39 codes the API can return (the `error_codes` list of the contract snapshot
 | 404 | `NOT_FOUND` | The requested item was not found. | Unknown, other-company or out-of-scope path ID; malformed path ID; unknown path |
 | 404 | `PASS_INVALID` | Invalid visitor pass. | Malformed scanner input, unknown pass, another company's pass, another visit's pass |
 | 405 | `METHOD_NOT_ALLOWED` | This method is not allowed for the requested resource. | Wrong method on an existing path |
-| 409 | `CONFLICT` | This value is already in use. (`details.field`) | Department name taken |
+| 409 | `CONFLICT` | This value is already in use. (`details.field`) | Department name taken; Phase 15: a building or zone name, a floor level, a provider camera ID taken |
 | 409 | `USER_EMAIL_UNAVAILABLE` | This email address cannot be used. | Address already used by a user of **any** company (does not say which) |
 | 409 | `LAST_ADMIN` | The company must keep at least one active administrator. | Demoting or deactivating the last active administrator |
 | 409 | `SELF_MODIFICATION` | You cannot remove your own administrator access or deactivate yourself. | Administrator editing own roles or activity |
@@ -283,6 +288,9 @@ All 39 codes the API can return (the `error_codes` list of the contract snapshot
 | 409 | `OVERRIDE_NOT_ALLOWED` | This visit cannot be checked in with an override. | OVERRIDE outside the visit's company-local day |
 | 409 | `COMPANY_INACTIVE` | This company is deactivated. | Sign-in with **valid credentials** to a deactivated company, when that is the only obstacle (review, B11-46); platform: reset link for an administrator of a deactivated company |
 | 409 | `ACCOUNT_INACTIVE` | This account is deactivated. | Platform: reset link for an inactive administrator |
+| 409 | `TRACKING_NOT_AVAILABLE` | Visitor tracking is not available for this request. (`details.reason`) | Phase 15: enrollment while the provider is `disabled`, tracking not allowed or not enabled, or the pass window over; enabling tracking while not allowed ([§10.14](#1014-the-visitor-journey)) |
+| 409 | `TRACKING_KEY_LIMIT` | This company already has two active tracking keys. Revoke one first. | Phase 15: a third unrevoked tracking key |
+| 409 | `LOCATION_IN_USE` | Archive the floors, zones and cameras in it first. | Phase 15: archiving a building, floor or zone that holds active ones |
 | 410 | `PASS_EXPIRED` | This visitor pass has expired. | After the pass window, or visit NO_SHOW |
 | 410 | `PASS_REVOKED` | This visitor pass has been replaced. Ask the visitor for their latest invitation, or verify their ID and check in manually. | Pass rotated or revoked by an e-mail change |
 | 413 | `PAYLOAD_TOO_LARGE` | The request is too large. | Body above `MAX_REQUEST_BODY_BYTES`; a brand image above 512 KiB |
@@ -407,6 +415,7 @@ codes are additive.
 | `image_too_small` | `min_height`, `min_width` | The image is smaller than `min_width` by `min_height` pixels (path `file`) |
 | `image_too_large` | `max_height`, `max_width` | The image is larger than `max_width` by `max_height` pixels (path `file`) |
 | `image_not_square` | | The icon's width is not its height (path `file`) |
+| `location_archived` | | Phase 15: the building, floor or zone named (or a parent of it) is archived ([§10.14](#1014-the-visitor-journey)) |
 
 ---
 
@@ -429,6 +438,7 @@ a unique tie-breaker, so pages never overlap or skip items while data is unchang
 | `GET /visitors/{visitor_id}/visits` | `scheduled_start` descending, `id` descending |
 | `GET /visits` | `scheduled_start`, then `id`, both in the direction of `order` (`asc` or `desc`, default `desc`) |
 | `GET /audit-logs` | `seq` descending (newest first) |
+| `GET /journeys` | `check_in_at` descending, `id` descending (Phase 15) |
 
 A page past the end returns `items: []` with the correct `total`. Non-paginated lists: `GET /users/hosts`
 (at most 50), `GET /departments`, `GET /reception/today` (each list at most 200 items; counts are exact),
@@ -459,6 +469,8 @@ row-level rules.
 | `VIEW_REPORTS` | ✓ | – | – | ✓ | |
 | `ADMINISTER` | ✓ | – | – | – | users, departments, company settings (write), the company's e-mail texts |
 | `READ_AUDIT` | ✓ | – | – | – | |
+| `VIEW_JOURNEYS` | ✓ | – | ✓ | ✓ | Phase 15: journeys, the tracking status, the location tree (hosts who are only employees: 403, least privilege) |
+| `TRACK_VISITS` | ✓ | – | ✓ | – | Phase 15: enroll, revoke, the enrollment cameras (receptionists see only those) |
 
 The platform owner holds no role: its endpoints (`/api/v1/platform`) need a platform session and accept
 no company session, and every endpoint of this table refuses a platform session (401).
@@ -517,6 +529,8 @@ audited as `RATE_LIMITED` with the policy name in `metadata.policy`.
 | `template_test_sends_per_user` | 5 (`RATE_LIMIT_TEMPLATE_TEST_SENDS_PER_HOUR`) | 1 h | administrator, or platform account | `POST /email-templates/{kind}/test`, `POST /platform/companies/{id}/email-templates/{kind}/test` | 429 `RATE_LIMITED` |
 | `public_brand_ip` / `public_brand_prefix` | 600 / 6,000 (`RATE_LIMIT_PUBLIC_BRAND_PER_IP`, `..._PER_PREFIX`) | 1 min | IP / /48 | the three `/public/companies/{slug}/…` endpoints: **every** request, whatever it asks for and whatever the answer (200, 304, 404, 422) | 429 `RATE_LIMITED` |
 | `brand_changes_per_user` | 120 (`RATE_LIMIT_BRAND_CHANGES_PER_HOUR`) | 1 h | platform account | `PATCH /platform/companies/{id}/brand`, `PUT` and `DELETE …/brand/assets/{kind}`: every attempt, refused files included | 429 `RATE_LIMITED` |
+| `tracking_requests_per_key` | 120 (`RATE_LIMIT_TRACKING_REQUESTS_PER_MINUTE`) | 1 min | tracking key | `POST /tracking/events` (Phase 15): every request with a valid key | 429 `RATE_LIMITED` |
+| `tracking_key_failures_ip` | 30 (`RATE_LIMIT_TRACKING_KEY_FAILURES_PER_IP`) | 5 min | IP | `POST /tracking/events` with a wrong, revoked or absent key (counted before any lookup) | 429 `RATE_LIMITED` |
 
 The platform sign-in (`POST /platform/auth/login`) takes the `login_*` budgets with keys of its own per
 account, typed e-mail and device, and **shares** `login_failures_ip` and `login_failures_prefix` with the
@@ -703,8 +717,9 @@ Message        { message }                                   // ForgotPasswordRe
 Me             { user: { id, full_name, email, phone | null, roles: Role[], department: DepartmentRef | null,
                          must_change_password, preferred_language: Language | null },
                  company: { id, name, name_ar | null, slug, address | null, address_ar | null, timezone,
-                            default_language: Language, brand: CompanyBrand } }
-                 // Phase 12: slug, brand (§10.12); Phase 14: address, address_ar
+                            default_language: Language, brand: CompanyBrand, tracking_allowed } }
+                 // Phase 12: slug, brand (§10.12); Phase 14: address, address_ar; Phase 15: tracking_allowed
+                 // (the platform owner's switch: the interface shows the Visitor Journey only while true, §10.14)
 User           { id, full_name, email, phone | null, roles: Role[], department: DepartmentRef | null,
                  is_active, must_change_password, last_login_at | null, created_at, updated_at,
                  cancelled_visits? }                         // only in PATCH /users/{id}, when visits were cancelled
@@ -860,9 +875,31 @@ any signed-in user, including one who still has to change a temporary password.
 | 76 | GET | `/api/v1/public/companies/{slug}/brand` | public, no session | – | – | 200 `PublicCompanyBrand` |
 | 77 | GET | `/api/v1/public/companies/{slug}/brand/{kind}.png` | public, no session | – | query `v` | 200 `image/png` |
 | 78 | GET | `/api/v1/public/companies/{slug}/manifest.webmanifest` | public, no session | – | – | 200 `application/manifest+json` |
+| 79 | GET | `/api/v1/locations` | `VIEW_JOURNEYS` | A R M | – | 200 `LocationTree` |
+| 80 | POST | `/api/v1/locations/buildings` | `ADMINISTER` | A | `BuildingCreate` | 201 `Building` |
+| 81 | PATCH | `/api/v1/locations/buildings/{building_id}` | `ADMINISTER` | A | `BuildingUpdate` | 200 `Building` |
+| 82 | POST | `/api/v1/locations/floors` | `ADMINISTER` | A | `FloorCreate` | 201 `Floor` |
+| 83 | PATCH | `/api/v1/locations/floors/{floor_id}` | `ADMINISTER` | A | `FloorUpdate` | 200 `Floor` |
+| 84 | POST | `/api/v1/locations/zones` | `ADMINISTER` | A | `ZoneCreate` | 201 `Zone` |
+| 85 | PATCH | `/api/v1/locations/zones/{zone_id}` | `ADMINISTER` | A | `ZoneUpdate` | 200 `Zone` |
+| 86 | GET | `/api/v1/tracking/status` | `VIEW_JOURNEYS` | A R M | – | 200 `TrackingStatus` |
+| 87 | GET | `/api/v1/tracking/settings` | `ADMINISTER` | A | – | 200 `TrackingSettings` |
+| 88 | PATCH | `/api/v1/tracking/settings` | `ADMINISTER` | A | `TrackingSettingsUpdate` | 200 `TrackingSettings` |
+| 89 | GET | `/api/v1/tracking/keys` | `ADMINISTER` | A | – | 200 `TrackingKey[]` |
+| 90 | POST | `/api/v1/tracking/keys` | `ADMINISTER` | A | `TrackingKeyCreate` | 201 `TrackingKeyCreated` |
+| 91 | DELETE | `/api/v1/tracking/keys/{key_id}` | `ADMINISTER` | A | – | 200 `TrackingKey` |
+| 92 | GET | `/api/v1/tracking/cameras` | `TRACK_VISITS` | A R | query `include_archived` (A only) | 200 `TrackingCamera[]` |
+| 93 | POST | `/api/v1/tracking/cameras` | `ADMINISTER` | A | `TrackingCameraCreate` | 201 `TrackingCamera` |
+| 94 | PATCH | `/api/v1/tracking/cameras/{camera_id}` | `ADMINISTER` | A | `TrackingCameraUpdate` | 200 `TrackingCamera` |
+| 95 | POST | `/api/v1/tracking/events` | tracking key (Bearer) | the provider | `TrackingEventBatch` | 200 `TrackingEventResults` |
+| 96 | GET | `/api/v1/journeys` | `VIEW_JOURNEYS` | A R M | query `JourneyListQuery` | 200 `Paginated[JourneyListItem]` |
+| 97 | GET | `/api/v1/visits/{visit_id}/journey` | `VIEW_JOURNEYS` | A R M | – | 200 `VisitJourney` |
+| 98 | POST | `/api/v1/visits/{visit_id}/tracking/enroll` | `TRACK_VISITS` | A R | `TrackingEnrollRequest` | 200 `VisitJourney` |
+| 99 | POST | `/api/v1/visits/{visit_id}/tracking/revoke` | `TRACK_VISITS` | A R | – | 200 `VisitJourney` |
+| 100 | PATCH | `/api/v1/platform/companies/{company_id}/tracking` | platform | platform | `PlatformTrackingUpdate` | 200 `PlatformCompany` |
 
-The one `PUT` and the one `DELETE` are those of a company's brand images (Phase 12). Nothing else is
-deleted through the API (users and departments are deactivated; visits and visitors are kept), and a
+The one `PUT` and one of the two `DELETE`s are those of a company's brand images (Phase 12); the other
+`DELETE` revokes a tracking key, which stays listed (Phase 15). Nothing else is deleted through the API (users and departments are deactivated; visits and visitors are kept), and a
 removed image is a row emptied of the image, not a deleted row.
 
 ---
@@ -1563,10 +1600,13 @@ Query `PlatformCompanyListQuery`: `q?` (name, Arabic name or slug, case-insensit
   "counts": { "active_users": 6, "visits_last_30_days": 42 },
   "brand": { "logo_url": "/api/v1/public/companies/demo-company/brand/logo.png?v=5b0c…", "logo_dark_url": "…",
              "icon_url": "…", "color": "#188086", "palette": { "strong": "#188086", "…": "…" },
-             "version": "9d1f6c0a2b3e4f57" } }
+             "version": "9d1f6c0a2b3e4f57" },
+  "tracking_allowed": false }
 ```
 
 `brand` (Phase 12) is the company's identity, `CompanyBrand` ([§10.12](#1012-a-companys-identity)).
+`tracking_allowed` (Phase 15) is whether the company may switch visitor tracking on; only
+`PATCH /platform/companies/{id}/tracking` changes it ([§10.14](#1014-the-visitor-journey)).
 
 `counts.active_users`: active users; `counts.visits_last_30_days`: visits scheduled to start in the 30 days
 up to now, any status. Nothing else about a company's people or visits is available.
@@ -1913,6 +1953,209 @@ B12-21: the colour of the application's shell; it was `palette.strong`) and `pal
 product's `#188086` and `#f1f1f1` while the company has no colour; `icons` holds the company's icon with
 its real size, and is **empty while it has none**. Nothing in it names the product.
 
+### 10.14 The Visitor Journey
+
+Phase 15 ([`phase-15-backend.md`](decisions/phase-15-backend.md), design:
+[`visitor-journey-design.md`](visitor-journey-design.md)). A provider-neutral boundary for an external
+tracking provider that would infer a checked-in visitor's floor or zone. **No real provider is connected:
+the adapter is BLOCKED BY ENVIRONMENT.** The deployment's provider is `TRACKING_PROVIDER`: `disabled` (the
+default everywhere, production's value) or `simulator` (development and E2E only, refused in production,
+everything it makes is marked Simulated). While `disabled`, enrollment answers 409
+`TRACKING_NOT_AVAILABLE` (`PROVIDER_DISABLED`), the ingestion endpoint answers 404, every journey is
+`DISABLED`; the location registry, cameras, keys and settings stay editable.
+
+Roles: **V** = SYSTEM_ADMIN, MANAGEMENT, RECEPTIONIST (capability `VIEW_JOURNEYS`; an EMPLOYEE-only user
+gets 403 everywhere here, the visit's own host included); **T** = SYSTEM_ADMIN, RECEPTIONIST
+(`TRACK_VISITS`); **A** = SYSTEM_ADMIN (`ADMINISTER`). Every path ID of another company answers 404, every
+body ID of another company 422 `not_found`.
+
+#### Enumerations
+
+```ts
+type TrackingProviderName = 'disabled' | 'simulator'
+type JourneyState = 'DISABLED' | 'NOT_ENROLLED' | 'PENDING' | 'ACTIVE' | 'UNCERTAIN' | 'STALE' | 'UNAVAILABLE' | 'ENDED'
+type TrackingAssociationStatus = 'PENDING' | 'ACTIVE' | 'ENDED'
+type TrackingEndReason = 'CHECKED_OUT' | 'REVOKED' | 'EXPIRED' | 'ENROLLMENT_FAILED' | 'VISIT_CANCELLED'  // the last is reserved
+type JourneyEventType = 'ENROLLED' | 'OBSERVED' | 'LOST'
+type ObservationMatch = 'CONFIRMED' | 'UNCERTAIN'
+type EnrollBlocker = 'PROVIDER_DISABLED' | 'NOT_ALLOWED' | 'NOT_ENABLED' | 'NOT_CHECKED_IN'
+                   | 'ALREADY_ENROLLED' | 'NO_ENROLLMENT_POINT' | 'NOT_PERMITTED'
+type TrackingRejectReason = 'TRACKING_OFF' | 'UNKNOWN_ASSOCIATION' | 'ASSOCIATION_ENDED' | 'ALREADY_ENROLLED'
+                          | 'NOT_ACTIVE' | 'UNKNOWN_CAMERA' | 'CAMERA_MISMATCH' | 'TOO_OLD' | 'IN_FUTURE'
+                          | 'BEFORE_ASSOCIATION'
+type ProviderOperation = 'ENROLL' | 'REVOKE'
+```
+
+#### Shapes
+
+```ts
+LocationRef       { id, name, name_ar | null }
+FloorRef          { id, name, name_ar | null, level }
+JourneyLocation   { building: LocationRef, floor: FloorRef, zone: LocationRef }
+CameraRef         { id, name }
+
+Building          { id, name, name_ar | null, is_active, created_at, updated_at }
+Floor             { id, building_id, name, name_ar | null, level, is_active, created_at, updated_at }
+Zone              { id, floor_id, name, name_ar | null, is_active, created_at, updated_at }
+LocationTree      { buildings: (Building & { floors: (Floor & { zones: Zone[] })[] })[] }
+
+TrackingCamera    { id, provider_camera_id, name, zone_id, location: JourneyLocation,
+                    is_enrollment_point, is_active, created_at, updated_at }
+TrackingStatus    { provider: TrackingProviderName, simulated, available, allowed, enabled,
+                    last_contact_at | null, healthy }
+TrackingSettings  { provider, allowed, enabled, min_confidence: number | null, stale_after_minutes,
+                    retention_days, health: TrackingHealth }
+TrackingHealth    { last_contact_at | null, last_accepted_event_at | null,
+                    rejected_last_24h: { reason: TrackingRejectReason, count }[],
+                    provider_errors_last_24h: { operation: ProviderOperation, count }[] }
+TrackingKey       { id, label, prefix, created_at, created_by: UserRef | null, last_used_at | null, revoked_at | null }
+TrackingKeyCreated  TrackingKey & { secret }                   // the only answer with the key
+
+JourneyVisitSummary { id, status: VisitStatus, visitor: { id, full_name, company_name | null }, host: UserRef,
+                      department: DepartmentRef | null, scheduled_start, scheduled_end,
+                      check_in_at | null, check_out_at | null }
+TrackingAssociation { id, status, provider: TrackingProviderName, simulated, created_at, activated_at | null,
+                      ended_at | null, ended_reason: TrackingEndReason | null, expires_at,
+                      enrollment_camera: CameraRef | null }         // never the provider's ref
+JourneyEvent      { id, type: JourneyEventType, observed_at, received_at, camera: CameraRef | null,
+                    location: JourneyLocation | null, match: ObservationMatch | null, confidence | null,
+                    confirmed, model_version | null }
+JourneyListItem   { visit: JourneyVisitSummary, state: JourneyState, simulated,
+                    last_location: JourneyLocation | null, last_observed_at | null,
+                    freshness_seconds | null }       // by the server's clock, as on VisitJourney
+VisitJourney      { visit: JourneyVisitSummary, state: JourneyState, association: TrackingAssociation | null,
+                    last_location: JourneyLocation | null, last_observed_at | null, freshness_seconds | null,
+                    timeline: JourneyEvent[], timeline_total, can_enroll,
+                    enroll_blocker: EnrollBlocker | null, can_revoke }
+JourneyPage       Paginated<JourneyListItem>
+```
+
+Request bodies (unknown fields refused; PATCH: omitted = unchanged, the marked fields may not be null):
+
+```ts
+BuildingCreate          { name, name_ar? }                                // names: 1–120, one line, trimmed
+BuildingUpdate          { name?¹, name_ar?, is_active?¹ }                 // ¹ not null; name_ar null/blank clears
+FloorCreate             { building_id, name, name_ar?, level }            // level: integer −20 … 200
+FloorUpdate             { name?¹, name_ar?, level?¹, is_active?¹ }
+ZoneCreate              { floor_id, name, name_ar? }
+ZoneUpdate              { name?¹, name_ar?, is_active?¹ }
+TrackingCameraCreate    { provider_camera_id, name, zone_id, is_enrollment_point? = false }
+TrackingCameraUpdate    { provider_camera_id?¹, name?¹, zone_id?¹, is_enrollment_point?¹, is_active?¹ }
+TrackingSettingsUpdate  { enabled?¹, min_confidence? (0–1 or null), stale_after_minutes?¹ (1–240), retention_days?¹ (1–90) }
+TrackingKeyCreate       { label }                                         // 1–100, one line
+TrackingEnrollRequest   { camera_id }                                     // TrackingCamera.id, not the provider's ID
+PlatformTrackingUpdate  { allowed }
+```
+
+Query models: `JourneyListParams` `{ day?: YYYY-MM-DD, q?, state?: JourneyState[] (comma-separated), page, page_size }`;
+`TrackingCameraListParams` `{ include_archived?: boolean }`.
+
+#### The journey state
+
+One value per visit, computed on the server at every read from the visit's latest association and that
+association's events ("latest" orders by `observed_at`, never by arrival):
+
+| State | When |
+|---|---|
+| `DISABLED` | provider `disabled`, or the company's tracking not allowed or not enabled |
+| `NOT_ENROLLED` | no association |
+| `PENDING` | association PENDING |
+| `ENDED` | association ended, or its expiry passed |
+| `UNAVAILABLE` | ACTIVE, no provider contact for more than 5 min |
+| `STALE` | ACTIVE, the latest sighting a LOST, or nothing confirmed for more than `stale_after_minutes` (since the latest confirmed observation, or since `activated_at` while there is none) |
+| `UNCERTAIN` | ACTIVE, the latest observation fresh but not confirmed, or two confirmed floors within 60 s (a conflict: `last_location` null) |
+| `ACTIVE` | otherwise; right after activation, with nothing observed yet, the journey is ACTIVE with `last_location` null ("Unknown") |
+
+An observation is **confirmed** when the provider said `CONFIRMED` and its `confidence` is at least the
+company's `min_confidence`; with `min_confidence` null (the default: it must come from an evaluation on site
+footage) nothing is. `last_location` comes **only** from a confirmed observation of an association the
+provider activated; null means "Unknown". **While two confirmed observations within 60 s name different
+floors, `last_location`, `last_observed_at` and `freshness_seconds` are null** (in the journey and in the
+list): neither is reliable. An UNCERTAIN that comes only from an unconfirmed latest observation keeps the
+last confirmed location. Events of an association that never activated are never shown (not in the
+timeline, not as a location). Show the timeline's confirmed / uncertain mark from `JourneyEvent.confirmed`,
+not from `match`. The constants (5 min, 60 s, 2 min, 10 min, 12 h) are placeholders pending real footage.
+
+#### Endpoints
+
+- **`GET /tracking/status`** (V) → `TrackingStatus`, for the page's banner. `available` = the provider is
+  not `disabled`; `healthy` = available, allowed, enabled, the provider answers and it contacted the
+  application within 5 minutes; `simulated` = the provider is the simulator.
+- **`GET /tracking/settings`** (A) → `TrackingSettings`; a company that never changed them has the
+  defaults (`allowed` and `enabled` false, `min_confidence` null, 15, 30). **`PATCH /tracking/settings`**
+  (A) `TrackingSettingsUpdate` → `TrackingSettings`. `enabled: true` while not allowed → **409
+  `TRACKING_NOT_AVAILABLE`** `details.reason = "NOT_ALLOWED"` (enabling while the provider is `disabled` is
+  accepted: the company prepares). `enabled: false` ends every PENDING/ACTIVE association of the company
+  (`REVOKED`). `allowed` and `provider` are read-only (422 `not_allowed`). Audited `TRACKING_ENABLED`,
+  `TRACKING_DISABLED` (`revoked`: how many ended) and `TRACKING_SETTINGS_UPDATED` (`changed_fields`).
+- **`GET /tracking/keys`** (A) → `TrackingKey[]`, newest first, revoked ones included.
+  **`POST /tracking/keys`** (A) `TrackingKeyCreate` → **201** `TrackingKeyCreated`: `secret` (`vtk_` + 43
+  characters) is answered this once and stored as its SHA-256; `prefix` is its first 8 characters, for
+  telling keys apart. A third unrevoked key → **409 `TRACKING_KEY_LIMIT`**. **`DELETE /tracking/keys/{key_id}`**
+  (A) → 200 `TrackingKey`, revoked (idempotent). Audited `TRACKING_KEY_CREATED` / `TRACKING_KEY_REVOKED`
+  (the key's ID only).
+- **`GET /tracking/cameras`** (T) `TrackingCameraListParams` → `TrackingCamera[]` by name. Administrators:
+  the active cameras, and with `include_archived=true` the archived ones too. Receptionists: only the
+  **active enrollment points** in active zones; `include_archived=true` → 403. **`POST /tracking/cameras`**
+  (A) → **201**; **`PATCH /tracking/cameras/{camera_id}`** (A) → 200; archive / restore =
+  `{"is_active": false|true}`. `provider_camera_id`: 1–128 visible ASCII characters (`!`…`~`), unique per
+  company (**409 `CONFLICT`** `details.field = "provider_camera_id"`). `zone_id` unknown → 422 `not_found`;
+  in an archived zone, floor or building → 422 **`location_archived`** (on `is_active` for a restore). A
+  camera holds no URL, address or credential: such fields are refused like any unknown one. Audited
+  `TRACKING_CAMERA_CREATED` / `TRACKING_CAMERA_UPDATED`.
+- **`GET /locations`** (V) → `LocationTree`: every building, active and archived, by name; floors by
+  `level`; zones by name. **`POST /locations/buildings`**, **`/floors`**, **`/zones`** (A) → **201**;
+  **`PATCH /locations/{buildings|floors|zones}/{id}`** (A) → 200. Archive / restore = `is_active`.
+  **Nothing is deleted.** Conflicts → **409 `CONFLICT`**: a building's `name` in the company, a floor's
+  `level` in its building, a zone's `name` on its floor (all case-insensitive for names). Archiving a
+  location that still holds active floors, zones or cameras → **409 `LOCATION_IN_USE`**; creating a child
+  of, or restoring one under, an archived parent → 422 **`location_archived`** (`building_id`, `floor_id`, or
+  `is_active`). Audited `LOCATION_CREATED` / `LOCATION_UPDATED` (`changed_fields`), entity `building`,
+  `floor` or `zone`.
+- **`GET /journeys`** (V) `JourneyListParams` → `JourneyPage`: the visits that were inside at some time of
+  the company-local `day` (default today): checked in before the day's end and not checked out before its
+  start. Newest check-in first. Each row's `freshness_seconds` is the whole seconds since
+  `last_observed_at` by the server's clock (as `VisitJourney.freshness_seconds`; null without a confirmed
+  location), so a client never uses its own clock. `q` matches the visitor's name or company (contains, case-insensitive);
+  `state` keeps the visits in those states. Reading ends the company's expired associations first. An
+  answer that shows at least one `last_location` is audited **`JOURNEY_LIST_VIEWED`** (entity `company`,
+  metadata `day` and `located`, the number of rows with a location), at most once per user in 60 minutes;
+  an answer without any location is not audited.
+- **`GET /visits/{visit_id}/journey`** (V) → `VisitJourney`. `timeline` holds the visit's latest 500
+  events in ascending `observed_at`; `timeline_total` counts them all. `enroll_blocker` is the first that
+  applies of `NOT_PERMITTED`, `PROVIDER_DISABLED`, `NOT_ALLOWED`, `NOT_ENABLED`, `ALREADY_ENROLLED`,
+  `NOT_CHECKED_IN`, `NO_ENROLLMENT_POINT`. Opening a journey is audited
+  **`JOURNEY_VIEWED`**, at most once per user and visit in 60 minutes.
+- **`POST /visits/{visit_id}/tracking/enroll`** (T) `TrackingEnrollRequest` → 200 `VisitJourney`.
+  Idempotent: a PENDING or ACTIVE association answers as it is. Any CHECKED_IN visit may be enrolled,
+  whatever its schedule. Refusals: provider disabled, not allowed or not enabled → **409
+  `TRACKING_NOT_AVAILABLE`** `details.reason` ∈ `PROVIDER_DISABLED`, `NOT_ALLOWED`, `NOT_ENABLED`; not CHECKED_IN → 409
+  `VISIT_NOT_CHECKED_IN`; not an active enrollment point of the company → 422 `camera_id` `not_found`. With
+  the simulator the answer shows the association ACTIVE already. A request the provider does not take
+  answers 200 with the association ENDED (`ENROLLMENT_FAILED`), and enrollment may be tried again. Audited
+  `TRACKING_ENROLLMENT_REQUESTED`, then `TRACKING_ASSOCIATION_ACTIVATED`.
+- **`POST /visits/{visit_id}/tracking/revoke`** (T), no body → 200 `VisitJourney`. Idempotent. Audited
+  `TRACKING_ASSOCIATION_REVOKED`.
+- **`PATCH /platform/companies/{company_id}/tracking`** (the platform owner) `PlatformTrackingUpdate` → 200
+  `PlatformCompany`, which carries `tracking_allowed` (the company's own people read it in
+  `Me.company.tracking_allowed`). Disallowing also switches the company's `enabled`
+  off and ends its open associations. Audited in both trails (`TRACKING_ALLOWED`, `TRACKING_DISALLOWED`
+  with `was_enabled` and `ended_tracking`).
+- **`POST /tracking/events`** — the provider's ingestion, with `Authorization: Bearer <tracking key>` only
+  (no cookie, no CSRF token, 401 for a wrong, revoked or absent key, 404 for every method while the
+  provider is `disabled`, 405 for any other method otherwise).
+  Not part of the web application's contract snapshot; documented in
+  [`visitor-tracking-integration.md`](visitor-tracking-integration.md).
+
+**The association's lifetime.** It ends at the visit's check-out (in the check-out's transaction, reason
+`CHECKED_OUT`, every check-out method included), an explicit revoke, tracking switched off or disallowed,
+the company's deactivation (`REVOKED`), its expiry (`EXPIRED`: 10 minutes after its creation while still
+PENDING, 12 hours after its activation once ACTIVE, whatever the visit's schedule; checked at every read and
+ingest, and by a check-out that finds it already expired, which ends it at `expires_at`) or a failed
+enrollment (`ENROLLMENT_FAILED`); each
+end is audited `TRACKING_ASSOCIATION_ENDED` with `reason` and `trigger`, and the provider is asked to forget
+the ref after the commit (a failure is counted in `health.provider_errors_last_24h`).
+
 ---
 
 ## 11. Response headers
@@ -1982,6 +2225,12 @@ caching is what the client receives.
   `tests/integration/test_platform_recovery.py`, `test_seed_guard.py`, `test_company_inactive_sign_in.py`,
   the additions to `test_platform_auth.py`, `test_platform_companies.py`, `test_credential_races.py`,
   `test_email_templates_api.py` and `test_platform_database_rules.py`, and `tests/unit/test_email_review.py`.
+- **Phase 15 (2026-10-20).** 100 operations on 80 paths from `app.openapi()` of the current code. The
+  Visitor Journey's endpoints are covered through the API by `tests/integration/test_tracking_admin.py`,
+  `test_tracking_lifecycle.py`, `test_tracking_ingestion.py`, `test_journeys_api.py`,
+  `test_tracking_cli.py` and `test_tracking_database_rules.py`, and the state machine by
+  `tests/unit/test_tracking_rules.py`. No real tracking provider was available (BLOCKED BY ENVIRONMENT):
+  the simulator stood in for it, and no real-model test exists.
 - **Phase 12 (2026-10-13).** 78 operations on 61 paths from `app.openapi()` of the current code. The brand
   and public endpoints are covered through the API by `tests/integration/test_platform_brand.py`,
   `test_public_brand.py`, `test_platform_email_texts.py`, `test_brand_database_rules.py` and

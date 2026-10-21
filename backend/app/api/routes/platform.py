@@ -66,6 +66,7 @@ from app.schemas.platform import (
     PlatformCompanyListQuery,
     PlatformCompanyUpdate,
     PlatformMe,
+    PlatformTrackingUpdate,
 )
 from app.security.platform_sessions import platform_cookie_names
 from app.services.email_templates import PlatformOwnerEditor
@@ -210,6 +211,19 @@ def reactivate_platform_company(
     company_id: UUID, auth: PlatformAuth, service: PlatformCompaniesServiceDep, context: ContextDep
 ) -> PlatformCompany:
     return service.set_active(auth, company_id, True, context)
+
+
+@router.patch("/companies/{company_id}/tracking", response_model=PlatformCompany)
+def update_platform_company_tracking(
+    company_id: UUID,
+    body: PlatformTrackingUpdate,
+    auth: PlatformAuth,
+    service: PlatformCompaniesServiceDep,
+    context: ContextDep,
+) -> PlatformCompany:
+    """Allow or disallow visitor tracking for the company (Phase 15, B15-2). Disallowing switches the
+    company's tracking off and ends its open tracking associations."""
+    return service.set_tracking_allowed(auth, company_id, body.allowed, context)
 
 
 @router.get("/companies/{company_id}/admins", response_model=list[PlatformCompanyAdmin])

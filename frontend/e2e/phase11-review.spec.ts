@@ -51,6 +51,7 @@ function company(index: number, overrides: Partial<PlatformCompany> = {}): Platf
     updated_at: '2026-10-13T08:00:00Z',
     counts: { active_users: 12, visits_last_30_days: 1284 },
     brand: UNBRANDED,
+    tracking_allowed: false,
     ...overrides,
   }
 }
@@ -435,7 +436,7 @@ test.describe('companies (L13, L14, L16)', () => {
 
 const adminMe = (language: Language): Me => ({
   user: { id: uuid('00', 1), full_name: 'Lina Haddad', email: 'lina.haddad@example.com', phone: null, roles: ['SYSTEM_ADMIN'], department: null, must_change_password: false, preferred_language: language },
-  company: { id: uuid('00', 2), name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED, address: null, address_ar: null },
+  company: { id: uuid('00', 2), name: 'Demo Holdings', name_ar: null, slug: 'demo-holdings', timezone: 'Asia/Amman', default_language: 'en', brand: UNBRANDED, address: null, address_ar: null, tracking_allowed: false },
 })
 
 function preview(language: Language): EmailPreview {

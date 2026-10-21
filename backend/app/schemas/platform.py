@@ -90,9 +90,14 @@ class PlatformCompany(ResponseModel):
     updated_at: UTCDatetime
     counts: CompanyCounts
     brand: CompanyBrand  # its logo, icon, colour and palette (B12-7): a list can show the logo
+    # The Visitor Journey (Phase 15, B15-2): whether the company may switch visitor tracking on. Only the
+    # platform owner sets it (PATCH /platform/companies/{id}/tracking).
+    tracking_allowed: bool
 
     @classmethod
-    def build(cls, company: Company, counts: CompanyCounts, brand: CompanyBrand) -> PlatformCompany:
+    def build(
+        cls, company: Company, counts: CompanyCounts, brand: CompanyBrand, *, tracking_allowed: bool
+    ) -> PlatformCompany:
         return cls(
             id=company.id,
             name=company.name,
@@ -106,7 +111,15 @@ class PlatformCompany(ResponseModel):
             updated_at=company.updated_at,
             counts=counts,
             brand=brand,
+            tracking_allowed=tracking_allowed,
         )
+
+
+class PlatformTrackingUpdate(RequestModel):
+    """PATCH /platform/companies/{id}/tracking. Turning it off also switches the company's tracking off
+    and ends its open tracking associations."""
+
+    allowed: bool
 
 
 class PlatformCompanyAdmin(ResponseModel):

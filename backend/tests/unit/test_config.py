@@ -109,6 +109,11 @@ def test_valid_production_configuration() -> None:
         ({"email_fail_domain": "fail.test"}, "EMAIL_FAIL_DOMAIN"),
         ({"app_base_url": "http://vms.example.com"}, "APP_BASE_URL"),
         ({"allowed_origins": "http://vms.example.com"}, "ALLOWED_ORIGINS"),
+        # Phase 15 (B15-1): synthetic journeys never reach real people's records.
+        (
+            {"tracking_provider": "simulator"},
+            "TRACKING_PROVIDER=simulator is for development and E2E tests only",
+        ),
     ],
 )
 def test_production_refuses_unsafe_settings(override: dict, problem: str) -> None:
@@ -1096,3 +1101,15 @@ def test_a_brand_name_must_be_one_line_of_visible_text(field: str, value: str, p
     with pytest.raises(ValidationError, match=problem) as caught:
         make(database_url=DB, **{field: value})
     assert "evil" not in str(caught.value)  # the value is never echoed (hide_input_in_errors)
+
+
+def test_the_tracking_provider_is_off_by_default_everywhere() -> None:
+    """Phase 15 (B15-1): `disabled` unless a deployment says otherwise; production's template keeps it."""
+    assert make(database_url=DB).tracking_provider == "disabled"
+    assert make(**PRODUCTION).tracking_provider == "disabled"
+    assert make(database_url=DB, tracking_provider="simulator").tracking_provider == "simulator"
+    with pytest.raises(ValidationError):
+        make(database_url=DB, tracking_provider="shaheen")  # no real adapter exists
+    template = (REPO_ROOT / "deploy" / "env" / "backend.env.example").read_text(encoding="utf-8")
+    assert any(line.rstrip() == "TRACKING_PROVIDER=disabled" for line in template.splitlines())
+    assert _env_example_value("TRACKING_PROVIDER") == "disabled"

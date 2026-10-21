@@ -109,6 +109,7 @@ def test_the_list_shows_companies_with_their_counts_only(
         "updated_at": alpha["updated_at"],
         "counts": {"active_users": 4, "visits_last_30_days": 1},
         "brand": no_brand(),  # its identity (B12-7): nothing set yet
+        "tracking_allowed": False,  # the Visitor Journey (Phase 15, B15-2): off until allowed
     }
 
 

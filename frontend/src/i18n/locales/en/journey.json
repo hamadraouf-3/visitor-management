@@ -1,0 +1,123 @@
+{
+  "title": "Visitor Journey",
+  "banner": {
+    "label": "Tracking",
+    "off": "Tracking is off",
+    "notConnected": "The tracking provider is not connected",
+    "noProvider": "No tracking provider"
+  },
+  "simulated": "Simulated",
+  "unknown": "Unknown",
+  "inferredLocation": "Inferred location",
+  "locationSeparator": ",",
+  "confidence": "Confidence {{value}}",
+  "state": {
+    "DISABLED": "Off",
+    "NOT_ENROLLED": "Not started",
+    "PENDING": "Starting",
+    "ACTIVE": "Active",
+    "UNCERTAIN": "Uncertain",
+    "STALE": "Not recent",
+    "UNAVAILABLE": "Not connected",
+    "ENDED": "Ended"
+  },
+  "mark": {
+    "confirmed": "Confirmed",
+    "uncertain": "Uncertain"
+  },
+  "blocker": {
+    "PROVIDER_DISABLED": "No tracking provider",
+    "NOT_ALLOWED": "Tracking not allowed",
+    "NOT_ENABLED": "Tracking is off",
+    "NOT_CHECKED_IN": "Not inside",
+    "NO_ENROLLMENT_POINT": "No reception camera"
+  },
+  "endReason": {
+    "CHECKED_OUT": "Checked out",
+    "REVOKED": "Stopped",
+    "EXPIRED": "Expired",
+    "ENROLLMENT_FAILED": "Could not start",
+    "VISIT_CANCELLED": "Visit cancelled"
+  },
+  "list": {
+    "count_one": "{{formatted}} visit",
+    "count_other": "{{formatted}} visits",
+    "found_one": "{{count}} visit found",
+    "found_other": "{{count}} visits found",
+    "filters": {
+      "search": "Search",
+      "searchPlaceholder": "Visitor or company",
+      "state": "State",
+      "allStates": "All states",
+      "date": "Date",
+      "clear": "Clear filters"
+    },
+    "columns": {
+      "visitor": "Visitor",
+      "host": "Host",
+      "state": "State",
+      "location": "Inferred location"
+    },
+    "empty": {
+      "title": "No visits on this day",
+      "filteredTitle": "No visits match these filters",
+      "pageTitle": "Nothing on this page",
+      "firstPage": "Go to the first page"
+    },
+    "loadError": "The journeys could not be loaded",
+    "noAccess": "No access to the Visitor Journey",
+    "pagesLabel": "Pages of journeys"
+  },
+  "detail": {
+    "title": "Journey",
+    "loading": "Loading the journey",
+    "loadError": "The journey could not be loaded",
+    "back": "Back to Visitor Journey",
+    "backToJourney": "Back to the journey",
+    "notFound": {
+      "title": "Journey not found",
+      "heading": "This visit was not found"
+    },
+    "noAccess": {
+      "title": "No access",
+      "heading": "No access to this journey"
+    },
+    "location": {
+      "observed": "Observed"
+    },
+    "visit": {
+      "title": "Visit",
+      "host": "Host",
+      "status": "Status",
+      "checkedIn": "Checked in",
+      "checkedOut": "Checked out",
+      "open": "Open visit"
+    },
+    "tracking": {
+      "title": "Tracking",
+      "started": "Started",
+      "ended": "Ended",
+      "reason": "Ended because",
+      "camera": "Reception camera",
+      "start": "Start tracking",
+      "stop": "Stop tracking",
+      "startedToast": "Tracking started",
+      "stoppedToast": "Tracking stopped",
+      "startFailed": "Tracking could not be started",
+      "stopTitle": "Stop tracking {{name}}?",
+      "keep": "Keep tracking",
+      "requested": "Requested",
+      "camerasLoadError": "The reception cameras could not be loaded"
+    },
+    "timeline": {
+      "title": "Timeline",
+      "empty": "No observations",
+      "latest": "Latest {{shown}} of {{total}}",
+      "events": {
+        "ENROLLED": "Tracking started",
+        "OBSERVED": "Observed",
+        "LOST": "Out of sight"
+      }
+    }
+  }
+}

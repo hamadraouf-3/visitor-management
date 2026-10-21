@@ -497,12 +497,14 @@ Alembic revisions in `backend/alembic/versions/`, applied as the schema owner wi
 | 0013 | The platform owner and a company's own e-mail texts (Phase 11, B11-1, B11-4, B11-10, B11-20): `companies.is_active` / `deactivated_at` (`CHECK` together); `platform_admins`, `platform_sessions`; `platform_audit_logs` (append-only: statement trigger `platform_audit_logs_immutable`, runtime role SELECT and column INSERT without `seq`); `email_template_overrides` (`text` NULL = the product's text) |
 | 0014 | The Phase 11 security review (B11-35, B11-43, B11-45): e-mail kind `PLATFORM_ACTION_NOTICE` in `ck_email_messages_kind_valid`; `platform_admins.temporary_password_tag` char(64) NULL with a `CHECK` that it exists only beside a temporary password. No grant changes |
 | 0015 | A company's own identity (Phase 12, B12-1): `companies.brand_color` varchar(7) NULL (`CHECK`: `#` and six lower-case hexadecimal digits); `company_brand_assets`, one row per company and kind (`logo`, `logo_dark`, `icon`) with the PNG as the server wrote it, its size, dimensions, SHA-256 and a random version per upload (`CHECK`s: all of an image or none of it, a PNG signature, at most 512 KiB, the dimensions of its kind). The runtime role gets SELECT, INSERT and UPDATE; a removed image is an emptied row |
+| 0018 | The Visitor Journey (Phase 15, B15-23; [visitor-journey-design.md](visitor-journey-design.md) §3): ten new tables only, nothing existing changed (the previous release runs on it): `buildings`, `floors`, `zones`, `tracking_cameras`, `tracking_associations` (one PENDING/ACTIVE per visit), `visitor_journey_events` (append-only: no UPDATE for the runtime role, trigger `visitor_journey_events_immutable` for anyone), `tracking_keys` (SHA-256, two live per company), `company_tracking_settings`, `tracking_health`, `tracking_health_counts`; composite same-company foreign keys throughout; `lock_timeout` 5 s. Downgrade refuses while anything entered or reported would be lost |
 
 Several downgrades refuse to run when they would lose security-relevant data (SEC-24, SEC-39), or, for
 `0011`, a language choice or an Arabic company name, for `0012` an Arabic department name, address or
 visit snapshot, for `0013` a deactivated company, a company e-mail text, a platform account or a platform
-audit row, for `0014` a `PLATFORM_ACTION_NOTICE` row of the e-mail log, and for `0015` a company's colour
-or image; run downgrades with the API stopped.
+audit row, for `0014` a `PLATFORM_ACTION_NOTICE` row of the e-mail log, for `0015` a company's colour
+or image, and for `0018` a location, camera, tracking association, journey event, tracking key or changed
+tracking setting; run downgrades with the API stopped.
 
 <details>
 <summary>Column reference with personal-data marking (from <code>information_schema</code> of a database migrated to 0010; the 0011 and 0012 columns from the migrations)</summary>
@@ -742,6 +744,7 @@ tables, and every tenant row carries `company_id`.
 | The platform owner (Phase 11) | A principal above the tenants with its own tables, sessions, cookies, CSRF token and audit trail (`platform_admins`, `platform_sessions`, `platform_audit_logs`; `app/api/routes/platform.py`, `app/services/platform_*.py`). It creates, renames, deactivates and reactivates companies and manages their administrators through `/api/v1/platform`, and reads companies with two counts; no platform endpoint returns tenant data beyond a company's administrators, and the platform session is refused by every tenant endpoint. A deactivated company's sessions, sign-ins, reset links and passes are refused (`repositories/sessions.py`, `passes.py`, `services/auth.py`). |
 | Tenant e-mail texts (Phase 11) | `email_template_overrides`, scoped by `company_id` like every tenant table; `EmailService` reads the company's texts when it renders a message (`app/email/editable.py`, `edited()` in the templates). Since Phase 12 the platform owner edits them too, through the same service: `EmailTemplatesService` takes an editor (`AdministratorEditor` or `PlatformOwnerEditor`), which decides whose company it is, who is recorded, where a test e-mail goes and how the change is audited (B12-8). |
 | A company's identity (Phase 12) | Each company has a logo, a dark-surface logo, a square icon (`company_brand_assets`) and one colour (`companies.brand_color`), set by the **platform owner only** (`app/api/routes/platform.py`, `app/services/brand.py::PlatformBrandService`); no tenant endpoint takes them. An uploaded PNG is checked and written again in pure Python before it is stored (`app/core/png.py`); the palette is derived from the colour by the server alone (`app/core/palette.py`) and travels with the brand. The identity reaches the company's people in `Me.company.brand`, anyone on the company's sign-in and pass pages through three endpoints without a session (`app/api/routes/public.py`: active companies only, one 404 for everything else, a budget per client address, the only API answers that may be cached), and every e-mail of the company (§7). See [§8.1](#81-a-companys-identity-phase-12). |
+| Visitor Journey (Phase 15) | Every tracking table carries `company_id` with composite foreign keys (`app/models/tracking.py`); a company's tracking needs the platform owner's `allowed` and its administrator's `enabled` (`company_tracking_settings`). The provider's ingestion (`POST /api/v1/tracking/events`) authenticates a **company's** key, so the company of every event is the key's, and refs and cameras resolve within it; a deactivated company's key is refused. Off by default (`TRACKING_PROVIDER=disabled`); [visitor-journey-design.md](visitor-journey-design.md). |
 | Creating tenants | The platform owner's `POST /api/v1/platform/companies` (Phase 11), or without it `python -m app.cli create-admin --email <address> --full-name "<name>" --company-slug <slug> --company-name "<name>" [--timezone <IANA zone>] [--password-stdin]` creates the company when the slug is unknown, together with its first administrator (allowed in production; the password comes from a prompt or stdin, never from the command line). |
 | Not used | PostgreSQL row-level security. Isolation of reads is enforced by the application; the security audit lists this as accepted residual R-5, mitigated by the RBAC and tenant-isolation test suites. |
 
@@ -996,8 +999,12 @@ Phase 10 made the interface bilingual and gave it the Mawdoo3 brand
 the existing code and what it would have to change, so that the extension follows the existing
 patterns. Each one also needs a contract revision and a decision file entry (§14 of the contract).
 SMS and WhatsApp notifications, billing and AI features are outside the product's scope and are not
-planned; neither is collecting national ID numbers or biometric data, and a QR code never carries
-personal data.
+planned; neither is collecting national ID numbers, photos or biometric templates, and a QR code never
+carries personal data. The Visitor Journey (Phase 15, [visitor-journey-design.md](visitor-journey-design.md))
+does not change that: it is an optional, off-by-default integration with an **external** tracking provider,
+which processes camera images on its side under its own policy, while the application stores only floor and
+zone observations of enrolled visitors (personal movement data, with their own retention and access rules)
+and runs no model. No real provider is connected (BLOCKED BY ENVIRONMENT).
 
 | Planned feature | Current state | Where it attaches | What it would need |
 |---|---|---|---|

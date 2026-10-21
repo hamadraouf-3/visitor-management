@@ -4,6 +4,7 @@ import arCommon from './locales/ar/common.json'
 import arErrors from './locales/ar/errors.json'
 import arHistory from './locales/ar/history.json'
 import arInside from './locales/ar/inside.json'
+import arJourney from './locales/ar/journey.json'
 import arPass from './locales/ar/pass.json'
 import arPlatform from './locales/ar/platform.json'
 import arReception from './locales/ar/reception.json'
@@ -16,6 +17,7 @@ import enCommon from './locales/en/common.json'
 import enErrors from './locales/en/errors.json'
 import enHistory from './locales/en/history.json'
 import enInside from './locales/en/inside.json'
+import enJourney from './locales/en/journey.json'
 import enPass from './locales/en/pass.json'
 import enPlatform from './locales/en/platform.json'
 import enReception from './locales/en/reception.json'
@@ -27,7 +29,7 @@ import enVisits from './locales/en/visits.json'
  * One namespace per area of the app (F10-2). `common` holds the shell and the UI kit, `errors`
  * the message of every API error code, `auth` the sign-in chrome; each feature fills its own.
  */
-export const NAMESPACES = ['common', 'errors', 'auth', 'reception', 'visits', 'visitors', 'history', 'inside', 'reports', 'admin', 'pass', 'platform'] as const
+export const NAMESPACES = ['common', 'errors', 'auth', 'reception', 'visits', 'visitors', 'history', 'inside', 'journey', 'reports', 'admin', 'pass', 'platform'] as const
 
 export type Namespace = (typeof NAMESPACES)[number]
 
@@ -47,6 +49,7 @@ export const resources = {
     visitors: enVisitors,
     history: enHistory,
     inside: enInside,
+    journey: enJourney,
     reports: enReports,
     admin: enAdmin,
     pass: enPass,
@@ -61,6 +64,7 @@ export const resources = {
     visitors: arVisitors,
     history: arHistory,
     inside: arInside,
+    journey: arJourney,
     reports: arReports,
     admin: arAdmin,
     pass: arPass,

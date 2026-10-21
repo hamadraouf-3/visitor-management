@@ -15,6 +15,11 @@ export interface NavEntry {
   order: number
   /** Active only on an exact match (e.g. /visits must not stay active on /visits/new). */
   end?: boolean
+  /**
+   * Offered only while the platform owner allows the company's visitor tracking (`Me.company.tracking_allowed`,
+   * Phase 15): the Visitor Journey and visitor tracking's administration.
+   */
+  requiresTracking?: boolean
 }
 
 /**

@@ -75,7 +75,14 @@ EXPECTED_ROUTES = {
 # platform account, B12-7), and the public identity endpoints, whose budgets per client address and per
 # IPv6 /48 bound probing for companies (B12-9). Those budgets live in the main process's memory: a
 # read process would count them a second time, so none of these requests is routed away either.
-MAIN_ONLY_PREFIXES = (f"{API_PREFIX}/platform/", f"{API_PREFIX}/email-templates", f"{API_PREFIX}/public/")
+# Phase 15: the Visitor Journey's tracking endpoints. The provider's ingestion counts a budget per key and
+# one per client address for wrong keys (B15-17), in the main process's memory, so none is routed away.
+MAIN_ONLY_PREFIXES = (
+    f"{API_PREFIX}/platform/",
+    f"{API_PREFIX}/email-templates",
+    f"{API_PREFIX}/public/",
+    f"{API_PREFIX}/tracking/",
+)
 MAIN_ONLY_ROUTES = frozenset(
     {
         "POST /api/v1/platform/auth/login",
@@ -89,6 +96,7 @@ MAIN_ONLY_ROUTES = frozenset(
         "PATCH /api/v1/platform/companies/{company_id}",
         "POST /api/v1/platform/companies/{company_id}/deactivate",
         "POST /api/v1/platform/companies/{company_id}/reactivate",
+        "PATCH /api/v1/platform/companies/{company_id}/tracking",  # Phase 15 (B15-2)
         "GET /api/v1/platform/companies/{company_id}/admins",
         "POST /api/v1/platform/companies/{company_id}/admins",
         "POST /api/v1/platform/companies/{company_id}/admins/{user_id}/password-reset",
@@ -115,6 +123,17 @@ MAIN_ONLY_ROUTES = frozenset(
         "POST /api/v1/email-templates/{kind}/preview",
         "GET /api/v1/email-templates/{kind}/preview",
         "POST /api/v1/email-templates/{kind}/test",
+        # Phase 15: the Visitor Journey's tracking endpoints.
+        "GET /api/v1/tracking/status",
+        "GET /api/v1/tracking/settings",
+        "PATCH /api/v1/tracking/settings",
+        "GET /api/v1/tracking/keys",
+        "POST /api/v1/tracking/keys",
+        "DELETE /api/v1/tracking/keys/{key_id}",
+        "GET /api/v1/tracking/cameras",
+        "POST /api/v1/tracking/cameras",
+        "PATCH /api/v1/tracking/cameras/{camera_id}",
+        "POST /api/v1/tracking/events",
     }
 )
 # The one request whose body may exceed MAX_REQUEST_BODY_BYTES (B12-6): the upload of a company's brand

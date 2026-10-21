@@ -26,6 +26,13 @@ CSRF_EXEMPT: frozenset[tuple[str, str]] = frozenset(
         ("POST", f"{API_PREFIX}/auth/login"),
         ("POST", f"{API_PREFIX}/auth/forgot-password"),
         ("POST", f"{API_PREFIX}/auth/reset-password"),
+        # The tracking provider's ingestion (Phase 15, B15-17) authenticates with a Bearer key only and
+        # ignores cookies: no cookie can ride on it, and a provider sends no CSRF token. Its other methods
+        # only answer 404 or 405 (B15-38), whatever cookie comes with them.
+        ("POST", f"{API_PREFIX}/tracking/events"),
+        ("PUT", f"{API_PREFIX}/tracking/events"),
+        ("PATCH", f"{API_PREFIX}/tracking/events"),
+        ("DELETE", f"{API_PREFIX}/tracking/events"),
     }
 )
 # The platform owner's realm (B11-6): its sign-in is the only exemption.

@@ -58,7 +58,7 @@ const publicBrand = (company: MockCompany, darkLogo: boolean): PublicCompanyBran
 
 const meOf = (company: MockCompany, language: Language, darkLogo: boolean): Me => ({
   user: { id: uuid('00', 1), full_name: 'Lina Haddad', email: 'lina.haddad@example.com', phone: null, roles: ['SYSTEM_ADMIN', 'EMPLOYEE'], department: null, must_change_password: false, preferred_language: language },
-  company: { id: company.id, name: company.name, name_ar: company.name_ar, slug: company.slug, timezone: 'Asia/Amman', default_language: 'en', brand: brandOf(company, darkLogo), address: null, address_ar: null },
+  company: { id: company.id, name: company.name, name_ar: company.name_ar, slug: company.slug, timezone: 'Asia/Amman', default_language: 'en', brand: brandOf(company, darkLogo), address: null, address_ar: null, tracking_allowed: false },
 })
 
 const platformMe = (language: Language): PlatformMe => ({ admin: { id: uuid('9a', 1), full_name: 'Platform Owner', email: 'platform@demo.local', must_change_password: false, preferred_language: language } })
@@ -76,6 +76,7 @@ const platformCompany = (company: MockCompany): PlatformCompany => ({
   updated_at: '2026-10-13T08:00:00Z',
   counts: { active_users: 12, visits_last_30_days: 84 },
   brand: brandOf(company, false),
+  tracking_allowed: false,
 })
 
 const notMocked = (route: Route) => route.fulfill({ status: 404, json: { error: { code: 'NOT_FOUND', message: 'Not mocked.', details: {} }, request_id: 'e2e' } })

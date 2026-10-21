@@ -53,7 +53,7 @@ const SECTION_8_1_RESPONSES = [
 const SECTION_8_1_REQUESTS = ['VisitCreate', 'WalkInCreate']
 
 /** §8: the error envelope and the `Paginated<T>` of every paginated endpoint. */
-const SECTION_8_ENVELOPES = ['ApiErrorEnvelope', 'UserPage', 'VisitorSearchPage', 'VisitPage', 'AuditLogPage', 'PlatformCompanyPage', 'PlatformAuditLogPage']
+const SECTION_8_ENVELOPES = ['ApiErrorEnvelope', 'UserPage', 'VisitorSearchPage', 'VisitPage', 'AuditLogPage', 'PlatformCompanyPage', 'PlatformAuditLogPage', 'JourneyPage']
 
 /** §8: the query parameters of every endpoint that takes them. */
 const SECTION_8_QUERIES = [
@@ -71,6 +71,9 @@ const SECTION_8_QUERIES = [
   'EmailPreviewDocumentParams',
   // Phase 12
   'BrandImageParams',
+  // Phase 15: the day's journeys, and the cameras with the archived ones
+  'JourneyListParams',
+  'TrackingCameraListParams',
 ]
 
 /**
@@ -93,6 +96,16 @@ const CHECKED_INDIRECTLY = [
   'EmailTemplateKind',
   'EmailTemplateFieldName',
   'EmailScheme',
+  // Phase 15
+  'TrackingProviderName',
+  'JourneyState',
+  'TrackingAssociationStatus',
+  'TrackingEndReason',
+  'JourneyEventType',
+  'ObservationMatch',
+  'EnrollBlocker',
+  'TrackingRejectReason',
+  'TrackingProviderOperation',
   'Paginated',
   'ApiErrorCode',
   'FieldErrorCode',

@@ -120,3 +120,40 @@ class EventMethod(StrEnum):
 def sql_in_list(enum_type: type[StrEnum]) -> str:
     """`'A', 'B', ...` for CHECK constraints; values are compile-time constants, never user input."""
     return ", ".join(f"'{member.value}'" for member in enum_type)
+
+
+# ---- the Visitor Journey (revision 0018, Phase 15, docs/visitor-journey-design.md) -------------------
+
+
+class TrackingAssociationStatus(StrEnum):
+    """A visit's tracking association: PENDING until the provider confirms the enrollment (ENROLLED),
+    ACTIVE until it ends; an ENDED association never becomes active again."""
+
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    ENDED = "ENDED"
+
+
+class TrackingEndReason(StrEnum):
+    CHECKED_OUT = "CHECKED_OUT"
+    REVOKED = "REVOKED"
+    EXPIRED = "EXPIRED"
+    ENROLLMENT_FAILED = "ENROLLMENT_FAILED"
+    # Reserved: a checked-in visit cannot be cancelled (`visit_rules`), so no association ends this way
+    # today (B15-15).
+    VISIT_CANCELLED = "VISIT_CANCELLED"
+
+
+class JourneyEventType(StrEnum):
+    """What a stored journey event is (the provider's ENROLLMENT_FAILED and HEARTBEAT are not stored)."""
+
+    ENROLLED = "ENROLLED"
+    OBSERVED = "OBSERVED"
+    LOST = "LOST"
+
+
+class ObservationMatch(StrEnum):
+    """The provider's own judgement of an observation."""
+
+    CONFIRMED = "CONFIRMED"
+    UNCERTAIN = "UNCERTAIN"

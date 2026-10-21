@@ -71,6 +71,7 @@ def test_the_me_payload_carries_the_company_languages(make_client, factory: Fact
         "timezone": "Asia/Amman",
         "default_language": "ar",
         "brand": no_brand(),
+        "tracking_allowed": False,
     }
     assert me["user"]["preferred_language"] is None  # follows the company
 

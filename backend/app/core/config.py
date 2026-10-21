@@ -134,6 +134,10 @@ _INVISIBLE_CATEGORIES = frozenset({"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"})
 
 AppEnv = Literal["development", "test", "production"]
 EmailProviderName = Literal["resend", "smtp", "outbox", "memory"]
+# The Visitor Journey's tracking provider (Phase 15, B15-1): `disabled` everywhere by default and in
+# production; `simulator` (synthetic events, marked Simulated) for development and E2E only. No real
+# provider adapter exists (BLOCKED BY ENVIRONMENT: docs/visitor-tracking-model-assessment.md).
+TrackingProviderName = Literal["disabled", "simulator"]
 # How the SMTP provider protects the connection (S10-2): STARTTLS on the submission port, TLS from the first
 # byte (implicit TLS, "SMTPS"), or nothing at all (local capture servers; refused in production).
 SmtpSecurity = Literal["starttls", "ssl", "none"]
@@ -287,6 +291,11 @@ class Settings(BaseSettings):
     # production until the sending mailbox is a dedicated one whose domain has SPF, DKIM and DMARC.
     calendar_invitations_enabled: bool = True
 
+    # The Visitor Journey's tracking provider (Phase 15, B15-1). `disabled`: enrollment is refused, the
+    # provider's ingestion endpoint answers 404 and every journey is DISABLED; the location registry stays
+    # editable. `simulator` is refused in production.
+    tracking_provider: TrackingProviderName = "disabled"
+
     rate_limit_enabled: bool = True
     rate_limit_login_per_ip_email: int = Field(default=5, ge=1)
     rate_limit_login_per_ip: int = Field(default=30, ge=1)
@@ -352,6 +361,11 @@ class Settings(BaseSettings):
     # Changes of companies' brands by one platform account per hour (an image stored or removed, a
     # colour): each upload is inflated and checked, and each change writes two audit rows.
     rate_limit_brand_changes_per_hour: int = Field(default=120, ge=1, le=10_000)
+    # The tracking provider's ingestion endpoint (Phase 15, B15-17): requests per key and minute (each
+    # carries at most 100 events), and requests with a wrong, revoked or absent key per client address
+    # and 5 minutes (each costs a key lookup).
+    rate_limit_tracking_requests_per_minute: int = Field(default=120, ge=1)
+    rate_limit_tracking_key_failures_per_ip: int = Field(default=30, ge=1)
 
     password_hash_concurrency: int | None = Field(default=None, ge=1, le=64)
 
@@ -854,6 +868,9 @@ def _check_production(settings: Settings) -> None:
         )
     if settings.email_fail_domain is not None:
         problems.append("EMAIL_FAIL_DOMAIN must not be set")
+    if settings.tracking_provider == "simulator":
+        # Synthetic journeys must never reach real people's records (B15-1).
+        problems.append("TRACKING_PROVIDER=simulator is for development and E2E tests only")
     if not settings.app_base_url.startswith("https://"):
         problems.append("APP_BASE_URL must use https")
     if settings.qr_base_url is not None and not settings.qr_base_url.startswith("https://"):

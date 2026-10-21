@@ -8,7 +8,8 @@
       "reception": "الاستقبال",
       "passes": "البطاقات والدعوات",
       "emailTexts": "نصوص الرسائل",
-      "platform": "حسابات المنصة"
+      "platform": "حسابات المنصة",
+      "tracking": "تتبّع الزوار"
     },
     "actions": {
       "AUTH_LOGIN_SUCCEEDED": "تسجيل دخول",
@@ -62,7 +63,24 @@
       "EMAIL_TEMPLATE_RESET": "استعادة النصوص الأصلية للرسالة",
       "EMAIL_TEMPLATE_TEST_SENT": "إرسال رسالة تجريبية",
       "PLATFORM_ADMIN_CREATED": "إنشاء حساب المنصة",
-      "PLATFORM_ADMIN_PASSWORD_SET": "تعيين كلمة مرور حساب المنصة"
+      "PLATFORM_ADMIN_PASSWORD_SET": "تعيين كلمة مرور حساب المنصة",
+      "TRACKING_ENROLLMENT_REQUESTED": "طلب تتبّع زيارة",
+      "TRACKING_ASSOCIATION_ACTIVATED": "بدء تتبّع زيارة",
+      "TRACKING_ASSOCIATION_ENDED": "انتهاء تتبّع زيارة",
+      "TRACKING_ASSOCIATION_REVOKED": "إيقاف تتبّع زيارة",
+      "JOURNEY_VIEWED": "فتح رحلة زائر",
+      "TRACKING_ENABLED": "تشغيل التتبّع",
+      "TRACKING_DISABLED": "إيقاف التتبّع",
+      "TRACKING_ALLOWED": "السماح بالتتبّع",
+      "TRACKING_DISALLOWED": "منع التتبّع",
+      "TRACKING_SETTINGS_UPDATED": "تحديث إعدادات التتبّع",
+      "TRACKING_KEY_CREATED": "إنشاء مفتاح مزوّد",
+      "TRACKING_KEY_REVOKED": "إبطال مفتاح مزوّد",
+      "TRACKING_CAMERA_CREATED": "إضافة كاميرا",
+      "TRACKING_CAMERA_UPDATED": "تعديل كاميرا",
+      "LOCATION_CREATED": "إضافة موقع",
+      "LOCATION_UPDATED": "تعديل موقع",
+      "JOURNEY_LIST_VIEWED": "فُتحت قائمة رحلات الزوار"
     },
     "entities": {
       "visit": "زيارة",
@@ -74,7 +92,12 @@
       "email": "رسالة بريد إلكتروني",
       "session": "جلسة",
       "email_template": "نصوص الرسالة",
-      "platform_admin": "حساب المنصة"
+      "platform_admin": "حساب المنصة",
+      "building": "مبنى",
+      "floor": "طابق",
+      "zone": "منطقة",
+      "tracking_camera": "كاميرا",
+      "tracking_key": "مفتاح مزوّد"
     },
     "eventsFor": {
       "visit": "أحداث هذه الزيارة",
@@ -213,7 +236,29 @@
       "HOST_VISIT_RESCHEDULED": "تغيير موعد الزيارة (المضيف)",
       "HOST_VISIT_CANCELLED": "إلغاء الزيارة (المضيف)",
       "PASSWORD_RESET": "إعادة تعيين كلمة المرور",
-      "PASSWORD_CHANGED": "تغيير كلمة المرور"
+      "PASSWORD_CHANGED": "تغيير كلمة المرور",
+      "tracking_requests_per_key": "طلبات التتبّع لكل مفتاح",
+      "tracking_key_failures_ip": "مفاتيح تتبّع مرفوضة (عنوان الشبكة)",
+      "simulator": "المحاكي",
+      "disabled": "لا يوجد مزوّد",
+      "REVOKED": "أُوقف",
+      "EXPIRED": "انتهت مدته",
+      "ENROLLMENT_FAILED": "تعذّر البدء",
+      "USER": "بيد شخص",
+      "CHECK_OUT": "تسجيل الخروج",
+      "EXPIRY": "انتهاء المدة",
+      "PROVIDER": "المزوّد",
+      "TRACKING_DISABLED": "إيقاف التتبّع",
+      "TRACKING_DISALLOWED": "منع التتبّع",
+      "COMPANY_DEACTIVATED": "تعطيل الشركة",
+      "enabled": "التتبّع",
+      "min_confidence": "الحد الأدنى للثقة",
+      "stale_after_minutes": "يصبح الموقع قديمًا بعد",
+      "retention_days": "مدة الاحتفاظ بالرحلات",
+      "provider_camera_id": "معرّف الكاميرا لدى المزوّد",
+      "zone_id": "المنطقة",
+      "is_enrollment_point": "كاميرا استقبال",
+      "level": "المستوى"
     },
     "metadataKeys": {
       "outcome": "النتيجة",
@@ -275,7 +320,15 @@
       "language": "اللغة",
       "draft": "مسودة غير محفوظة",
       "changed": "النصوص المعدّلة",
-      "reset": "النصوص المستعادة"
+      "reset": "النصوص المستعادة",
+      "association_id": "التتبّع",
+      "camera_id": "الكاميرا",
+      "provider": "المزوّد",
+      "revoked": "زوار أُوقف تتبّعهم",
+      "ended_tracking": "زوار أُوقف تتبّعهم",
+      "was_enabled": "كان التتبّع مفعّلًا",
+      "day": "اليوم",
+      "located": "بموقع"
     },
     "systemActor": "النظام أو مجهول",
     "failure": "فشل أو رفض:",
@@ -703,5 +756,194 @@
       "en": "الإنجليزية"
     },
     "fieldIn": "{{field}} ({{language}})"
+  },
+  "tracking": {
+    "title": "تتبّع الزوار",
+    "tabs": {
+      "label": "أقسام تتبّع الزوار",
+      "settings": "الإعدادات",
+      "locations": "المواقع",
+      "cameras": "الكاميرات"
+    },
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "add": "إضافة",
+    "settings": {
+      "switchTitle": "التتبّع",
+      "switch": "تتبّع الزوار",
+      "notAllowed": "غير مسموح به",
+      "provider": "المزوّد",
+      "providers": {
+        "simulator": "المحاكي",
+        "disabled": "لا يوجد"
+      },
+      "turnedOn": "شُغّل التتبّع",
+      "turnedOff": "أُوقف التتبّع",
+      "turnOnFailed": "تعذّر تشغيل التتبّع",
+      "turnOffTitle": "إيقاف التتبّع؟",
+      "turnOffDescription": "يتوقف تتبّع كل زائر يجري تتبّعه الآن.",
+      "keepOn": "إبقاؤه مفعّلًا",
+      "turnOff": "إيقاف",
+      "thresholdsTitle": "العتبات والاحتفاظ",
+      "minConfidence": "الحد الأدنى للثقة (%)",
+      "staleAfter": "يصبح الموقع قديمًا بعد",
+      "retention": "الاحتفاظ بالرحلات",
+      "minutesUnit": "دقيقة",
+      "daysUnit": "يومًا",
+      "saved": "حُفظت إعدادات التتبّع",
+      "unsavedDescription": "لم تُحفظ تغييراتك على إعدادات التتبّع.",
+      "loadError": "تعذّر تحميل إعدادات التتبّع",
+      "loading": "جارٍ تحميل إعدادات التتبّع",
+      "validation": {
+        "confidence": "أدخل نسبة من 1 إلى 100.",
+        "range": "أدخل عددًا صحيحًا من {{min}} إلى {{max}}."
+      }
+    },
+    "health": {
+      "title": "حالة المزوّد",
+      "never": "لا يوجد",
+      "none": "لا شيء",
+      "lastContact": "آخر اتصال",
+      "lastEvent": "آخر حدث مقبول",
+      "rejected": "المرفوض خلال 24 ساعة",
+      "providerErrors": "أخطاء المزوّد خلال 24 ساعة",
+      "reasons": {
+        "TRACKING_OFF": "التتبّع غير مفعّل",
+        "UNKNOWN_ASSOCIATION": "ارتباط غير معروف",
+        "ASSOCIATION_ENDED": "ارتباط منتهٍ",
+        "ALREADY_ENROLLED": "بدأ مسبقًا",
+        "UNKNOWN_CAMERA": "كاميرا غير معروفة",
+        "CAMERA_MISMATCH": "كاميرا غير مطابقة",
+        "TOO_OLD": "قديم جدًا",
+        "IN_FUTURE": "في المستقبل",
+        "BEFORE_ASSOCIATION": "قبل بدء التتبّع",
+        "NOT_ACTIVE": "لم يبدأ بعد"
+      },
+      "operations": {
+        "ENROLL": "بدء التتبّع",
+        "REVOKE": "إيقاف التتبّع"
+      }
+    },
+    "keys": {
+      "title": "مفاتيح المزوّد",
+      "create": "إنشاء مفتاح",
+      "createConfirm": "إنشاء",
+      "label": "الاسم",
+      "created": {
+        "title": "أُنشئ المفتاح «\u2068{{label}}\u2069»",
+        "description": "يظهر المفتاح مرة واحدة فقط.",
+        "key": "المفتاح",
+        "copy": "نسخ المفتاح",
+        "copied": "نُسخ",
+        "done": "تم"
+      },
+      "revokeTitle": "إبطال المفتاح «\u2068{{label}}\u2069»؟",
+      "revokeDescription": "يُرفض كل طلب يرسله المزوّد بهذا المفتاح بعد إبطاله.",
+      "keep": "إبقاء المفتاح",
+      "revoke": "إبطال",
+      "revokeNamed": "إبطال {{label}}",
+      "revoked": "أُبطل المفتاح «{{label}}»",
+      "limit": "مفتاحان قيد الاستخدام",
+      "loadError": "تعذّر تحميل المفاتيح",
+      "loading": "جارٍ تحميل المفاتيح",
+      "empty": "لا توجد مفاتيح",
+      "revokedBadge": "مُبطَل",
+      "inUse": "قيد الاستخدام",
+      "createdByOn": "أنشأه {{name}} يوم {{when}}",
+      "createdOn": "أُنشئ يوم {{when}}",
+      "revokedOn": "أُبطل يوم {{when}}",
+      "lastUsed": "آخر استخدام: {{when}}",
+      "neverUsed": "لم يُستخدم بعد",
+      "validation": {
+        "labelRequired": "أدخل اسمًا للمفتاح.",
+        "oneLine": "اكتب الاسم في سطر واحد."
+      }
+    },
+    "locations": {
+      "archived": "مؤرشف",
+      "actionsFor": "إجراءات {{name}}",
+      "edit": {
+        "building": "تعديل المبنى {{name}}",
+        "floor": "تعديل الطابق {{name}}",
+        "zone": "تعديل المنطقة {{name}}"
+      },
+      "add": {
+        "building": "إضافة مبنى",
+        "floor": "إضافة طابق",
+        "zone": "إضافة منطقة",
+        "floorIn": "إضافة طابق إلى {{name}}",
+        "zoneIn": "إضافة منطقة إلى {{name}}"
+      },
+      "editAction": "تعديل",
+      "saved": "حُفظ {{name}}",
+      "added": "أُضيف {{name}}",
+      "name": "الاسم",
+      "nameAr": "الاسم بالعربية",
+      "level": "المستوى",
+      "archive": "أرشفة",
+      "archiveTitle": "أرشفة {{name}}؟",
+      "archivedToast": "أُرشف {{name}}",
+      "keep": "إبقاؤه",
+      "restore": "استعادة",
+      "restored": "استُعيد {{name}}",
+      "restoreFailed": "تعذّرت استعادة {{name}}",
+      "floorsOf": "طوابق {{name}}",
+      "zonesOf": "مناطق {{name}}",
+      "noFloors": "لا توجد طوابق",
+      "noZones": "لا توجد مناطق",
+      "showArchived": "عرض المؤرشف",
+      "empty": "لا توجد مبانٍ بعد",
+      "emptyActive": "لا توجد مبانٍ نشطة",
+      "loadError": "تعذّر تحميل المواقع",
+      "loading": "جارٍ تحميل المواقع",
+      "validation": {
+        "nameRequired": "أدخل الاسم.",
+        "duplicate": "هذا الاسم مستخدم هنا بالفعل.",
+        "level": "أدخل عددًا صحيحًا من {{min}} إلى {{max}}.",
+        "levelTaken": "يوجد في المبنى طابق بهذا المستوى."
+      }
+    },
+    "cameras": {
+      "title": "الكاميرات",
+      "columns": {
+        "name": "الكاميرا",
+        "location": "الموقع",
+        "reception": "الاستقبال",
+        "actions": "الإجراءات"
+      },
+      "archived": "مؤرشفة",
+      "enrollmentPoint": "كاميرا استقبال",
+      "enrollmentPointLabel": "كاميرا استقبال",
+      "add": "إضافة كاميرا",
+      "edit": "تعديل",
+      "editNamed": "تعديل {{name}}",
+      "archive": "أرشفة",
+      "archiveNamed": "أرشفة {{name}}",
+      "archiveTitle": "أرشفة {{name}}؟",
+      "archivedToast": "أُرشفت {{name}}",
+      "keep": "إبقاؤها",
+      "restore": "استعادة",
+      "restoreNamed": "استعادة {{name}}",
+      "restored": "استُعيدت {{name}}",
+      "restoreFailed": "تعذّرت استعادة {{name}}",
+      "saved": "حُفظت {{name}}",
+      "added": "أُضيفت {{name}}",
+      "providerId": "معرّف الكاميرا لدى المزوّد",
+      "name": "الاسم",
+      "zone": "المنطقة",
+      "chooseZone": "اختر منطقة",
+      "noZones": "أضف منطقة قبل إضافة كاميرا",
+      "openLocations": "فتح المواقع",
+      "showArchived": "عرض المؤرشفة",
+      "loadError": "تعذّر تحميل الكاميرات",
+      "empty": "لا توجد كاميرات بعد",
+      "validation": {
+        "idRequired": "أدخل معرّف الكاميرا لدى المزوّد.",
+        "idFormat": "استخدم حروفًا لاتينية وأرقامًا ورموزًا بلا مسافات.",
+        "idTaken": "توجد كاميرا بهذا المعرّف.",
+        "nameRequired": "أدخل الاسم.",
+        "zoneRequired": "اختر منطقة."
+      }
+    }
   }
 }

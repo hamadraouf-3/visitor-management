@@ -27,6 +27,7 @@ export function makePlatformCompany(overrides: Partial<PlatformCompany> = {}): P
     updated_at: '2026-10-01T08:00:00Z',
     counts: { active_users: 12, visits_last_30_days: 84 },
     brand: EMPTY_BRAND,
+    tracking_allowed: false,
     ...overrides,
   }
 }

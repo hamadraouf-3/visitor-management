@@ -86,7 +86,7 @@ export function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-export function makeMe(roles: Role[] = ['EMPLOYEE'], overrides: Partial<Me['user']> = {}): Me {
+export function makeMe(roles: Role[] = ['EMPLOYEE'], overrides: Partial<Me['user']> = {}, company: Partial<Me['company']> = {}): Me {
   return {
     user: {
       id: '7f0d1c0e-1111-4a5b-9c1d-000000000001',
@@ -111,6 +111,9 @@ export function makeMe(roles: Role[] = ['EMPLOYEE'], overrides: Partial<Me['user
       brand: EMPTY_BRAND,
       address: null,
       address_ar: null,
+      // Phase 15: not allowed, as a company is until the platform owner allows it (no Visitor Journey).
+      tracking_allowed: false,
+      ...company,
     },
   }
 }

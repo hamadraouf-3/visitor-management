@@ -25,6 +25,15 @@ from app.repositories.platform import (
 )
 from app.repositories.reports import ReportRepository
 from app.repositories.sessions import SessionRepository
+from app.repositories.tracking import (
+    AssociationRepository,
+    CameraRepository,
+    JourneyEventRepository,
+    LocationRepository,
+    TrackingHealthRepository,
+    TrackingKeyRepository,
+    TrackingSettingsRepository,
+)
 from app.repositories.users import UserRepository
 from app.repositories.visitors import VisitorRepository
 from app.repositories.visits import VisitRepository
@@ -97,14 +106,21 @@ UNSCOPED = {
     (CompanyBrandRepository, "active_company"): "public lookup by slug: an active company's own identity",
     (CompanyBrandRepository, "public_image"): "public lookup by slug: an active company's own image",
     (CompanyBrandRepository, "companies_with_logo"): "system: e-mail logos drawn ahead (B13-7), IDs only",
+    # The Visitor Journey (Phase 15): the provider is authenticated by its key, which names the company.
+    (TrackingKeyRepository, "by_digest"): "lookup by the hash of a secret tracking key (B15-10)",
+    (TrackingSettingsRepository, "allowed_of"): "the platform owner lists the companies themselves (B15-2)",
 }
 REPOSITORIES = [
+    AssociationRepository,
     AuditLogRepository,
+    CameraRepository,
     CompanyBrandRepository,
     CompanyRepository,
     DepartmentRepository,
     EmailMessageRepository,
     EmailTemplateOverrideRepository,
+    JourneyEventRepository,
+    LocationRepository,
     PassRepository,
     PasswordResetRepository,
     PlatformAdminRepository,
@@ -113,6 +129,9 @@ REPOSITORIES = [
     PlatformSessionRepository,
     ReportRepository,
     SessionRepository,
+    TrackingHealthRepository,
+    TrackingKeyRepository,
+    TrackingSettingsRepository,
     UserRepository,
     VisitorRepository,
     VisitRepository,

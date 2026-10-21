@@ -27,6 +27,9 @@ interface AppLayoutProps {
  * - A route whose `handle` asks for the dark surface (`DARK_SURFACE_HANDLE`, the reception
  *   tablet) gets the deep shell and dark tokens for the page and its dialogs (`data-surface`).
  *
+ * The Visitor Journey's entries (`requiresTracking`) are offered only while the platform owner allows the
+ * company's tracking (Phase 15).
+ *
  * While a password change is required the navigation is hidden (every other endpoint answers 403
  * until then); the language and the appearance can still be switched.
  */
@@ -38,7 +41,7 @@ export function AppLayout({ navigation, children }: AppLayoutProps) {
 
   const entries = me.user.must_change_password
     ? []
-    : navigation.filter((entry) => hasAnyRole(me.user.roles, entry.roles))
+    : navigation.filter((entry) => hasAnyRole(me.user.roles, entry.roles) && (!entry.requiresTracking || me.company.tracking_allowed))
 
   return (
     <ShellFrame

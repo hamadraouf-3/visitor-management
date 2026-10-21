@@ -55,9 +55,17 @@ export const SECTION_ACCESS = {
   visitors: ALL_ROLES,
   history: ['SYSTEM_ADMIN', 'MANAGEMENT', 'RECEPTIONIST'],
   inside: ['SYSTEM_ADMIN', 'MANAGEMENT', 'RECEPTIONIST'],
+  /** The Visitor Journey (Phase 15): hosts (EMPLOYEE only) get no tab, and the API answers them 403 (least privilege). */
+  journey: ['SYSTEM_ADMIN', 'MANAGEMENT', 'RECEPTIONIST'],
   reports: ['MANAGEMENT', 'SYSTEM_ADMIN'],
   admin: ['SYSTEM_ADMIN'],
 } as const satisfies Record<string, readonly Role[]>
+
+/**
+ * Roles that may start and stop a visit's tracking (Phase 15): reception and administrators. Management
+ * reads the journey only. Cosmetic like every role rule here: the backend enforces it.
+ */
+export const TRACKING_ACTION_ROLES = ['RECEPTIONIST', 'SYSTEM_ADMIN'] as const satisfies readonly Role[]
 
 /**
  * Roles that read every visitor and full visit histories (§7.5). Holders of only EMPLOYEE see

@@ -207,6 +207,8 @@ def test_scopes_follow_what_the_keys_are_derived_from() -> None:
         "public_brand_ip": network,  # the public identity endpoints (B12-9)
         "public_brand_prefix": network,
         "brand_changes_per_user": bounded,  # platform accounts (B12-7)
+        "tracking_requests_per_key": bounded,  # tracking keys that exist (B15-17)
+        "tracking_key_failures_ip": network,  # anyone can present a wrong key
         "api_per_user": bounded,
     }
 

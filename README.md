@@ -251,15 +251,37 @@ types answer 415 and larger files 413 ([docs/api.md](docs/api.md) §10.12). The 
 (`demo-company`) the Mawdoo3 identity as a tenant's own; "Other Corp" (`seed-e2e`) has none, so both kinds
 can be seen.
 
-### 1.6 Not included
+### 1.6 Visitor Journey (off by default)
+
+Phase 15. An optional integration with an external tracking provider
+(`TRACKING_PROVIDER`, `disabled` everywhere unless configured, and production's value) would record the
+**floor and zone** where a checked-in, enrolled visitor was observed. Those observations are **personal
+movement data**, with their own retention (`journey_retention_days`, 1–90 days, pruned by
+`python -m app.cli prune-journeys`) and access rules (administrators, management and reception; not hosts).
+The provider processes camera images **on its side, under its own policy**; the application only sends it a
+random reference and a camera ID. It keeps only the observations of an association the provider has
+activated; everything else the provider sends (unknown references or cameras, sightings of an enrollment
+that never took) is counted and dropped, never stored. No real provider is connected: the adapter is **BLOCKED BY ENVIRONMENT**
+([docs/visitor-tracking-model-assessment.md](docs/visitor-tracking-model-assessment.md)), and only a
+development simulator exists, always marked Simulated. Real use requires the privacy owner's approval and an
+evaluation-based confidence threshold ([docs/production-readiness.md](docs/production-readiness.md) §15 J).
+Design: [docs/visitor-journey-design.md](docs/visitor-journey-design.md); provider contract:
+[docs/visitor-tracking-integration.md](docs/visitor-tracking-integration.md).
+
+The registry (buildings, floors, zones, cameras), the per-visit tracking association and its lifecycle (a
+check-out, a revoke or its expiry ends it), the authenticated ingestion endpoint and the journey views exist;
+with the provider `disabled` every journey shows the Disabled state and the registry stays editable.
+
+### 1.7 Not included
 
 These are documented as future work in the contract and are not implemented: CSV export (D-24),
 anonymisation of visitor personal data (§12), and a shared rate limiter (Redis) that would allow
 several API workers or instances to share all traffic (§3).
 
 Outside the product's scope, and not planned: SMS or WhatsApp notifications, billing and AI features.
-The product collects no national ID numbers and no biometric data, and a QR code never carries personal
-data: it holds only the pass link.
+The product collects no national ID numbers, and a QR code never carries personal data: it holds only the
+pass link. **It stores no photos and no biometric templates**: no image, crop, embedding or template of a
+person is received, stored or logged, anywhere.
 
 ---
 
@@ -552,10 +574,13 @@ refuses values above ten times their default. The two bucket caps have a product
 | `HOST_VISIT_NOTICE_DAILY_LIMIT` | `200` | the host's e-mails of scheduled visits (a new visit, its new time, its cancellation) that one user's actions send / 24 h, whoever the hosts are (beyond it, the change is made without the host's e-mail) |
 | `CALENDAR_EMAIL_COMPANY_DAILY_LIMIT` | `500` | calendar events (the visitor's calendar invitation, new time and cancellation, the host's three) per company / 24 h. Beyond it the change is made: a calendar invitation and the host's notice of a new visit are left out, a notice of a new time goes without its event, and a cancellation that takes the visit out of a calendar is always sent. Keep the companies' budgets together, with the invitations and the other e-mails, below the sending mailbox's daily cap (Gmail 500, Google Workspace 2,000). |
 | `CALENDAR_INVITATIONS_ENABLED` | `true` | `false`: no new calendar entry (no calendar invitation, no host's notice of a new visit, no event for a calendar that does not hold the visit); calendars that hold a visit still get its new time and its removal. **Keep `false` on production** until the sending mailbox is a dedicated one with SPF, its own DKIM and DMARC (`deploy/env/backend.env.example` has it false; production-readiness §15 E). |
+| `TRACKING_PROVIDER` | `disabled` | The Visitor Journey's tracking provider (Phase 15): `disabled` (enrollment refused, the ingestion endpoint answers 404, every journey shows Disabled) or `simulator` (development and E2E only, marked Simulated). **Production refuses `simulator`**; no real provider adapter exists (BLOCKED BY ENVIRONMENT). |
 | `RATE_LIMIT_TEMPLATE_TEST_SENDS_PER_HOUR` | `5` | test e-mails of a company's edited e-mail texts, to the administrator's own address, per administrator / hour (1–100); the platform owner's test e-mails count per platform account |
 | `RATE_LIMIT_PUBLIC_BRAND_PER_IP` **G** | `600` | requests of the public identity endpoints (a company's name, brand, images and manifest, read by its sign-in and pass pages without a session) per client address / min; every request counts, whatever the answer |
 | `RATE_LIMIT_PUBLIC_BRAND_PER_PREFIX` **G** | `6000` | the same per IPv6 /48 |
 | `RATE_LIMIT_BRAND_CHANGES_PER_HOUR` | `120` | changes of companies' identities (an image stored or removed, a colour) per platform account / hour, refused uploads included (1–10000) |
+| `RATE_LIMIT_TRACKING_REQUESTS_PER_MINUTE` | `120` | the tracking provider's ingestion requests per tracking key / min (Phase 15) |
+| `RATE_LIMIT_TRACKING_KEY_FAILURES_PER_IP` | `30` | ingestion requests with a wrong, revoked or absent tracking key per client address / 5 min |
 
 ### 5.6 Logging and seeding
 
@@ -670,6 +695,8 @@ cd backend
 | `create-platform-admin --email … [--full-name …] [--password-stdin] [--reset]` | creates the platform owner's account (Phase 11). Without `--password-stdin` it generates a temporary password (32 characters) and prints it **once**; with it, the password is one line of stdin. The password must be changed at the first sign-in (`/platform/login`) and expires in 72 hours. `--reset` gives an existing account a new temporary password and ends its sessions; it changes nothing else, so `--full-name` is refused with it. A **generated** password signs in even while failed sign-ins from elsewhere keep the account locked (it has a failure budget of its own), which makes `--reset` without `--password-stdin` the way to recover a locked account ([security.md](docs/security.md) §3.7). | allowed |
 | `mark-no-shows` | marks expired `SCHEDULED` visits `NO_SHOW` in every company. Optional: every visit read and write does this for its own company. | allowed |
 | `prune-sessions [--older-than-days 30]` | deletes sessions (users' and the platform owner's) that ended more than N days ago; needs `MIGRATION_DATABASE_URL` (owner role) | allowed |
+| `prune-journeys` | deletes visitor journey events and ended tracking associations older than each company's `journey_retention_days` (default 30; Phase 15); needs `MIGRATION_DATABASE_URL` (owner role) | allowed |
+| `simulate-journey --visit … [--steps 3] [--interval-seconds 120] [--match CONFIRMED\|UNCERTAIN] [--confidence …]` | sends synthetic observations for a visit's simulator tracking association through the ingestion service, marked Simulated (`TRACKING_PROVIDER=simulator`; development and E2E) | refused |
 | `e2e-time-travel --visit-id … --minutes …` | moves a visit and its passes into the past (E2E tests) | refused |
 | `send-test-email --to … [--language ar\|en]` | sends one short bilingual message with a sample QR code and the logo through the configured provider (Arabic first by default; `--language en` puts English first) and prints the result or the classified error (never a credential). Needs no database and writes no audit row. | allowed |
 
@@ -1161,7 +1188,8 @@ operator runbook is in [deploy/README.md](deploy/README.md). The points that mos
   the host, encrypted. Practise a restore every quarter. Banks and government deployments should add WAL
   archiving for point-in-time recovery
   ([phase-9-deploy.md](docs/decisions/phase-9-deploy.md#rpo--rto-guidance)).
-- **Maintenance jobs.** Run `prune-sessions` weekly (as the owner, from the `migrate` service). Before
+- **Maintenance jobs.** Run `prune-sessions` weekly and `prune-journeys` daily (as the owner, from the
+  `migrate` service). Before
   each release, run `python3 deploy/verify/check_release_tree.py`; it refuses commits that contain
   development artefacts or credentials.
 - **Retention.** Visitors and visits are never deleted; there is no anonymisation feature yet. Set the
@@ -1181,6 +1209,9 @@ operator runbook is in [deploy/README.md](deploy/README.md). The points that mos
 | [docs/security.md](docs/security.md) | Security controls as implemented, with where each lives and how to check it |
 | [docs/security-audit.md](docs/security-audit.md) | Phase 8 security audit report, with dated notes for Phases 9 and 10 |
 | [docs/production-readiness.md](docs/production-readiness.md) | Production readiness: gate results, measurements, known limits, go-live checklist |
+| [docs/visitor-journey-design.md](docs/visitor-journey-design.md) | Visitor Journey (Phase 15, off by default): data model, state machine, privacy controls, what is blocked |
+| [docs/visitor-tracking-integration.md](docs/visitor-tracking-integration.md) | The tracking provider's contract: authentication, events, outcomes, reason codes, what a real adapter needs |
+| [docs/visitor-tracking-model-assessment.md](docs/visitor-tracking-model-assessment.md) | Gate 0: the tracking model is not available (BLOCKED BY ENVIRONMENT) |
 | [deploy/README.md](deploy/README.md) | Operator runbook for the Docker Compose deployment |
 | [frontend/README.md](frontend/README.md) | Frontend scripts, layout and conventions |
 

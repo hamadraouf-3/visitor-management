@@ -19,6 +19,7 @@
       "inviteVisitor": "Invite visitor",
       "visitors": "Visitors",
       "inside": "Inside now",
+      "journey": "Visitor Journey",
       "history": "Visit history",
       "reports": "Reports",
       "adminDashboard": "Dashboard",
@@ -27,6 +28,7 @@
       "adminSettings": "Company settings",
       "adminAudit": "Audit log",
       "adminEmailTemplates": "Email texts",
+      "adminTracking": "Visitor tracking",
       "platformCompanies": "Companies",
       "platformAudit": "Audit log"
     }

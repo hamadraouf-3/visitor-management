@@ -8,10 +8,13 @@ from app.api.routes import (
     departments,
     email_templates,
     health,
+    journeys,
+    locations,
     platform,
     public,
     reception,
     reports,
+    tracking,
     users,
     visitors,
     visits,
@@ -45,5 +48,8 @@ api_router.include_router(dashboard.router)
 api_router.include_router(reports.router)
 api_router.include_router(audit_logs.router)
 api_router.include_router(email_templates.router)
+api_router.include_router(locations.router)
+api_router.include_router(tracking.router)
+api_router.include_router(journeys.router)
 api_router.include_router(platform.router)
 api_router.include_router(public.router)

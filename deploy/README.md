@@ -130,6 +130,7 @@ Requirements: Docker Engine 24+ with Compose v2.24+ (BuildKit named build contex
 | Backup | `scripts/backup.sh --compose --out-dir /srv/vms-backups --retention-days 14` | cron, see below |
 | Restore drill | `scripts/restore.sh --compose --file /srv/vms-backups/vms-<stamp>.dump --target-db vms_restore_test`, then drop it | quarterly |
 | Prune old sessions | `docker compose run --rm migrate python -m app.cli prune-sessions` | weekly |
+| Prune old visitor journeys (Phase 15) | `docker compose run --rm migrate python -m app.cli prune-journeys`: each company's `journey_retention_days` (default 30) | daily |
 | Mark no-shows (optional; also done on every visit read) | `docker compose exec backend python -m app.cli mark-no-shows` | nightly |
 | Certificate renewal | replace `deploy/tls/tls.crt` / `tls.key`, then `docker compose exec frontend nginx -s reload` | before expiry |
 | Header drift check (CI) | `node deploy/verify/check_nginx_headers.mjs` | every change of either header list |
@@ -260,6 +261,20 @@ sent as before. A downgrade to `0016` drops the new column; one to `0015` refuse
 new kinds is in the log, a company has a text of a host's e-mail, or a scheduled visit's event has a
 version above 0.
 
+**Upgrading to Phase 15 (Visitor Journey, off).** `migrate` applies revision `0018`, which only **adds**
+tables (buildings, floors, zones, cameras, tracking associations, journey events, tracking keys, the
+companies' tracking settings and the provider's health); no existing table, column or constraint changes,
+so the running API of the previous release keeps working on the migrated schema. Creating the new foreign
+keys briefly locks `companies`, `users` and `visits` against writes, within the same **5-second**
+`lock_timeout` as `0016`/`0017`. **`TRACKING_PROVIDER=disabled`** belongs in `backend.env`
+(`deploy/env/backend.env.example` has it; it is also the default); the API refuses to start with
+`simulator` in production, and no real provider exists (BLOCKED BY ENVIRONMENT). Schedule
+`prune-journeys` daily next to the backups (the crontab below). The provider's ingestion endpoint
+(`POST /api/v1/tracking/events`) stays on the main instance like every write, and answers 404 (for every
+method) while the provider is disabled. A downgrade to `0017` refuses while any location, camera, association, event or key
+exists, or a company's tracking settings differ from the defaults: restore the pre-upgrade backup
+instead.
+
 **A deployment of Phase 12 from before its security review (B12-18 to B12-20).** Rebuild **both** images
 once more; there is no migration and no new setting. The nginx image carries the change that matters
 most: until it is replaced, anyone can keep the platform owner from uploading and removing logos by
@@ -273,6 +288,7 @@ Example crontab (UTC):
 ```
 15 1,7,13,19 * * *  cd /opt/vms && scripts/backup.sh --compose --out-dir /srv/vms-backups --retention-days 14 >> /var/log/vms-backup.log 2>&1
 30 3 * * 0          cd /opt/vms && docker compose run --rm migrate python -m app.cli prune-sessions >> /var/log/vms-maintenance.log 2>&1
+45 3 * * *          cd /opt/vms && docker compose run --rm migrate python -m app.cli prune-journeys >> /var/log/vms-maintenance.log 2>&1
 ```
 
 Copy every archive (with its `.sha256`) off the host, encrypted; the archives hold personal data,

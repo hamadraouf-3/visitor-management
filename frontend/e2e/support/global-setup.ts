@@ -20,7 +20,8 @@ import {
   STATE_DIR,
 } from './paths.ts'
 import { isPortFree, killTree, run, startBackground, waitForHealthy, waitForPortFree } from './processes.ts'
-import { createQualityData } from './quality-data.ts'
+import { createQualityData, qualityData } from './quality-data.ts'
+import { prepareTracking } from './tracking.ts'
 
 /*
  * Full-stack E2E global setup (contract §11): a fresh `vms_e2e` schema (drop → Alembic → seed-e2e),
@@ -167,9 +168,11 @@ async function warmUpVite() {
   try {
     const context = await browser.newContext({ baseURL: BASE_URL, storageState: storageStatePath('admin') })
     const page = await context.newPage()
-    for (const path of ['/login', '/pass', '/reception', '/visits/new', '/reports', '/admin/audit', '/history', '/inside', '/visitors', '/admin/email-templates', '/admin/email-templates/VISITOR_INVITATION']) {
+    for (const path of ['/login', '/pass', '/reception', '/visits/new', '/reports', '/admin/audit', '/history', '/inside', '/visitors', '/admin/email-templates', '/admin/email-templates/VISITOR_INVITATION', '/journey', '/admin/tracking']) {
       await page.goto(path, { waitUntil: 'networkidle', timeout: 120_000 })
     }
+    // A visit's journey (Phase 15): its own lazy module.
+    await page.goto(`/journey/${qualityData().trackedVisitId}`, { waitUntil: 'networkidle', timeout: 120_000 })
     await context.close()
     // The platform owner's area (Phase 11): its own lazy modules.
     const platform = await browser.newContext({ baseURL: BASE_URL, storageState: platformStorageStatePath() })
@@ -212,6 +215,8 @@ export default async function globalSetup(_config: FullConfig) {
   await signInAccounts()
   await signInPlatform()
   await pinEnglish()
+  await prepareTracking()
+  log('prepared the Visitor Journey (tracking on, a building, its cameras)')
   await createQualityData()
   log('created the quality specs’ visits')
   await warmUpVite()
