@@ -83,7 +83,10 @@ const ADMIN: PageCheck[] = [
   { name: 'reports', path: () => '/reports', ready: h1('Reports') },
   // Phase 15: the Visitor Journey and visitor tracking's administration (before the e-mail texts: the saved
   // e-mail's test below opens the last page of this list).
-  { name: 'visitor journey', path: () => '/journey', ready: (page) => page.locator('[data-location-path]').first() },
+  // Phase 16: the live map (the first view), the list, and the tracking alerts.
+  { name: 'visitor journey: the live map', path: () => '/journey', ready: (page) => page.locator('[data-floor-band]').first() },
+  { name: 'visitor journey: the list', path: () => '/journey?view=list', ready: (page) => page.locator('[data-location-path]').first() },
+  { name: 'tracking alerts', path: () => '/journey/alerts', ready: (page) => page.locator('[data-alert-card]').first().or(page.getByRole('heading', { name: 'No active alerts' })) },
   { name: 'a visitor’s journey', path: (data) => `/journey/${data.trackedVisitId}`, ready: (page) => page.locator('[data-journey-timeline]') },
   { name: 'admin: visitor tracking', path: () => '/admin/tracking', ready: (page) => page.getByRole('switch', { name: 'Visitor tracking' }) },
   { name: 'admin: tracking locations', path: () => '/admin/tracking?tab=locations', ready: (page) => page.getByRole('list', { name: 'Floors of Mawdoo3 HQ' }) },

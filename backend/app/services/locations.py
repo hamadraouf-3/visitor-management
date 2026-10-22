@@ -1,6 +1,10 @@
 """The location registry: buildings, floors and zones (Phase 15, /api/v1/locations, B15-5).
 
 * Read by every role that sees journeys (the tree, active and archived); changed by administrators.
+  Since Phase 16 (B16-19) every role of the company reads it: an invitation form offers the allowed
+  areas. A caller who does not see journeys (a host who is only an employee) reads the active buildings,
+  floors and zones only; nobody but administrators and receptionists ever reads a camera.
+* A zone has an access level (Phase 16, B16-1): COMMON, STANDARD (the default) or RESTRICTED.
 * Editable whatever the tracking provider is, so a company can prepare its buildings before tracking is
   switched on.
 * Nothing is deleted: the runtime database role cannot delete rows (revision 0006), and cameras, journey
@@ -44,6 +48,7 @@ from app.schemas.locations import (
 )
 from app.schemas.locations import Floor as FloorOut
 from app.schemas.locations import Zone as ZoneOut
+from app.security.permissions import Capability, has_capability
 from app.security.sessions import AuthContext
 from app.services import audit
 from app.services.audit import AuditAction, AuditEntity
@@ -70,12 +75,19 @@ class LocationsService:
     # ---- the tree ---------------------------------------------------------------------------------
 
     def tree(self, auth: AuthContext) -> LocationTree:
+        """The company's buildings, floors and zones; the active ones only for a caller who does not see
+        journeys (B16-19). Archiving keeps a child under an active parent, so an active zone's floor and
+        building are active too."""
         company_id = auth.company_id
+        active_only = not has_capability(auth.roles, Capability.VIEW_JOURNEYS)
         zones_by_floor: dict[UUID, list[ZoneOut]] = {}
         for zone in self.locations.zones_of_company(company_id):
-            zones_by_floor.setdefault(zone.floor_id, []).append(ZoneOut.model_validate(zone))
+            if zone.is_active or not active_only:
+                zones_by_floor.setdefault(zone.floor_id, []).append(ZoneOut.model_validate(zone))
         floors_by_building: dict[UUID, list[FloorNode]] = {}
         for floor in self.locations.floors(company_id):
+            if not floor.is_active and active_only:
+                continue
             node = FloorNode(
                 **FloorOut.model_validate(floor).model_dump(), zones=zones_by_floor.get(floor.id, [])
             )
@@ -87,6 +99,7 @@ class LocationsService:
                     floors=floors_by_building.get(building.id, []),
                 )
                 for building in self.locations.buildings(company_id)
+                if building.is_active or not active_only
             ]
         )
 
@@ -188,6 +201,7 @@ class LocationsService:
             floor_id=data.floor_id,
             name=data.name,
             name_ar=data.name_ar,
+            access=data.access.value,
             is_active=True,
             created_at=now,
             updated_at=now,
@@ -241,7 +255,7 @@ class LocationsService:
     ) -> T:
         supplied = data.model_fields_set
         changed: list[str] = []
-        for name in ("name", "name_ar", "level", "is_active"):
+        for name in ("name", "name_ar", "level", "access", "is_active"):
             if name not in supplied or not hasattr(data, name):
                 continue
             value = getattr(data, name)

@@ -75,6 +75,17 @@ export class Api {
     return new Api(browserContext.request, false, () => browserContext.cookies(BASE_URL))
   }
 
+  /**
+   * A company user created during a run (Phase 16: a company of its own for the area alerts), signed in with
+   * `password` in a request context of its own.
+   */
+  static async signedIn(email: string, password: string, baseURL: string = BASE_URL): Promise<Api> {
+    const context = await request.newContext({ baseURL })
+    const api = new Api(context, true, async () => (await context.storageState()).cookies)
+    await api.ok('POST', '/auth/login', { email, password })
+    return api
+  }
+
   /** No session at all. */
   static async anonymous(): Promise<Api> {
     const context = await request.newContext({ baseURL: BASE_URL })

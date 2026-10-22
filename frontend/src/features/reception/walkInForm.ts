@@ -10,6 +10,7 @@ import {
   validateVisitorContact,
   type VisitorContactValues,
 } from '../visitors/visitorFields'
+import { toAreasInput, type AreaSelection } from '../accessAreas/accessAreas'
 import { PURPOSE_MAX_LENGTH } from '../visits/inviteForm'
 import { walkInReasonLabel } from '../visits/labels'
 import { MAX_VISIT_DURATION_MS } from '../visits/schedule'
@@ -101,6 +102,11 @@ export interface WalkInFormValues extends VisitorContactValues {
   reason: WalkInReason | null
   /** Required for OTHER. */
   reasonNote: string
+  /**
+   * Phase 16: the allowed areas as reception chose them; null while untouched: the field then shows (and
+   * sends) the department's floor, and follows a change of department.
+   */
+  accessAreas: AreaSelection | null
 }
 
 export type WalkInField =
@@ -112,6 +118,7 @@ export type WalkInField =
   | 'expectedEnd'
   | 'reason'
   | 'reasonNote'
+  | 'areas'
 
 /** A host known from a scanned visit by id and name only; the form looks up the host record. */
 export interface HostReference {
@@ -145,6 +152,7 @@ export function initialWalkInValues(prefill: WalkInPrefill = {}): WalkInFormValu
     expectedEnd: null,
     reason: prefill.reason ?? null,
     reasonNote: '',
+    accessAreas: null,
   }
 }
 
@@ -262,7 +270,7 @@ export function validateWalkIn(values: WalkInFormValues, now: number, timeZone: 
  * deactivated meanwhile); one chosen on purpose is always sent. The note is sent only for
  * OTHER, the reason it explains.
  */
-export function toWalkInCreate(values: WalkInFormValues, now: number, timeZone: string): WalkInCreate {
+export function toWalkInCreate(values: WalkInFormValues, now: number, timeZone: string, areas: AreaSelection | null = null): WalkInCreate {
   const expectedEnd = walkInExpectedEnd(values, now, timeZone)
   if (!values.host || !expectedEnd || !values.reason) throw new Error('toWalkInCreate needs a validated form')
   const sendDepartment = values.departmentChosen || values.departmentId !== values.host.department?.id
@@ -276,5 +284,7 @@ export function toWalkInCreate(values: WalkInFormValues, now: number, timeZone: 
     expected_end: expectedEnd,
     reason: values.reason,
     ...(values.reason === 'OTHER' && note ? { reason_note: note } : {}),
+    // Phase 16: only while the field is shown, as it shows them (the department's floor until changed).
+    ...(areas ? { access_areas: toAreasInput(areas) } : {}),
   }
 }

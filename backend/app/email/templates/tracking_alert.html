@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui with context %}
+{# A tracking alert (Phase 16, B16-14): the journey's confirmed location is outside the visit's allowed
+   areas (`alert_type` UNAUTHORIZED_AREA) or in a restricted zone (RESTRICTED_AREA). To the visit's host,
+   whose button opens the visit's page (`link_kind` "visit": a host who is only an employee cannot open
+   journeys, B15-13), and to the company's alert addresses, whose button opens the visitor's journey
+   ("journey"). Product texts, not editable (B11-21). Never a pass link, a token, a tracking reference or a
+   key. The company's own e-mail (B12-12): its header and footer, as base.html draws them. #}
+{% set kind = "alert" %}
+{% block preheader %}{{ t(lead, "alert.preheader", place=place[lead], time=seen_at[lead]) }}{% endblock %}
+
+{% macro body(lang, primary) %}
+{{ ui.heading(t(lang, "alert.heading." ~ alert_type), primary) }}
+{% if simulated %}
+{% call ui.notice(lang) %}<strong class="vik" style="color:{{ ui.INK }};">{{ t(lang, "alert.simulated") }}</strong>{% endcall %}
+{% endif %}
+{% call ui.paragraph(spacing=20) %}{{ t(lang, "alert.body." ~ alert_type, visitor=visitor_name, place=place[lang]) }}{% endcall %}
+{{ ui.details([
+    [(t(lang, "label.visitor"), visitor_name), (t(lang, "label.company"), visitor_company_name)],
+    [(t(lang, "label.host"), host_name)],
+    [(t(lang, "label.where"), where[lang])],
+    [(t(lang, "label.seen_at"), seen_at[lang])],
+    [(t(lang, "label.allowed_floors"), allowed_floors[lang])],
+    [(t(lang, "label.allowed_zones"), allowed_zones[lang])],
+], lang) }}
+{% call ui.notice(lang, attention=True) %}<strong class="vik" style="color:{{ ui.INK }};">{{ t(lang, "alert.act") }}</strong>{% endcall %}
+{{ ui.button(link_url, t(lang, "alert.open_" ~ link_kind), "primary" if primary else "outline") }}
+{% call ui.paragraph(muted=True, spacing=4, top=22) %}{{ t(lang, "common.address_fallback") }}{% endcall %}
+{{ ui.fallback_link(link_url, lang) }}
+{% endmacro %}
+
+{% block lead_section %}
+{% call ui.section(lead, padding="30px 32px 8px 32px") %}
+{{ body(lead, True) }}
+{% endcall %}
+{% endblock %}
+
+{% block other_section %}
+{% call ui.section(other, padding="0 32px 8px 32px") %}
+{{ body(other, False) }}
+{% endcall %}
+{% endblock %}

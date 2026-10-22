@@ -14,6 +14,8 @@ import type { Me, VisitCreate, VisitCreateResult, Visitor } from '../../types/ap
 import type { FieldErrorCodes, ServerFieldPaths } from '../../utils/forms'
 import { focusFirstControl } from '../../utils/focus'
 import { characterCountLabel } from '../../utils/text'
+import { AccessAreasPicker } from '../accessAreas/AccessAreasPicker'
+import { useFormAccessAreas } from '../accessAreas/useFormAccessAreas'
 import { VisitorSourceFields } from '../visitors/VisitorSourceFields'
 import {
   canChooseHost,
@@ -47,6 +49,7 @@ const SERVER_FIELDS: ServerFieldPaths<InviteField> = {
   start: 'scheduled_start',
   end: 'scheduled_end',
   purpose: 'purpose',
+  areas: ['access_areas', 'access_areas.floor_ids', 'access_areas.zone_ids'],
 }
 
 export interface InviteVisitorFormProps {
@@ -66,7 +69,10 @@ export interface InviteVisitorFormProps {
  * optional fields are marked.
  *
  * The host is the signed-in user, shown read-only, unless they are an administrator, who may pick
- * any active host (default: themselves; §7.5, `canChooseHost`).
+ * any active host (default: themselves; §7.5, `canChooseHost`). Phase 16: «المناطق المسموحة» /
+ * "Allowed areas", while the company's tracking is allowed and it has floors: prefilled from the chosen
+ * department's floor (again when the department changes, until the person changes the field), and sent
+ * only while shown.
  */
 export function InviteVisitorForm({ me, onCreated, focusOnMount = false, initialVisitor = null }: InviteVisitorFormProps) {
   const { t } = useTranslation('visits')
@@ -86,6 +92,7 @@ export function InviteVisitorForm({ me, onCreated, focusOnMount = false, initial
     ? new Set(departments.data.filter((department) => department.is_active).map((department) => department.id))
     : undefined
   const department = inviteDepartmentChoice(values, activeDepartmentIds)
+  const areas = useFormAccessAreas(me, department.value, values.accessAreas)
 
   useEffect(() => {
     if (focusOnMount) focusFirstControl([firstFieldId])
@@ -99,7 +106,7 @@ export function InviteVisitorForm({ me, onCreated, focusOnMount = false, initial
     if (!form.validate(validateInvite(values, Date.now()))) return
     // Whoever is not an administrator invites as themselves: their own id, whatever the form holds.
     const host = choosesHost ? values.host : hostFromMe(me.user)
-    const body = toVisitCreate({ ...values, host, departmentId: department.value })
+    const body = toVisitCreate({ ...values, host, departmentId: department.value }, areas.shown ? areas.value : null)
     mutation.mutate(body, { onSuccess: (result) => onCreated(result, body) })
   }
 
@@ -178,6 +185,17 @@ export function InviteVisitorForm({ me, onCreated, focusOnMount = false, initial
           <Field label={t('invite.purpose')} required hint={characterCountLabel(values.purpose, PURPOSE_MAX_LENGTH)} {...form.field('purpose')}>
             <Textarea rows={3} value={values.purpose} onChange={(event) => set('purpose', event.target.value)} />
           </Field>
+          {areas.shown && areas.options && (
+            <div className="border-t border-border-subtle pt-4">
+              <AccessAreasPicker
+                options={areas.options}
+                value={areas.value}
+                onChange={(next) => set('accessAreas', next)}
+                optional
+                {...form.field('areas')}
+              />
+            </div>
+          )}
         </div>
       </Card>
 

@@ -40,7 +40,10 @@ DIRECTION: dict[Language, Direction] = {AR: "rtl", EN: "ltr"}
 # of these sets (a test checks it); one that is in none is isolated, the safe side.
 # Names, companies, the brand and the product, typed by people or configured, in either script: isolated, in
 # their own direction.
-ISOLATED_VALUES = frozenset({"name", "visitor", "host", "booker", "company", "brand", "product", "sender"})
+# `place` (Phase 16): a building, floor and zone, named by people in either script.
+ISOLATED_VALUES = frozenset(
+    {"name", "visitor", "host", "booker", "company", "brand", "product", "sender", "place"}
+)
 # Network addresses, links and e-mail addresses: isolated, always left to right.
 LEFT_TO_RIGHT_VALUES = frozenset({"ip", "url", "email"})
 # Written by the e-mail service in the sentence's own language (dates, times, zones, durations): inserted
@@ -435,6 +438,47 @@ MESSAGES: dict[str, dict[Language, str]] = {
         "administrators.",
         AR: "إن لم تكن تتوقع ذلك، فتواصل مع مالك المنصة وراجع قائمة مديري النظام في شركتك.",
     },
+    # ---- a tracking alert (Phase 16, B16-14) ----------------------------------------------------------
+    # To the visit's host and to the company's alert addresses, when the journey's confirmed location is
+    # outside the visit's allowed areas (an alert opened) or in a restricted zone (an alert escalated). The
+    # product's texts, not editable (B11-21). A sentence whose subject is the visitor is worded around "the
+    # visitor" (الزائر), never with a verb that agrees with the name.
+    "alert.kind": {EN: "Tracking alert", AR: "تنبيه تتبّع"},
+    "alert.subject.UNAUTHORIZED_AREA": {
+        EN: "Tracking alert: {visitor} is outside the allowed areas",
+        AR: "تنبيه تتبّع: {visitor} خارج المناطق المسموحة",
+    },
+    "alert.subject.RESTRICTED_AREA": {
+        EN: "Tracking alert: {visitor} is in a restricted area",
+        AR: "تنبيه تتبّع: {visitor} في منطقة مقيّدة",
+    },
+    "alert.preheader": {EN: "Seen in {place} at {time}.", AR: "مكان الرصد: {place}، الساعة {time}."},
+    "alert.heading.UNAUTHORIZED_AREA": {
+        EN: "A visitor is outside the allowed areas",
+        AR: "زائر خارج المناطق المسموحة",
+    },
+    "alert.heading.RESTRICTED_AREA": {EN: "A visitor is in a restricted area", AR: "زائر في منطقة مقيّدة"},
+    "alert.body.UNAUTHORIZED_AREA": {
+        EN: "The visitor {visitor} was seen in {place}, outside the areas allowed for this visit.",
+        AR: "رُصد الزائر {visitor} في {place}، خارج المناطق المسموحة لهذه الزيارة.",
+    },
+    "alert.body.RESTRICTED_AREA": {
+        EN: "The visitor {visitor} was seen in {place}, a restricted area.",
+        AR: "رُصد الزائر {visitor} في {place}، وهي منطقة مقيّدة.",
+    },
+    "alert.simulated": {
+        EN: "Simulated data, not from a real tracking provider.",
+        AR: "بيانات محاكاة، وليست من مزوّد تتبّع حقيقي.",
+    },
+    "alert.act": {EN: "Please check on this visitor.", AR: "يُرجى متابعة هذا الزائر."},
+    "alert.not_set": {EN: "Not set", AR: "غير محددة"},
+    "alert.restricted": {EN: "Restricted", AR: "مقيّدة"},
+    "alert.open_journey": {EN: "Open the visitor's journey", AR: "فتح رحلة الزائر"},
+    "alert.open_visit": {EN: "Open the visit", AR: "فتح الزيارة"},
+    "label.where": {EN: "Where", AR: "المكان"},
+    "label.seen_at": {EN: "Seen at", AR: "وقت الرصد"},
+    "label.allowed_floors": {EN: "Allowed floors", AR: "الطوابق المسموحة"},
+    "label.allowed_zones": {EN: "Extra zones", AR: "مناطق إضافية"},
     # ---- test e-mail (python -m app.cli send-test-email, S10-6) ------------------------------------
     "test.kind": {EN: "Test message", AR: "رسالة تجريبية"},
     "test.subject": {EN: "Test e-mail from {sender}", AR: "رسالة تجريبية من {sender}"},

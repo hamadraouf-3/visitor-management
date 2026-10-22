@@ -28,6 +28,8 @@ export type EmailKind =
   | 'PASSWORD_RESET'
   | 'PASSWORD_CHANGED'
   | 'PLATFORM_ACTION_NOTICE'
+  /** Phase 16: a visitor seen outside the visit's allowed areas (to the host and the company's alert addresses). */
+  | 'TRACKING_ALERT'
 
 export interface OutboxMessage {
   message_id: string

@@ -53,7 +53,7 @@ const SECTION_8_1_RESPONSES = [
 const SECTION_8_1_REQUESTS = ['VisitCreate', 'WalkInCreate']
 
 /** §8: the error envelope and the `Paginated<T>` of every paginated endpoint. */
-const SECTION_8_ENVELOPES = ['ApiErrorEnvelope', 'UserPage', 'VisitorSearchPage', 'VisitPage', 'AuditLogPage', 'PlatformCompanyPage', 'PlatformAuditLogPage', 'JourneyPage']
+const SECTION_8_ENVELOPES = ['ApiErrorEnvelope', 'UserPage', 'VisitorSearchPage', 'VisitPage', 'AuditLogPage', 'PlatformCompanyPage', 'PlatformAuditLogPage', 'JourneyPage', 'TrackingAlertPage']
 
 /** §8: the query parameters of every endpoint that takes them. */
 const SECTION_8_QUERIES = [
@@ -74,6 +74,9 @@ const SECTION_8_QUERIES = [
   // Phase 15: the day's journeys, and the cameras with the archived ones
   'JourneyListParams',
   'TrackingCameraListParams',
+  // Phase 16: the tracking alerts, and the live map of one building
+  'TrackingAlertListParams',
+  'LiveJourneyParams',
 ]
 
 /**
@@ -106,6 +109,11 @@ const CHECKED_INDIRECTLY = [
   'EnrollBlocker',
   'TrackingRejectReason',
   'TrackingProviderOperation',
+  // Phase 16
+  'ZoneAccess',
+  'TrackingAlertType',
+  'TrackingAlertStatus',
+  'TrackingAlertResolution',
   'Paginated',
   'ApiErrorCode',
   'FieldErrorCode',

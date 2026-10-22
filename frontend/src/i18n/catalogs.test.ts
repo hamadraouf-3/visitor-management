@@ -132,6 +132,7 @@ describe('translation catalogs', () => {
       TRACKING_NOT_AVAILABLE: true,
       TRACKING_KEY_LIMIT: true,
       LOCATION_IN_USE: true,
+      ALERT_RESOLVED: true,
       NETWORK_ERROR: true,
       UNEXPECTED_RESPONSE: true,
     }

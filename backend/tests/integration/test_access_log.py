@@ -66,15 +66,15 @@ def test_the_response_time_excludes_background_work(
     background_app: FastAPI, caplog: pytest.LogCaptureFixture
 ) -> None:
     client = TestClient(background_app, base_url="https://testserver", client=TEST_CLIENT_ADDRESS)
-    # A fresh app's first request pays one-time costs (the first database connection among them), which
-    # took it past the bound on a loaded machine; this test measures the response, not those.
-    assert client.get("/api/v1/health").status_code == 200
-    caplog.clear()
     with caplog.at_level(logging.INFO):
+        started = time.perf_counter()
         assert client.post("/api/v1/test-background").status_code == 202
+        elapsed_ms = (time.perf_counter() - started) * 1000  # the client waits for the background work too
 
     (line,) = _access(caplog)
     assert line.status == 202
-    assert line.duration_ms < BACKGROUND_SECONDS * 1000 / 2  # the response, not the e-mail after it
+    # The response, not the e-mail after it: the logged time leaves the background work out. Measured
+    # against the call's own time rather than a fixed bound, which a loaded machine's response exceeded.
+    assert elapsed_ms - line.duration_ms >= BACKGROUND_SECONDS * 1000 * 0.9
     order = [record.getMessage() for record in caplog.records if record.name in {"app.access", "app.email"}]
     assert order == ["request", "background work done"]  # written when the response was sent

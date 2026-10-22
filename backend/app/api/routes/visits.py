@@ -16,6 +16,7 @@ from app.api.deps import (
 )
 from app.email.dispatcher import schedule_deliveries
 from app.schemas.common import Paginated
+from app.schemas.locations import VisitAccessAreasInput
 from app.schemas.visits import (
     CheckInRequest,
     CheckOutRequest,
@@ -71,6 +72,25 @@ def update_visit(
     context: ContextDep,
 ) -> Visit:
     result = service.update_visit(auth, visit_id, body, context)
+    schedule_deliveries(background_tasks, db, dispatcher, result.delivery_jobs)
+    return result.payload
+
+
+@router.put("/{visit_id}/access-areas", response_model=Visit)
+def set_visit_access_areas(
+    visit_id: UUID,
+    body: VisitAccessAreasInput,
+    auth: ReadVisitsAuth,
+    service: VisitsServiceDep,
+    db: DbSession,
+    dispatcher: EmailDispatcherDep,
+    background_tasks: BackgroundTasks,
+    context: ContextDep,
+) -> Visit:
+    """The visit's allowed areas (Phase 16, B16-2): SCHEDULED or CHECKED_IN; administrators, receptionists
+    and the visit's host (403 otherwise; 404 outside the caller's visits). Unchanged sets write nothing.
+    The visit's area alert is re-evaluated under the new areas."""
+    result = service.set_access_areas(auth, visit_id, body, context)
     schedule_deliveries(background_tasks, db, dispatcher, result.delivery_jobs)
     return result.payload
 

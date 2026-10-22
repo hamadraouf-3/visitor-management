@@ -112,10 +112,11 @@ export function mockVisit(index: number, name: string, company: string | null, s
     updated_at: iso(-600),
     invitation: { status: 'NOT_SENT', to_email: null, attempts: 0, last_attempt_at: null, sent_at: null, error: null, calendar_failed: false },
     last_notice: null,
+    access_areas: { floors: [], zones: [] },
     calendar_sequence: 0,
     visitor_calendar_sent: false,
     pass: { status: 'ACTIVE', issued_at: iso(-600), revoke_reason: null },
-    permissions: { can_edit: true, can_cancel: true, can_resend: true, can_check_in: false, can_check_out: false },
+    permissions: { can_edit: true, can_cancel: true, can_resend: true, can_check_in: false, can_check_out: false, can_edit_access_areas: false },
   }
 }
 

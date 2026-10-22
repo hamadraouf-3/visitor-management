@@ -23,10 +23,15 @@ import { paths } from '../../paths'
 import type { EnrollBlocker, Me, TrackingCamera, VisitJourney } from '../../types/api'
 import { formatDateTime } from '../../utils/datetime'
 import { focusPageHeading, isFocusLost } from '../../utils/focus'
+import { AllowedAreasCard } from '../accessAreas/AllowedAreasCard'
 import { FactList } from '../visits/FactList'
+import { AlertActionDialog, type AlertActing } from './alerts/AlertActions'
+import { AlertCard } from './alerts/AlertCard'
+import { isActiveAlert } from './alerts/alertLabels'
 import { SimulatedBadge } from './JourneyBadges'
 import { InferredLocationCard } from './JourneyLocation'
 import { endReasonLabel, enrollBlockerLabel } from './journeyStates'
+import { JourneyPath } from './JourneyPath'
 import { JourneyTimelineCard } from './JourneyTimeline'
 import { agoSeconds } from './freshness'
 import { useEnrollmentCameras, useEnrollVisit, useRevokeVisitTracking, useTrackingStatus, useVisitJourney } from './queries'
@@ -270,6 +275,52 @@ function TrackingCard({ journey, me, timeZone, bannerLine }: { journey: VisitJou
   )
 }
 
+/**
+ * The visit's alerts (Phase 16), the active one first, then the resolved ones, newest first (the server's
+ * order); each with what staff may do, whose dialog this card keeps (F16-33). Shown only when the visit has had
+ * one. A dialog closed after its alert changed under it (resolved elsewhere) returns the focus to a button that
+ * is gone: the page's heading takes it (F16-34).
+ */
+function VisitAlertsCard({ journey, timeZone, now, simulatedShown }: { journey: VisitJourney; timeZone: string; now: number; simulatedShown: boolean }) {
+  const { t } = useTranslation('journey')
+  const [acting, setActing] = useState<AlertActing | null>(null)
+  const wasActing = useRef(false)
+  useEffect(() => {
+    if (acting) {
+      wasActing.current = true
+      return
+    }
+    if (!wasActing.current) return
+    wasActing.current = false
+    if (isFocusLost()) focusPageHeading()
+  }, [acting])
+
+  const alerts = journey.alerts.toSorted((a, b) => Number(isActiveAlert(b.status)) - Number(isActiveAlert(a.status)))
+  if (alerts.length === 0) return null
+  return (
+    <Card title={t('alerts.visitAlerts')} count={alerts.length}>
+      <ul data-visit-alerts="" className="-my-4 divide-y divide-border-subtle">
+        {alerts.map((alert) => (
+          <li key={alert.id} className="py-4">
+            <AlertCard alert={alert} timeZone={timeZone} now={now} simulatedShown={simulatedShown} inJourney headingLevel="h3" variant="plain" onAct={(kind) => setActing({ alert, kind })} />
+          </li>
+        ))}
+      </ul>
+      {acting && <AlertActionDialog alert={acting.alert} kind={acting.kind} onClose={() => setActing(null)} />}
+    </Card>
+  )
+}
+
+/** The visit's path (Phase 16): its confirmed places as stays, one per zone in a row, oldest first. */
+function PathCard({ journey, timeZone }: { journey: VisitJourney; timeZone: string }) {
+  const { t } = useTranslation('journey')
+  return (
+    <Card title={t('path.title')}>
+      <JourneyPath path={journey.path} timeZone={timeZone} />
+    </Card>
+  )
+}
+
 export interface JourneyDetailProps {
   visitId: string
   me: Me
@@ -279,7 +330,8 @@ export interface JourneyDetailProps {
  * A visit's journey (§F): the visitor (and «محاكاة» / "Simulated" for the simulator's journey), the one-line
  * tracking banner, the last known floor and zone under «موقع مُستنتج» / "Inferred location" with the journey's
  * state, when it was seen and how long ago, the visit, the tracking and its actions, and the timeline. Asked
- * again every 15 s while open.
+ * again every 15 s while open. Phase 16: the visit's alerts, its allowed areas (changed here by those the
+ * server allows), its path, and the timeline's places outside the allowed areas marked.
  */
 export function JourneyDetail({ visitId, me }: JourneyDetailProps) {
   const { t } = useTranslation('journey')
@@ -327,11 +379,11 @@ export function JourneyDetail({ visitId, me }: JourneyDetailProps) {
       />
       <TrackingStatusBanner status={status.data} simulatedShown={simulated} />
 
-      {/* On wide screens the location and the timeline are the main column, the visit and the tracking
-          the side one; in one column the location, then the tracking and its actions, before the long
-          timeline. */}
+      {/* On wide screens the location, the alerts, the path and the timeline are the main column, the
+          tracking, the allowed areas and the visit the side one; in one column the location and the alerts,
+          then the tracking and its actions, the areas and the visit, before the path and the long timeline. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:grid-rows-[auto_1fr]">
-        <div className="min-w-0 lg:col-span-2">
+        <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
           <InferredLocationCard
             location={data.last_location}
             observedAt={data.last_observed_at}
@@ -340,12 +392,15 @@ export function JourneyDetail({ visitId, me }: JourneyDetailProps) {
             timeZone={timeZone}
             now={now}
           />
+          <VisitAlertsCard journey={data} timeZone={timeZone} now={now} simulatedShown={simulated} />
         </div>
         <div className="flex min-w-0 flex-col gap-6 lg:col-start-3 lg:row-span-2 lg:row-start-1">
           <TrackingCard journey={data} me={me} timeZone={timeZone} bannerLine={status.data ? trackingBanner(status.data).line : null} />
+          <AllowedAreasCard visitId={visit.id} visitorName={visit.visitor.full_name} areas={data.access_areas} canEdit={data.can_edit_access_areas} />
           <VisitSummaryCard journey={data} timeZone={timeZone} />
         </div>
-        <div className="min-w-0 lg:col-span-2 lg:row-start-2">
+        <div className="flex min-w-0 flex-col gap-6 lg:col-span-2 lg:row-start-2">
+          <PathCard journey={data} timeZone={timeZone} />
           <JourneyTimelineCard events={data.timeline} total={data.timeline_total} timeZone={timeZone} />
         </div>
       </div>

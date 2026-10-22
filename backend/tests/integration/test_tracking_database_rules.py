@@ -251,7 +251,7 @@ def test_revision_0018_only_adds_and_goes_back_cleanly(
                 ).scalar_one()
                 == 0
             )
-        command.upgrade(config, "head")
+        command.upgrade(config, "0018")
         assert _schema(engine) == after
     finally:
         engine.dispose()
@@ -285,7 +285,8 @@ def test_the_downgrade_refuses_to_lose_what_was_entered(
             command.downgrade(config, "0017")
         with engine.connect() as connection:
             version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            assert version == "0018"
+            # The whole downgrade is one transaction: it stays at the head (revision 0020, Phase 16).
+            assert version == "0020"
     finally:
         engine.dispose()
 

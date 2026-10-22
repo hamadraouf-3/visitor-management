@@ -41,7 +41,10 @@ export function useTrackingSettings() {
   })
 }
 
-/** A change of a setting: the banner's status and every journey follow (turning it off ends the running ones). */
+/**
+ * A change of a setting: the banner's status and every journey follow (turning it off ends the running ones),
+ * and the alerts (Phase 16: turning tracking or the area alerts off changes what the shell counts).
+ */
 export function useUpdateTrackingSettings() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -50,6 +53,7 @@ export function useUpdateTrackingSettings() {
       queryClient.setQueryData(queryKeys.tracking.settings, settings)
       void queryClient.invalidateQueries({ queryKey: queryKeys.tracking.status })
       void queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tracking.alerts.all })
     },
   })
 }

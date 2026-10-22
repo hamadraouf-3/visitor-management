@@ -132,6 +132,7 @@ def test_management_reads_history_but_changes_nothing(make_client, world: World,
         "can_resend": False,
         "can_check_in": False,
         "can_check_out": False,
+        "can_edit_access_areas": False,  # Phase 16: management reads (B16-2)
     }
     assert manager.post(f"/visits/{history['early_6th']}/cancel", json={}).status_code == 403
 

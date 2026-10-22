@@ -40,7 +40,16 @@ def test_list_departments_active_only_for_everyone(employee: Api, world: World) 
     response = employee.get("/departments")
     assert response.status_code == 200
     assert [d["name"] for d in response.json()] == ["Finance"]
-    assert set(response.json()[0]) == {"id", "name", "name_ar", "is_active", "created_at", "updated_at"}
+    assert set(response.json()[0]) == {
+        "id",
+        "name",
+        "name_ar",
+        "is_active",
+        "created_at",
+        "updated_at",
+        "floor",  # Phase 16 (B16-3): the department's floor, null without one
+    }
+    assert response.json()[0]["floor"] is None
 
 
 def test_include_inactive_is_admin_only(admin: Api, employee: Api, db: Session, world: World) -> None:

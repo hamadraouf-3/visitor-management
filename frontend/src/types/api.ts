@@ -177,6 +177,21 @@ export interface Department {
   is_active: boolean
   created_at: string
   updated_at: string
+  /**
+   * Phase 16: the floor the department works on. A new visit of the department is allowed on it unless the
+   * request names its own areas (an archived floor is skipped). Null: none.
+   */
+  floor: DepartmentFloor | null
+}
+
+/** A department's floor (Phase 16), with its building. */
+interface DepartmentFloor {
+  id: string
+  name: string
+  name_ar: string | null
+  level: number
+  building: LocationRef
+  is_active: boolean
 }
 
 export interface CompanySettings {
@@ -280,6 +295,12 @@ export interface Visit {
   } | null
   pass: { status: PassStatus; issued_at: string | null; revoke_reason: PassRevokeReason | null }
   /**
+   * Phase 16: where the visitor may go. Empty lists: not set (only restricted zones raise an alert). Set when
+   * the visit is created (the request's, else the department's floor) and changed with
+   * `PUT /visits/{id}/access-areas`.
+   */
+  access_areas: VisitAccessAreas
+  /**
    * The SEQUENCE of the visit's calendar events (Phase 14): 0 when created, one more at each reschedule
    * and at the cancellation.
    */
@@ -296,6 +317,11 @@ export interface Visit {
     can_resend: boolean
     can_check_in: boolean
     can_check_out: boolean
+    /**
+     * Phase 16: the visit's allowed areas may be changed: SCHEDULED or CHECKED_IN, and the caller is an
+     * administrator, reception, or the visit's host. Management never.
+     */
+    can_edit_access_areas: boolean
   }
 }
 
@@ -316,6 +342,8 @@ export interface VisitCreate {
   scheduled_end: string
   /** `true` requires a visitor email. */
   send_invitation: boolean
+  /** Phase 16: the visit's allowed areas. Omitted or null: the department's floor, if it has one. */
+  access_areas?: VisitAccessAreasInput | null
 }
 
 export interface VisitCreateResult {
@@ -356,6 +384,8 @@ export interface WalkInCreate {
   reason: WalkInReason
   /** Required when reason = OTHER. */
   reason_note?: string
+  /** Phase 16: the visit's allowed areas. Omitted or null: the department's floor, if it has one. */
+  access_areas?: VisitAccessAreasInput | null
 }
 
 export interface ScanWarning {
@@ -672,12 +702,30 @@ export type TrackingRejectReason =
   | 'BEFORE_ASSOCIATION'
 /** A call of the application to the provider whose failures the health counts. */
 export type TrackingProviderOperation = 'ENROLL' | 'REVOKE'
+/**
+ * Phase 16: who may be in a zone. `COMMON` every visitor (reception, lifts: never an alert); `STANDARD` a
+ * visitor allowed on its floor or in it; `RESTRICTED` only a visitor allowed in it by name.
+ */
+export type ZoneAccess = 'COMMON' | 'STANDARD' | 'RESTRICTED'
+/** Phase 16: why an alert was raised: a standard zone outside the visit's areas, or a restricted zone. */
+export type TrackingAlertType = 'UNAUTHORIZED_AREA' | 'RESTRICTED_AREA'
+export type TrackingAlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+/** How an alert was resolved: the visitor went back, the areas changed, the visitor left, or by staff. */
+export type TrackingAlertResolution = 'RETURNED' | 'AREAS_CHANGED' | 'CHECKED_OUT' | 'MANUAL'
 
 /** A building or zone as other resources embed it: its two names (the Arabic one shown in the Arabic UI when set). */
 interface LocationRef {
   id: string
   name: string
   name_ar: string | null
+}
+
+/** A zone as a location embeds it (Phase 16: with its access level). */
+interface ZoneRef {
+  id: string
+  name: string
+  name_ar: string | null
+  access: ZoneAccess
 }
 
 /** A floor as other resources embed it; `level` orders floors (negative below ground). */
@@ -692,7 +740,34 @@ interface FloorRef {
 interface JourneyLocation {
   building: LocationRef
   floor: FloorRef
-  zone: LocationRef
+  zone: ZoneRef
+}
+
+/** An allowed floor of a visit (Phase 16), with its building. */
+interface AccessFloor {
+  id: string
+  name: string
+  name_ar: string | null
+  level: number
+  building: LocationRef
+  is_active: boolean
+}
+
+/** An allowed zone of a visit (Phase 16), any access level, with its floor and building. */
+interface AccessZone {
+  id: string
+  name: string
+  name_ar: string | null
+  access: ZoneAccess
+  floor: FloorRef
+  building: LocationRef
+  is_active: boolean
+}
+
+/** A visit's allowed areas (Phase 16): floors by building name then level, zones by floor level then name. Both empty: not set. */
+interface VisitAccessAreas {
+  floors: AccessFloor[]
+  zones: AccessZone[]
 }
 
 interface CameraRef {
@@ -739,6 +814,12 @@ export interface TrackingSettings {
   /** 1–90, default 30. */
   retention_days: number
   health: TrackingHealth
+  /** Phase 16: area alerts are raised (default on). Off: nothing is evaluated; the active alerts stay. */
+  area_alerts_enabled: boolean
+  /** Phase 16: an alert is e-mailed to the visit's host (default on). */
+  alert_notify_host: boolean
+  /** Phase 16: further addresses an alert is e-mailed to; at most 5, lower case. */
+  alert_emails: string[]
 }
 
 /**
@@ -751,6 +832,10 @@ export interface TrackingSettingsUpdate {
   min_confidence?: number | null
   stale_after_minutes?: number
   retention_days?: number
+  area_alerts_enabled?: boolean
+  alert_notify_host?: boolean
+  /** At most 5 valid addresses (normalised to lower case, duplicates dropped). */
+  alert_emails?: string[]
 }
 
 /** A provider credential of the company (administrators): its label and prefix; the key itself is never shown again. */
@@ -840,6 +925,8 @@ export interface Zone {
   floor_id: string
   name: string
   name_ar: string | null
+  /** Phase 16: who may be in it. */
+  access: ZoneAccess
   is_active: boolean
   created_at: string
   updated_at: string
@@ -888,11 +975,14 @@ export interface ZoneCreate {
   floor_id: string
   name: string
   name_ar?: string | null
+  /** Default STANDARD. */
+  access?: ZoneAccess
 }
 
 export interface ZoneUpdate {
   name?: string
   name_ar?: string | null
+  access?: ZoneAccess
   is_active?: boolean
 }
 
@@ -920,6 +1010,108 @@ export interface JourneyListItem {
   last_observed_at: string | null
   /** The server's now − `last_observed_at`, whole seconds; null without a confirmed observation. */
   freshness_seconds: number | null
+  /** Phase 16: the visit's active alert (open or acknowledged). */
+  alert: TrackingAlertRef | null
+}
+
+/** A visit's alert as a list row or a visitor on the map names it (Phase 16). */
+interface TrackingAlertRef {
+  id: string
+  type: TrackingAlertType
+  status: TrackingAlertStatus
+}
+
+/**
+ * Phase 16: a visitor seen where the visit's areas do not allow, from the journey's confirmed location only.
+ * One active (open or acknowledged) alert a visit at most.
+ */
+export interface TrackingAlert {
+  id: string
+  type: TrackingAlertType
+  status: TrackingAlertStatus
+  /** Raised from the simulator's association: «محاكاة» / "Simulated" everywhere. */
+  simulated: boolean
+  visit: JourneyVisitSummary
+  /** Where it opened, as resolved then. */
+  first_location: JourneyLocation
+  /** The latest place outside the visit's areas. */
+  last_location: JourneyLocation
+  /** When the first such place was observed. */
+  opened_at: string
+  /** When the latest such place was observed. */
+  last_seen_at: string
+  /** The server's time of its escalation to Restricted area; null when it never escalated (also one opened so). */
+  escalated_at: string | null
+  observations: number
+  /** The visit's allowed areas now. */
+  access_areas: VisitAccessAreas
+  acknowledged_at: string | null
+  acknowledged_by: UserRef | null
+  resolved_at: string | null
+  /** Null with `resolved_at` set: the system resolved it. */
+  resolved_by: UserRef | null
+  resolution: TrackingAlertResolution | null
+  /** The latest staff note. */
+  note: string | null
+  /** Reception or an administrator, and not resolved. */
+  can_act: boolean
+}
+
+/** GET /tracking/alerts/summary (polled by the shell): counts and the latest open ones. */
+export interface TrackingAlertSummary {
+  /** Status OPEN. */
+  open: number
+  /** OPEN and ACKNOWLEDGED. */
+  active: number
+  /** Up to 5 open alerts, the newest opened or escalated first: by `escalated_at ?? opened_at` (B16-26). */
+  latest: TrackingAlertBrief[]
+}
+
+interface TrackingAlertBrief {
+  id: string
+  type: TrackingAlertType
+  visit_id: string
+  visitor_name: string
+  location: JourneyLocation
+  opened_at: string
+  /** Null unless escalated; with `opened_at`, the summary's order (the watcher's cut-off, F16-38). */
+  escalated_at: string | null
+  simulated: boolean
+}
+
+/** POST /tracking/alerts/{id}/acknowledge and /resolve: an optional note, one line, at most 300 characters. */
+export interface TrackingAlertAction {
+  note?: string | null
+}
+
+/** A stay of a journey's path: consecutive confirmed observations in one zone (Phase 16). */
+interface JourneyStay {
+  location: JourneyLocation
+  from: string
+  to: string
+  observations: number
+  /** Allowed under the visit's current areas. */
+  allowed: boolean
+}
+
+/** A visitor inside now, on the live map (Phase 16). */
+interface LiveVisitor {
+  visit: JourneyVisitSummary
+  state: JourneyState
+  simulated: boolean
+  /** From a confirmed observation only; null: no location. */
+  last_location: JourneyLocation | null
+  last_observed_at: string | null
+  freshness_seconds: number | null
+  alert: TrackingAlertRef | null
+  access_areas: VisitAccessAreas
+}
+
+/** GET /journeys/live: every visitor checked in now (at most 1000, `truncated` beyond). */
+export interface LiveJourneys {
+  generated_at: string
+  truncated: boolean
+  visitors: LiveVisitor[]
 }
 
 /** A visit's latest tracking association. */
@@ -952,6 +1144,11 @@ interface JourneyEvent {
   /** What the application counts: match CONFIRMED and confidence at least the company's threshold. The mark shown. */
   confirmed: boolean
   model_version: string | null
+  /**
+   * Phase 16: for a confirmed observation with a place, whether the visit's current areas allow it; null
+   * for every other event.
+   */
+  allowed: boolean | null
 }
 
 /** GET /visits/{id}/journey (and the tracking actions' answer). */
@@ -971,6 +1168,13 @@ export interface VisitJourney {
   /** Null exactly when `can_enroll`. */
   enroll_blocker: EnrollBlocker | null
   can_revoke: boolean
+  /** Phase 16: the visit's allowed areas, and whether this person may change them. */
+  access_areas: VisitAccessAreas
+  can_edit_access_areas: boolean
+  /** Phase 16: the visit's alerts, newest first, at most 20. */
+  alerts: TrackingAlert[]
+  /** Phase 16: the confirmed observations with a place, oldest first, one stay a zone in a row. */
+  path: JourneyStay[]
 }
 
 /** POST /visits/{id}/tracking/enroll: the application's id of an active enrollment camera. */
@@ -1042,6 +1246,8 @@ export type ApiErrorCode =
   | 'TRACKING_KEY_LIMIT'
   /** Phase 15: a building, floor or zone with active floors, zones or cameras cannot be archived (409). */
   | 'LOCATION_IN_USE'
+  /** Phase 16: a resolved tracking alert cannot be acknowledged (409). */
+  | 'ALERT_RESOLVED'
 
 /**
  * The machine code of one field error of a 422 VALIDATION_ERROR (backend B10-18): one per kind of
@@ -1191,6 +1397,8 @@ export type PlatformCompanyPage = Paginated<PlatformCompany>
 export type PlatformAuditLogPage = Paginated<PlatformAuditLog>
 /** GET /journeys (Phase 15) */
 export type JourneyPage = Paginated<JourneyListItem>
+/** GET /tracking/alerts (Phase 16) */
+export type TrackingAlertPage = Paginated<TrackingAlert>
 
 /* ------------------------------------------------------------------------------------------ */
 /* 3. Request bodies, query parameters and small responses from the §8 endpoint table          */
@@ -1272,6 +1480,8 @@ export interface DepartmentCreate {
   name: string
   /** Omitted: no Arabic name. */
   name_ar?: string
+  /** Phase 16: the department's floor; omitted or null: none. */
+  floor_id?: string | null
 }
 
 export interface DepartmentUpdate {
@@ -1279,6 +1489,8 @@ export interface DepartmentUpdate {
   /** null clears it. */
   name_ar?: string | null
   is_active?: boolean
+  /** Phase 16: null clears it. */
+  floor_id?: string | null
 }
 
 export type CompanySettingsUpdate = Partial<Omit<CompanySettings, 'id'>>
@@ -1450,6 +1662,27 @@ export interface JourneyListParams extends PageParams {
 /** GET /tracking/cameras: archived cameras too (administrators only). */
 export interface TrackingCameraListParams {
   include_archived?: boolean
+}
+
+/** PUT /visits/{id}/access-areas (and `access_areas` of a new visit): each list at most 50, active places of the company, no duplicates. */
+export interface VisitAccessAreasInput {
+  floor_ids: string[]
+  zone_ids: string[]
+}
+
+/**
+ * GET /tracking/alerts (Phase 16), newest `opened_at` first. `active` (default): open and acknowledged, any day;
+ * `day`: those opened on a company-local day (`YYYY-MM-DD`, default today), any status.
+ */
+export interface TrackingAlertListParams extends PageParams {
+  scope?: 'active' | 'day'
+  day?: string
+  visit_id?: string
+}
+
+/** GET /journeys/live (Phase 16): the visitors located in one building; those without a location always. */
+export interface LiveJourneyParams {
+  building_id?: string
 }
 
 /** PATCH /platform/companies/{id}/brand: the company's colour (`#rrggbb`), or null for the default palette. */

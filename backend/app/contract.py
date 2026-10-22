@@ -117,6 +117,10 @@ RESPONSES: dict[str, Any] = {
     "Zone": locations.Zone,
     "VisitJourney": journeys.VisitJourney,
     "JourneyListItem": journeys.JourneyListItem,
+    # Phase 16 (docs/decisions/phase-16-backend.md): allowed areas, area alerts and the live view
+    "TrackingAlert": journeys.TrackingAlert,
+    "TrackingAlertSummary": journeys.TrackingAlertSummary,
+    "LiveJourneys": journeys.LiveJourneys,
 }
 
 REQUESTS: dict[str, Any] = {
@@ -166,6 +170,9 @@ REQUESTS: dict[str, Any] = {
     "ZoneUpdate": locations.ZoneUpdate,
     "TrackingEnrollRequest": journeys.TrackingEnrollRequest,
     "PlatformTrackingUpdate": platform.PlatformTrackingUpdate,
+    # Phase 16 (docs/decisions/phase-16-backend.md)
+    "VisitAccessAreasInput": locations.VisitAccessAreasInput,
+    "TrackingAlertAction": journeys.TrackingAlertAction,
 }
 
 # Query parameters (§8): TypeScript name -> backend model.
@@ -185,6 +192,9 @@ QUERIES: dict[str, type[common.QueryModel]] = {
     # Phase 15
     "JourneyListParams": journeys.JourneyListQuery,
     "TrackingCameraListParams": tracking.TrackingCameraListQuery,
+    # Phase 16
+    "TrackingAlertListParams": journeys.TrackingAlertListQuery,
+    "LiveJourneyParams": journeys.LiveJourneyQuery,
 }
 
 # The error envelope (§8) and `Paginated<T>` of each paginated endpoint: TypeScript name -> model.
@@ -197,6 +207,7 @@ ENVELOPES: dict[str, Any] = {
     "PlatformCompanyPage": common.Paginated[platform.PlatformCompany],
     "PlatformAuditLogPage": common.Paginated[platform.PlatformAuditLog],
     "JourneyPage": common.Paginated[journeys.JourneyListItem],  # Phase 15
+    "TrackingAlertPage": common.Paginated[journeys.TrackingAlert],  # Phase 16
 }
 
 # (method, route template) -> the query model of that §8 endpoint.
@@ -219,6 +230,8 @@ QUERY_ROUTES: dict[tuple[str, str], type[common.QueryModel]] = {
     ("GET", "/api/v1/public/companies/{slug}/brand/{kind}.png"): brand.BrandImageQuery,
     ("GET", "/api/v1/journeys"): journeys.JourneyListQuery,
     ("GET", "/api/v1/tracking/cameras"): tracking.TrackingCameraListQuery,
+    ("GET", "/api/v1/tracking/alerts"): journeys.TrackingAlertListQuery,
+    ("GET", "/api/v1/journeys/live"): journeys.LiveJourneyQuery,
 }
 
 _SERIALIZED = {"responses": RESPONSES, "envelopes": ENVELOPES}

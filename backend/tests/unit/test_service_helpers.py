@@ -26,10 +26,12 @@ from app.repositories.platform import (
 from app.repositories.reports import ReportRepository
 from app.repositories.sessions import SessionRepository
 from app.repositories.tracking import (
+    AccessAreaRepository,
     AssociationRepository,
     CameraRepository,
     JourneyEventRepository,
     LocationRepository,
+    TrackingAlertRepository,
     TrackingHealthRepository,
     TrackingKeyRepository,
     TrackingSettingsRepository,
@@ -111,6 +113,7 @@ UNSCOPED = {
     (TrackingSettingsRepository, "allowed_of"): "the platform owner lists the companies themselves (B15-2)",
 }
 REPOSITORIES = [
+    AccessAreaRepository,  # Phase 16
     AssociationRepository,
     AuditLogRepository,
     CameraRepository,
@@ -129,6 +132,7 @@ REPOSITORIES = [
     PlatformSessionRepository,
     ReportRepository,
     SessionRepository,
+    TrackingAlertRepository,  # Phase 16
     TrackingHealthRepository,
     TrackingKeyRepository,
     TrackingSettingsRepository,

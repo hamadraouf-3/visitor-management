@@ -1,0 +1,32 @@
+{% extends "base.txt" %}
+{% set kind = "alert" %}
+{% macro body(lang) %}
+{{ t(lang, "alert.heading." ~ alert_type) }}
+
+{% if simulated %}
+{{ t(lang, "alert.simulated") }}
+
+{% endif %}
+{{ t(lang, "alert.body." ~ alert_type, visitor=visitor_name, place=place[lang]) }}
+
+{{ t(lang, "label.visitor") }}: {{ visitor_name | isolate(lang) }}
+{% if visitor_company_name %}
+{{ t(lang, "label.company") }}: {{ visitor_company_name | isolate(lang) }}
+{% endif %}
+{{ t(lang, "label.host") }}: {{ host_name | isolate(lang) }}
+{{ t(lang, "label.where") }}: {{ where[lang] | isolate(lang) }}
+{{ t(lang, "label.seen_at") }}: {{ seen_at[lang] }}
+{% if allowed_floors[lang] %}
+{{ t(lang, "label.allowed_floors") }}: {{ allowed_floors[lang] | isolate(lang) }}
+{% endif %}
+{% if allowed_zones[lang] %}
+{{ t(lang, "label.allowed_zones") }}: {{ allowed_zones[lang] | isolate(lang) }}
+{% endif %}
+
+{{ t(lang, "alert.act") }}
+
+{{ t(lang, "alert.open_" ~ link_kind) }}:
+{{ link_url }}
+{% endmacro %}
+{% block lead_section %}{{ body(lead) }}{% endblock %}
+{% block other_section %}{{ body(other) }}{% endblock %}

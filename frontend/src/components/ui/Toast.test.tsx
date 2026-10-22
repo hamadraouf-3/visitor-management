@@ -146,3 +146,29 @@ describe('Toast', () => {
     consoleError.mockRestore()
   })
 })
+
+function WithAction({ onAction }: { onAction: () => void }) {
+  const toast = useToast()
+  return (
+    <button type="button" onClick={() => toast.show({ tone: 'danger', title: 'Alert: Maya Odeh in Floor 4 › Open office', action: { label: 'View', onAction } })}>
+      Show alert
+    </button>
+  )
+}
+
+describe('a toast’s action (Phase 16)', () => {
+  it('does what it says and takes the toast away', async () => {
+    const onAction = vi.fn<() => void>()
+    render(
+      <ToastProvider>
+        <WithAction onAction={onAction} />
+      </ToastProvider>,
+    )
+    act(() => screen.getByRole('button', { name: 'Show alert' }).click())
+    const view = screen.getByRole('button', { name: 'View' })
+    expect(view.closest('[role="alert"]')).not.toBeNull()
+    act(() => view.click())
+    expect(onAction).toHaveBeenCalledOnce()
+    expect(screen.queryByText('Alert: Maya Odeh in Floor 4 › Open office')).toBeNull()
+  })
+})

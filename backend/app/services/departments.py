@@ -12,6 +12,12 @@ SCHEDULED visits in the same transaction (D-17, `VisitSnapshotRefresher`). Users
 assigned to active departments (`assignable_department`). Creation and changes start with the company row
 (`FOR UPDATE` when they name the department, else `FOR KEY SHARE`) and re-check the caller
 (`lock_company_for_change`): an administrator deactivated or demoted meanwhile changes nothing (SEC-31).
+
+A department's floor (Phase 16, B16-3) is the default allowed floor of its new visits: an active floor of
+the company (422 `floor_id` `not_found` / `location_archived`), read under the company row, which every
+change of the location registry holds `FOR UPDATE`; null clears it. A floor archived later stays the
+department's (shown with `is_active` false) and is skipped by new visits: archiving a floor is never
+refused because a department names it.
 """
 
 from collections.abc import Mapping
@@ -28,13 +34,16 @@ from app.db.errors import unique_violation_constraint
 from app.models import Department
 from app.repositories.departments import DepartmentRepository
 from app.repositories.locking import RowLock
-from app.schemas.departments import DepartmentCreate, DepartmentUpdate
+from app.repositories.tracking import LocationRepository, PlacedFloor
+from app.schemas.departments import Department as DepartmentOut
+from app.schemas.departments import DepartmentCreate, DepartmentFloor, DepartmentUpdate
+from app.schemas.locations import LocationRef
 from app.security.permissions import Capability, has_capability
 from app.security.sessions import AuthContext
 from app.services import audit
 from app.services.audit import AuditAction, AuditEntity
 from app.services.authorization import lock_company_for_change
-from app.services.scoping import FieldErrors, require_found
+from app.services.scoping import REFERENCE_NOT_FOUND, FieldErrors, require_found
 from app.services.visit_snapshots import VisitSnapshotRefresher
 
 NAME_CONSTRAINT = "uq_departments_company_name"
@@ -44,6 +53,7 @@ NAME_AR_TAKEN = "A department with this Arabic name already exists."
 # The unique index behind each name -> (the field it is reported on, the message).
 _NAME_CONFLICTS = {NAME_CONSTRAINT: ("name", NAME_TAKEN), NAME_AR_CONSTRAINT: ("name_ar", NAME_AR_TAKEN)}
 DEPARTMENT_INACTIVE = FieldProblem(FieldCode.DEPARTMENT_INACTIVE, "This department is inactive.")
+LOCATION_ARCHIVED = FieldProblem(FieldCode.LOCATION_ARCHIVED, "This location is archived.")
 
 
 def assignable_department(
@@ -69,6 +79,25 @@ class DepartmentsService:
         self.db = db
         self.snapshots = snapshots
         self.departments = DepartmentRepository(db)
+        self.locations = LocationRepository(db)
+
+    def views(self, company_id: UUID, departments: list[Department]) -> list[DepartmentOut]:
+        """The API's departments, each with its floor and that floor's building (one query for them all)."""
+        floors = self.locations.placed_floors(
+            company_id, {department.floor_id for department in departments if department.floor_id is not None}
+        )
+        return [
+            DepartmentOut(
+                id=department.id,
+                name=department.name,
+                name_ar=department.name_ar,
+                is_active=department.is_active,
+                created_at=department.created_at,
+                updated_at=department.updated_at,
+                floor=_floor(floors.get(department.floor_id)) if department.floor_id is not None else None,
+            )
+            for department in departments
+        ]
 
     def list_departments(self, auth: AuthContext, *, include_inactive: bool) -> list[Department]:
         if include_inactive and not has_capability(auth.roles, Capability.ADMINISTER):
@@ -77,11 +106,16 @@ class DepartmentsService:
 
     def create(self, auth: AuthContext, data: DepartmentCreate, context: RequestContext) -> Department:
         lock_company_for_change(self.db, auth, lock=RowLock.UPDATE)
+        self._require_floor(auth.company_id, data.floor_id)
         self._require_free(auth.company_id, "name", data.name)
         if data.name_ar is not None:
             self._require_free(auth.company_id, "name_ar", data.name_ar)
         department = Department(
-            company_id=auth.company_id, name=data.name, name_ar=data.name_ar, is_active=True
+            company_id=auth.company_id,
+            name=data.name,
+            name_ar=data.name_ar,
+            is_active=True,
+            floor_id=data.floor_id,
         )
         self._save(department)
         self._audit(auth, department, AuditAction.DEPARTMENT_CREATED, context, {})
@@ -116,6 +150,10 @@ class DepartmentsService:
         if data.is_active is not None and data.is_active != department.is_active:
             department.is_active = data.is_active
             changed.append("is_active")
+        if "floor_id" in data.model_fields_set and data.floor_id != department.floor_id:
+            self._require_floor(auth.company_id, data.floor_id)
+            department.floor_id = data.floor_id
+            changed.append("floor_id")
         if not changed:
             return department
         self._save(department)
@@ -155,6 +193,18 @@ class DepartmentsService:
         if existing is not None and (department is None or existing.id != department.id):
             raise Conflict(field, messages[1])
 
+    def _require_floor(self, company_id: UUID, floor_id: UUID | None) -> None:
+        """A department's new floor: an active floor (in an active building) of the company (B16-3)."""
+        if floor_id is None:
+            return
+        floor = self.locations.placed_floors(company_id, [floor_id]).get(floor_id)
+        errors = FieldErrors()
+        if floor is None:
+            errors.add("floor_id", REFERENCE_NOT_FOUND)
+        elif not floor.active:
+            errors.add("floor_id", LOCATION_ARCHIVED)
+        errors.raise_if_any()
+
     def _save(self, department: Department) -> None:
         try:
             with self.db.begin_nested():
@@ -183,3 +233,16 @@ class DepartmentsService:
             entity_id=department.id,
             metadata=metadata,
         )
+
+
+def _floor(place: PlacedFloor | None) -> DepartmentFloor | None:
+    if place is None:  # pragma: no cover - a department's floor exists (foreign key)
+        return None
+    return DepartmentFloor(
+        id=place.floor.id,
+        name=place.floor.name,
+        name_ar=place.floor.name_ar,
+        level=place.floor.level,
+        building=LocationRef.model_validate(place.building),
+        is_active=place.active,
+    )

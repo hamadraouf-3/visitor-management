@@ -205,6 +205,14 @@ fields mean on the screen ([`visitor-journey-design.md`](visitor-journey-design.
   counted from the latest confirmed observation, or from the activation (the `ENROLLED` event) while there
   is none yet. Right after a successful enrollment the journey is ACTIVE with an unknown location.
 
+**Area alerts (Phase 16; nothing changes for a provider).** Once a batch is applied, the application compares
+each visit's confirmed location (by exactly the rules above) with the areas the visit is allowed in and may
+open, move on or resolve a tracking alert, in the same transaction; the batch's outcomes and its answer are
+unchanged. Only a confirmed observation the batch itself stored, and the latest one, counts: a sighting sent
+late never raises or clears an alert, so a provider gains nothing by re-sending old events. A batch counts as
+the provider's contact before the alert is decided, so the first sighting after a silence is judged on a live
+journey ([`visitor-journey-design.md`](visitor-journey-design.md) §9).
+
 Every one of these numbers (2 minutes, 5 minutes, 10 minutes, 60 seconds, 15 minutes, 12 hours) is a **placeholder**
 until the cameras' analysis classes and the model's behaviour on real footage are known
 ([`decisions/phase-15-backend.md`](decisions/phase-15-backend.md) B15-16).

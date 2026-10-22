@@ -2,6 +2,7 @@ import type {
   CheckInRequest,
   CheckOutRequest,
   Visit,
+  VisitAccessAreasInput,
   VisitCancelRequest,
   VisitCreate,
   VisitCreateResult,
@@ -51,6 +52,14 @@ export function resendInvitation(id: string, options?: CallOptions): Promise<Vis
  */
 export function issueVisitPass(id: string, options?: CallOptions): Promise<VisitPassResult> {
   return apiRequest(`/visits/${segment(id)}/pass`, { ...options, method: 'POST' })
+}
+
+/**
+ * Phase 16: the visit's allowed areas (SCHEDULED or CHECKED_IN; an administrator, reception or the visit's host).
+ * The same sets again change nothing. An active alert is resolved or raised against the new areas.
+ */
+export function updateVisitAccessAreas(id: string, body: VisitAccessAreasInput, options?: CallOptions): Promise<Visit> {
+  return apiRequest(`/visits/${segment(id)}/access-areas`, { ...options, method: 'PUT', body })
 }
 
 export function checkInVisit(id: string, body: CheckInRequest, options?: CallOptions): Promise<Visit> {

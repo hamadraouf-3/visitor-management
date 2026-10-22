@@ -1,12 +1,13 @@
-"""The Visitor Journey's location registry (Phase 15, docs/api.md §17): the tree for every role that sees
-journeys; buildings, floors and zones created, changed and archived by administrators. Nothing is
+"""The Visitor Journey's location registry (Phase 15, docs/api.md §17): the tree for every role of the
+company (Phase 16, B16-19: an invitation's allowed areas; a host who is only an employee reads the active
+locations only); buildings, floors and zones created, changed and archived by administrators. Nothing is
 deleted (B15-5)."""
 
 from uuid import UUID
 
 from fastapi import APIRouter, status
 
-from app.api.deps import AdminAuth, ContextDep, LocationsServiceDep, ViewJourneysAuth
+from app.api.deps import AdminAuth, ContextDep, CurrentAuth, LocationsServiceDep
 from app.schemas.locations import (
     Building,
     BuildingCreate,
@@ -24,7 +25,9 @@ router = APIRouter(prefix="/locations", tags=["locations"])
 
 
 @router.get("", response_model=LocationTree)
-def get_locations(auth: ViewJourneysAuth, service: LocationsServiceDep) -> LocationTree:
+def get_locations(auth: CurrentAuth, service: LocationsServiceDep) -> LocationTree:
+    """Every building, floor and zone, active and archived; a caller who does not see journeys (a host who
+    is only an employee) gets the active ones only."""
     return service.tree(auth)
 
 

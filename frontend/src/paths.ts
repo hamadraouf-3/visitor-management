@@ -37,6 +37,8 @@ export const paths = {
   /** The Visitor Journey (Phase 15): the day's visits and their last inferred floor or zone. */
   journey: '/journey',
   journeyVisit: (visitId: string) => `/journey/${encodeURIComponent(visitId)}`,
+  /** Tracking alerts (Phase 16): visitors seen outside their allowed areas. */
+  journeyAlerts: '/journey/alerts',
   reports: '/reports',
 
   adminDashboard: '/admin',

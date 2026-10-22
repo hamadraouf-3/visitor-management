@@ -15,14 +15,14 @@ def list_departments(
 ) -> list[Department]:
     """Active departments; `include_inactive=true` is reserved for administrators."""
     departments = service.list_departments(auth, include_inactive=query.include_inactive)
-    return [Department.model_validate(department) for department in departments]
+    return service.views(auth.company_id, departments)
 
 
 @router.post("", response_model=Department, status_code=status.HTTP_201_CREATED)
 def create_department(
     body: DepartmentCreate, auth: AdminAuth, service: DepartmentsServiceDep, context: ContextDep
 ) -> Department:
-    return Department.model_validate(service.create(auth, body, context))
+    return service.views(auth.company_id, [service.create(auth, body, context)])[0]
 
 
 @router.patch("/{department_id}", response_model=Department)
@@ -33,4 +33,4 @@ def update_department(
     service: DepartmentsServiceDep,
     context: ContextDep,
 ) -> Department:
-    return Department.model_validate(service.update(auth, department_id, body, context))
+    return service.views(auth.company_id, [service.update(auth, department_id, body, context)])[0]

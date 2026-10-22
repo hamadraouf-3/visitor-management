@@ -1,12 +1,13 @@
 import { i18n } from '../../../i18n'
-import type { TrackingCamera, TrackingSettings, TrackingSettingsUpdate } from '../../../types/api'
+import type { TrackingCamera, TrackingSettings, TrackingSettingsUpdate, ZoneAccess } from '../../../types/api'
 import { maxLengthMessage, type FormErrors, type ServerFieldPaths } from '../../../utils/forms'
 import type { BuildingNode, FloorNode } from '../../journey/types'
 
 /*
  * The pure logic of the tracking administration's forms (Phase 15): the thresholds, a place's names (and a
- * floor's level), a camera, a key's label. Each mirrors the server's rules (phase15-api-shapes), which have
- * the final word: these only spare a request and say the problem at its field.
+ * floor's level, a zone's access level since Phase 16), a camera, a key's label, and the alert e-mails
+ * (Phase 16). Each mirrors the server's rules (phase15-api-shapes, the Phase 16 contract), which have the
+ * final word: these only spare a request and say the problem at its field.
  */
 
 const t = i18n.getFixedT(null, 'admin')
@@ -110,11 +111,13 @@ export interface PlaceValues {
   nameAr: string
   /** A floor's level, as typed (floors only). */
   level: string
+  /** A zone's access level (zones only, Phase 16): standard unless chosen. */
+  access: ZoneAccess
 }
 
 export type PlaceField = keyof PlaceValues
 
-export const PLACE_FIELDS: ServerFieldPaths<PlaceField> = { name: 'name', nameAr: 'name_ar', level: 'level' }
+export const PLACE_FIELDS: ServerFieldPaths<PlaceField> = { name: 'name', nameAr: 'name_ar', level: 'level', access: 'access' }
 
 /** A whole level typed with an optional minus (also «−» and Arabic digits); null for anything else. */
 export function parseLevel(text: string): number | null {
@@ -221,3 +224,47 @@ export function validateKeyLabel(label: string): string | undefined {
   if (/[\r\n]/.test(text)) return t('tracking.keys.validation.oneLine')
   return undefined
 }
+
+/* The alert e-mails (Phase 16) -------------------------------------------------------------------- */
+
+/** The server's limit of the list, and of an address. */
+export const MAX_ALERT_EMAILS = 5
+export const ALERT_EMAIL_MAX = 254
+
+// Deliberately permissive, as the other address checks (B1-22): the server validates addresses.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** An address as the server keeps it: trimmed, lower case. */
+export function normaliseAlertEmail(text: string): string {
+  return text.trim().toLowerCase()
+}
+
+/** What is wrong with an address to add to the list, or undefined: required, a valid address, not listed yet, five at most. */
+export function validateAlertEmail(text: string, list: readonly string[]): string | undefined {
+  const email = normaliseAlertEmail(text)
+  if (!email) return t('tracking.alerts.validation.emailRequired')
+  if (email.length > ALERT_EMAIL_MAX) return maxLengthMessage(ALERT_EMAIL_MAX)
+  if (!EMAIL_PATTERN.test(email)) return i18n.t('validation.emailInvalid', { ns: 'auth', example: 'name@company.com' })
+  if (list.includes(email)) return t('tracking.alerts.validation.emailListed')
+  if (list.length >= MAX_ALERT_EMAILS) return t('tracking.alerts.validation.emailsFull', { max: MAX_ALERT_EMAILS })
+  return undefined
+}
+
+/** The list with the address added (normalised) at its end. Call after `validateAlertEmail` passed. */
+export function withAlertEmail(list: readonly string[], text: string): string[] {
+  return [...list, normaliseAlertEmail(text)]
+}
+
+/** The same addresses, in the same order, as the settings have. */
+export function alertEmailsDirty(settings: Pick<TrackingSettings, 'alert_emails'>, draft: readonly string[] | null): boolean {
+  if (draft === null) return false
+  return draft.length !== settings.alert_emails.length || draft.some((email, index) => email !== settings.alert_emails[index])
+}
+
+/** The change to send, or null when the list is the settings' own. */
+export function toAlertEmailsUpdate(settings: Pick<TrackingSettings, 'alert_emails'>, draft: readonly string[] | null): TrackingSettingsUpdate | null {
+  return draft !== null && alertEmailsDirty(settings, draft) ? { alert_emails: [...draft] } : null
+}
+
+/** Where the server reports a refused address: the list, or one of its five places (`alert_emails.2`). */
+export const ALERT_EMAIL_PATHS: readonly string[] = ['alert_emails', ...Array.from({ length: MAX_ALERT_EMAILS }, (_, index) => `alert_emails.${index}`)]

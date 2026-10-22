@@ -37,6 +37,13 @@
   B14-31): one of the visit's hourly resends, of the user's daily invitations and of the company's
   calendar events, all or none (`calendar_resend`); refused with 429 INVITATION_LIMIT otherwise.
 
+* The tracking alerts' e-mails (Phase 16, B16-15): TRACKING_ALERT_EMAILS_PER_COMPANY_DAY per company and 24
+  hours, one per recipient of an opened or escalated alert. Beyond it the alert still opens (or escalates)
+  and the e-mails that do not fit are left out; its audit row says which budget left them out. On top of
+  it (B16-25), TRACKING_ALERT_NOTICES_PER_VISIT_HOUR e-mailed openings and escalations per visit and hour,
+  whatever their number of recipients: the notice's slot is reserved with its first recipient's company
+  slot, both or neither; beyond it nothing of that notice is queued.
+
 Cancellation notices to visitors have no budget of their own: one goes out at most once per visit whose
 invitation was requested (and counted), so the invitation budget bounds them.
 
@@ -152,6 +159,20 @@ class QuotaUnit:
         """Reserve one of the checking-in user's daily host-arrival e-mails; returns the budget that is
         used up instead, if any."""
         return self._try(LimitKey(self._policies.host_arrivals_per_user_day, str(user_id)))
+
+    def tracking_alert_notice(self, company_id: UUID, visit_id: UUID) -> PolicyName | None:
+        """Reserve the first e-mail of an alert's opening or escalation (B16-25): one of the visit's hourly
+        alert notices and one of the company's daily tracking-alert e-mails, both or neither; returns the
+        budget that is used up instead, if any. Its other recipients take `tracking_alert_email` each."""
+        return self._try(
+            LimitKey(self._policies.tracking_alert_notices_per_visit, str(visit_id)),
+            LimitKey(self._policies.tracking_alert_emails_per_company_day, str(company_id)),
+        )
+
+    def tracking_alert_email(self, company_id: UUID) -> PolicyName | None:
+        """Reserve one of the company's daily tracking-alert e-mails (B16-15); returns the budget that is used
+        up instead, if any."""
+        return self._try(LimitKey(self._policies.tracking_alert_emails_per_company_day, str(company_id)))
 
     def _calendar_event(self, company_id: UUID) -> LimitKey:
         return LimitKey(self._policies.calendar_emails_per_company_day, str(company_id))

@@ -77,6 +77,7 @@ from app.services.preferences import PreferencesService
 from app.services.reception import ReceptionService
 from app.services.reports import ReportsService
 from app.services.scan import ReceptionScanService
+from app.services.tracking_alerts import AlertMailer, TrackingAlerts
 from app.services.tracking_ingestion import TrackingIngestion, TrackingKeyContext, authenticate_key, limit_key
 from app.services.tracking_settings import TrackingSettingsService
 from app.services.users import HostedVisitCanceller, UsersService
@@ -486,7 +487,12 @@ def get_tracking_settings_service(db: DbSession, env: ServiceEnvironmentDep) -> 
 
 
 def get_tracking_ingestion(db: DbSession, env: ServiceEnvironmentDep) -> TrackingIngestion:
-    return TrackingIngestion(db, env.tracking)
+    """With the alert e-mails of a batch (Phase 16, B16-14), queued in its transaction."""
+    return TrackingIngestion(db, env.tracking, mailer=AlertMailer(env.email_service(db), env.email_quota()))
+
+
+def get_tracking_alerts(db: DbSession, env: ServiceEnvironmentDep) -> TrackingAlerts:
+    return TrackingAlerts(db, env.tracking)
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
@@ -514,3 +520,4 @@ JourneyServiceDep = Annotated[JourneyService, Depends(get_journey_service)]
 LocationsServiceDep = Annotated[LocationsService, Depends(get_locations_service)]
 TrackingSettingsServiceDep = Annotated[TrackingSettingsService, Depends(get_tracking_settings_service)]
 TrackingIngestionDep = Annotated[TrackingIngestion, Depends(get_tracking_ingestion)]
+TrackingAlertsDep = Annotated[TrackingAlerts, Depends(get_tracking_alerts)]

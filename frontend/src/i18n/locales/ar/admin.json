@@ -80,7 +80,12 @@
       "TRACKING_CAMERA_UPDATED": "تعديل كاميرا",
       "LOCATION_CREATED": "إضافة موقع",
       "LOCATION_UPDATED": "تعديل موقع",
-      "JOURNEY_LIST_VIEWED": "فُتحت قائمة رحلات الزوار"
+      "JOURNEY_LIST_VIEWED": "فُتحت قائمة رحلات الزوار",
+      "TRACKING_ALERT_OPENED": "فتح تنبيه تتبّع",
+      "TRACKING_ALERT_ESCALATED": "تصعيد تنبيه تتبّع",
+      "TRACKING_ALERT_ACKNOWLEDGED": "الاطلاع على تنبيه تتبّع",
+      "TRACKING_ALERT_RESOLVED": "إغلاق تنبيه تتبّع",
+      "VISIT_ACCESS_AREAS_CHANGED": "تغيير المناطق المسموحة لزيارة"
     },
     "entities": {
       "visit": "زيارة",
@@ -258,7 +263,26 @@
       "provider_camera_id": "معرّف الكاميرا لدى المزوّد",
       "zone_id": "المنطقة",
       "is_enrollment_point": "كاميرا استقبال",
-      "level": "المستوى"
+      "level": "المستوى",
+      "UNAUTHORIZED_AREA": "منطقة غير مسموحة",
+      "RESTRICTED_AREA": "منطقة مقيّدة",
+      "OPEN": "مفتوح",
+      "ACKNOWLEDGED": "اطُّلع عليه",
+      "RESOLVED": "مُغلق",
+      "RETURNED": "عاد إلى منطقة مسموحة",
+      "AREAS_CHANGED": "تغيّرت المناطق المسموحة",
+      "COMMON": "عامة",
+      "STANDARD": "عادية",
+      "RESTRICTED": "مقيّدة",
+      "access": "الوصول",
+      "floor_id": "الطابق",
+      "area_alerts_enabled": "تنبيهات المناطق",
+      "alert_notify_host": "إبلاغ المضيف بالبريد",
+      "alert_emails": "بريد التنبيهات",
+      "tracking_alert_emails_per_company_day": "رسائل تنبيهات التتبّع اليومية لكل شركة",
+      "tracking_alert_notices_per_visit": "رسائل تنبيهات التتبّع لكل زيارة في الساعة",
+      "OBSERVATION": "رصد",
+      "LIVE": "الخريطة الحية"
     },
     "metadataKeys": {
       "outcome": "النتيجة",
@@ -328,7 +352,22 @@
       "ended_tracking": "زوار أُوقف تتبّعهم",
       "was_enabled": "كان التتبّع مفعّلًا",
       "day": "اليوم",
-      "located": "بموقع"
+      "located": "بموقع",
+      "alert_id": "التنبيه",
+      "type": "النوع",
+      "resolution": "طريقة الإغلاق",
+      "simulated": "محاكاة",
+      "view": "طريقة العرض",
+      "noted": "بملاحظة",
+      "notified": "الرسائل المرسلة",
+      "building_id": "المبنى",
+      "floor_id": "الطابق",
+      "zone_id": "المنطقة",
+      "from_type": "النوع السابق",
+      "added_floor_ids": "طوابق أُضيفت",
+      "removed_floor_ids": "طوابق أُزيلت",
+      "added_zone_ids": "مناطق أُضيفت",
+      "removed_zone_ids": "مناطق أُزيلت"
     },
     "systemActor": "النظام أو مجهول",
     "failure": "فشل أو رفض:",
@@ -547,7 +586,8 @@
     "columns": {
       "name": "الاسم",
       "updated": "آخر تعديل",
-      "actions": "الإجراءات"
+      "actions": "الإجراءات",
+      "floor": "الطابق"
     },
     "inactive": "غير نشط",
     "deactivateNamed": "تعطيل {{name}}",
@@ -584,7 +624,12 @@
     "inactiveTotal_two": "قسمان غير نشطين",
     "inactiveTotal_few": "{{count}} أقسام غير نشطة",
     "inactiveTotal_many": "{{count}} قسمًا غير نشط",
-    "inactiveTotal_other": "{{count}} قسم غير نشط"
+    "inactiveTotal_other": "{{count}} قسم غير نشط",
+    "floorOf": "طابق {{name}}",
+    "noFloor": "بدون طابق",
+    "floorArchived": "{{name}} (مؤرشف)",
+    "floorSaved": "حُفظ طابق {{name}}",
+    "floorFailed": "تعذّر حفظ طابق {{name}}"
   },
   "settings": {
     "validation": {
@@ -901,7 +946,8 @@
         "duplicate": "هذا الاسم مستخدم هنا بالفعل.",
         "level": "أدخل عددًا صحيحًا من {{min}} إلى {{max}}.",
         "levelTaken": "يوجد في المبنى طابق بهذا المستوى."
-      }
+      },
+      "access": "الوصول"
     },
     "cameras": {
       "title": "الكاميرات",
@@ -944,6 +990,25 @@
         "nameRequired": "أدخل الاسم.",
         "zoneRequired": "اختر منطقة."
       }
+    },
+    "alerts": {
+      "title": "تنبيهات التتبّع",
+      "areaAlerts": "تنبيهات المناطق",
+      "notifyHost": "إبلاغ المضيف بالبريد",
+      "emails": "بريد التنبيهات",
+      "newEmail": "عنوان البريد",
+      "add": "إضافة",
+      "remove": "إزالة {{email}}",
+      "none": "لا يوجد",
+      "full": "{{max}} عناوين على الأكثر",
+      "saveFailed": "تعذّر حفظ الإعداد",
+      "validation": {
+        "emailRequired": "أدخل عنوان بريد إلكتروني.",
+        "emailListed": "هذا العنوان في القائمة من قبل.",
+        "emailsFull": "أدخل {{max}} عناوين على الأكثر."
+      },
+      "saveNamed": "حفظ التغييرات على بريد التنبيهات",
+      "discardNamed": "تجاهل التغييرات على بريد التنبيهات"
     }
   }
 }

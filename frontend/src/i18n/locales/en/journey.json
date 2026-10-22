@@ -119,5 +119,136 @@
         "LOST": "Out of sight"
       }
     }
+  },
+  "zoneAccess": {
+    "COMMON": "Common",
+    "STANDARD": "Standard",
+    "RESTRICTED": "Restricted"
+  },
+  "outsideAllowed": "Outside allowed area",
+  "areas": {
+    "title": "Allowed areas",
+    "notSet": "Not set",
+    "floors": "Floors",
+    "extraZones": "Extra zones",
+    "searchZones": "Search zones",
+    "noZone": "No matching zone",
+    "remove": "Remove {{name}}",
+    "edit": "Edit",
+    "editTitle": "Allowed areas of {{name}}",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Allowed areas saved",
+    "archived": "Archived",
+    "tooMany": "Choose at most {{max}}.",
+    "loading": "Loading the places",
+    "loadError": "The places could not be loaded",
+    "editNamed": "Edit allowed areas",
+    "notEditable": "This visit has ended; its allowed areas can no longer be changed."
+  },
+  "view": {
+    "label": "View",
+    "map": "Live map",
+    "list": "List"
+  },
+  "live": {
+    "updated": "Updated {{time}}",
+    "building": "Building",
+    "visitors_one": "{{formatted}} visitor",
+    "visitors_other": "{{formatted}} visitors",
+    "noLocation": "No location",
+    "notTracked": "Not tracked",
+    "truncated": "First {{count}} shown",
+    "floorsOf": "Floors of {{name}}",
+    "alert": "Alert",
+    "loading": "Loading the live map",
+    "loadError": "The live map could not be loaded",
+    "empty": {
+      "noLocations": "No locations yet",
+      "setUp": "Set up locations",
+      "nobody": "Nobody inside"
+    }
+  },
+  "panel": {
+    "fullJourney": "Full journey",
+    "loading": "Loading the journey",
+    "loadError": "The journey could not be loaded"
+  },
+  "path": {
+    "title": "Path",
+    "empty": "No confirmed place yet",
+    "observations_one": "{{count}} observation",
+    "observations_other": "{{count}} observations"
+  },
+  "alerts": {
+    "title": "Tracking alerts",
+    "type": {
+      "UNAUTHORIZED_AREA": "Unauthorized area",
+      "RESTRICTED_AREA": "Restricted area"
+    },
+    "status": {
+      "OPEN": "Open",
+      "ACKNOWLEDGED": "Acknowledged",
+      "RESOLVED": "Resolved"
+    },
+    "resolution": {
+      "RETURNED": "Returned to an allowed area",
+      "AREAS_CHANGED": "Allowed areas changed",
+      "CHECKED_OUT": "Checked out",
+      "MANUAL": "Resolved by staff"
+    },
+    "tabs": {
+      "label": "Alerts",
+      "active": "Active",
+      "day": "By day"
+    },
+    "count_one": "{{formatted}} alert",
+    "count_other": "{{formatted}} alerts",
+    "found_one": "{{count}} alert found",
+    "found_other": "{{count}} alerts found",
+    "date": "Date",
+    "fields": {
+      "host": "Host",
+      "where": "Where",
+      "since": "Since",
+      "lastSeen": "Last seen",
+      "observations": "Observations",
+      "allowedFloors": "Allowed floors",
+      "note": "Note",
+      "acknowledged": "Acknowledged",
+      "resolved": "Resolved"
+    },
+    "whereTo": "to",
+    "byWhom": "\u2068{{name}}\u2069, {{when}}",
+    "automatically": "Automatically, {{when}}",
+    "acknowledge": "Acknowledge",
+    "resolve": "Resolve",
+    "acknowledgeTitle": "Acknowledge the alert for {{name}}?",
+    "resolveTitle": "Resolve the alert for {{name}}?",
+    "note": "Note",
+    "acknowledgedToast": "Alert acknowledged",
+    "resolvedToast": "Alert resolved",
+    "keep": "Cancel",
+    "openJourney": "Open journey",
+    "empty": {
+      "active": "No active alerts",
+      "day": "No alerts on this day"
+    },
+    "loading": "Loading the alerts",
+    "loadError": "The alerts could not be loaded",
+    "noAccess": "No access to tracking alerts",
+    "pagesLabel": "Pages of alerts",
+    "visitAlerts": "Alerts",
+    "noVisitAlerts": "No alerts",
+    "toast": "Alert: {{name}} in {{place}}",
+    "view": "View",
+    "settings": "Alert settings",
+    "sound": "Alert sound",
+    "notifications": "Browser notifications",
+    "notificationsBlocked": "Blocked by the browser",
+    "notificationsUnsupported": "Not supported",
+    "active_one": "{{count}} active alert",
+    "active_other": "{{count}} active alerts",
+    "back": "Back to tracking alerts"
   }
 }

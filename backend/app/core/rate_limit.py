@@ -79,6 +79,8 @@ class PolicyName(StrEnum):
     HOST_ARRIVALS_PER_USER_DAY = "host_arrivals_per_user_day"
     HOST_VISIT_NOTICES_PER_USER_DAY = "host_visit_notices_per_user_day"
     CALENDAR_EMAILS_PER_COMPANY_DAY = "calendar_emails_per_company_day"
+    TRACKING_ALERT_EMAILS_PER_COMPANY_DAY = "tracking_alert_emails_per_company_day"
+    TRACKING_ALERT_NOTICES_PER_VISIT = "tracking_alert_notices_per_visit"
     TEMPLATE_TEST_SENDS_PER_USER = "template_test_sends_per_user"
     PUBLIC_BRAND_IP = "public_brand_ip"
     PUBLIC_BRAND_PREFIX = "public_brand_prefix"
@@ -112,6 +114,15 @@ PASSWORD_NOTICES_PER_HOUR = 5
 # (SEC-42); the key names the day, and the window outlasts any local day (23 to 25 hours).
 STALE_CHECK_OUT_EMPTY_RUNS_PER_DAY = 1
 STALE_CHECK_OUT_EMPTY_RUN_WINDOW_SECONDS = 2 * 24 * 60 * 60
+# The tracking alerts' e-mails of a company in 24 hours (Phase 16, B16-15): each recipient of an opened or
+# escalated alert takes one. Every company's e-mails leave through the one sending mailbox; a noisy provider
+# (or a misplaced camera) must not use up the other companies' day. Beyond it the alert still opens.
+TRACKING_ALERT_EMAILS_PER_COMPANY_DAY = 500
+# The e-mailed openings and escalations of one visit's alerts in an hour (Phase 16, B16-25), whatever their
+# number of recipients: a visitor walking in and out of a forbidden zone, or areas changed back and forth by
+# reception, must not send the addresses and the host one e-mail each time. Beyond it the alert still opens
+# or escalates; only its e-mails are left out.
+TRACKING_ALERT_NOTICES_PER_VISIT_HOUR = 3
 DEFAULT_MAX_NETWORK_BUCKETS = 100_000
 DEFAULT_MAX_EMAIL_BUCKETS = 100_000
 CAPACITY_WARNING_INTERVAL_SECONDS = 60
@@ -196,6 +207,8 @@ class RatePolicies:
     host_arrivals_per_user_day: RatePolicy
     host_visit_notices_per_user_day: RatePolicy
     calendar_emails_per_company_day: RatePolicy
+    tracking_alert_emails_per_company_day: RatePolicy
+    tracking_alert_notices_per_visit: RatePolicy
     template_test_sends_per_user: RatePolicy
     public_brand_ip: RatePolicy
     public_brand_prefix: RatePolicy
@@ -358,6 +371,17 @@ class RatePolicies:
                 PolicyName.CALENDAR_EMAILS_PER_COMPANY_DAY,
                 settings.calendar_email_company_daily_limit,
                 24 * 60 * 60,
+            ),
+            # Not in §7.3 (Phase 16, B16-15): the tracking alerts' e-mails per company and 24 hours.
+            tracking_alert_emails_per_company_day=RatePolicy(
+                PolicyName.TRACKING_ALERT_EMAILS_PER_COMPANY_DAY,
+                TRACKING_ALERT_EMAILS_PER_COMPANY_DAY,
+                24 * 60 * 60,
+            ),
+            # Not in §7.3 (Phase 16, B16-25): the e-mailed openings and escalations of a visit's alerts per
+            # hour, keyed by the visit (visits exist: bounded), like `reschedule_notices_per_visit`.
+            tracking_alert_notices_per_visit=RatePolicy(
+                PolicyName.TRACKING_ALERT_NOTICES_PER_VISIT, TRACKING_ALERT_NOTICES_PER_VISIT_HOUR, 60 * 60
             ),
             # Not in §7.3 (B11-29): test e-mails of a company's edited texts, to the administrator's own
             # address, per administrator and hour.

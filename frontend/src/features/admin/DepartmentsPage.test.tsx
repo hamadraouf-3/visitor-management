@@ -1,11 +1,12 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { i18n } from '../../i18n'
 import { routes } from '../../test/appRoutes'
-import { errorResponse, jsonResponse, makeMe, mockApi, type RecordedRequest } from '../../test/api'
+import { deferred, errorResponse, jsonResponse, makeMe, mockApi, type RecordedRequest, type RouteHandler } from '../../test/api'
 import { FINANCE, LEGAL } from '../../test/fixtures'
 import { renderRoutes } from '../../test/render'
 import type { Department, DepartmentCreate, DepartmentUpdate, Me } from '../../types/api'
+import { alertSummaryRoute, FLOOR_3, FLOOR_4, GROUND, makeLocationTree, makeTrackedMe, TOWER } from '../journey/testRoutes'
 
 const ARCHIVE: Department = { ...FINANCE, id: '7f0d1c0e-2222-4a5b-9c1d-0000000000aa', name: 'Archive', is_active: false }
 
@@ -39,7 +40,7 @@ function nameTaken(departments: Department[], body: { name?: string; name_ar?: s
   return null
 }
 
-function setup(initial: Department[] = [FINANCE, LEGAL, ARCHIVE], path = '/admin/departments', me: Me = ADMIN) {
+function setup(initial: Department[] = [FINANCE, LEGAL, ARCHIVE], path = '/admin/departments', me: Me = ADMIN, extra: Record<string, RouteHandler> = {}) {
   let departments = [...initial]
   const api = mockApi({
     'GET /auth/me': () => jsonResponse(me),
@@ -65,6 +66,7 @@ function setup(initial: Department[] = [FINANCE, LEGAL, ARCHIVE], path = '/admin
         },
       ]),
     ),
+    ...extra,
   })
   /** A department another administrator added after this page loaded its list. */
   const addElsewhere = (department: Department) => {
@@ -312,5 +314,138 @@ describe('Departments', () => {
 
     await i18n.changeLanguage('en')
     await waitFor(() => expect(rowNames(screen.getByRole('table', { name: 'Departments' }))).toEqual(['Administrationالإدارة', 'Financeالمالية', 'Legal']))
+  })
+})
+
+/** A tracked company's administrator (Phase 16): its departments have a floor, chosen in their rows. */
+const TRACKED_ADMIN = makeTrackedMe(['SYSTEM_ADMIN'])
+
+/** A department's floor as the API gives it. */
+const floorOf = (floor: typeof FLOOR_3, isActive = true): NonNullable<Department['floor']> => ({ ...floor, building: TOWER, is_active: isActive })
+
+/** The tracked administrator's routes: the places, the alerts' summary, and a PATCH that answers with the chosen floor. */
+function trackedSetup(initial: Department[] = [FINANCE, LEGAL], patch?: RouteHandler) {
+  const floors = [GROUND, FLOOR_3, FLOOR_4]
+  let departments = [...initial]
+  const answer: RouteHandler = (request) => {
+    const id = request.path.split('/').at(-1)!
+    const body = request.body as DepartmentUpdate
+    const floor = body.floor_id ? floorOf(floors.find((one) => one.id === body.floor_id)!) : null
+    departments = departments.map((item) => (item.id === id ? { ...item, floor } : item))
+    return jsonResponse(departments.find((item) => item.id === id))
+  }
+  return setup(initial, '/admin/departments', TRACKED_ADMIN, {
+    'GET /departments': () => jsonResponse(departments),
+    'GET /locations': () => jsonResponse(makeLocationTree()),
+    ...alertSummaryRoute(),
+    ...Object.fromEntries(initial.map((department) => [`PATCH /departments/${department.id}`, patch ?? answer])),
+  })
+}
+
+describe('Departments: a department’s floor (Phase 16)', () => {
+  it('has no floor column, and asks for no places, while the company’s tracking is not allowed', async () => {
+    const { requests } = setup()
+    const table = await screen.findByRole('table', { name: 'Departments' })
+    expect(within(table).queryByRole('columnheader', { name: 'Floor' })).toBeNull()
+    expect(within(table).queryByRole('combobox')).toBeNull()
+    expect(requests.some((request) => request.path === '/locations')).toBe(false)
+  })
+
+  it('chooses a department’s floor in its row, saved at once, and clears it', async () => {
+    const { requests, user } = trackedSetup()
+    const table = await screen.findByRole('table', { name: 'Departments' })
+    expect(within(table).getByRole('columnheader', { name: 'Floor' })).toBeInTheDocument()
+    const finance = within(table).getByRole('combobox', { name: 'Floor of Finance' })
+    expect(finance).toHaveValue('')
+    // The active floors by level (one building: no group), after "No floor".
+    await waitFor(() => expect(within(finance).getAllByRole('option').map((option) => option.textContent)).toEqual(['No floor', 'Ground floor', 'Floor 3', 'Floor 4']))
+    expect(finance.querySelector('optgroup')).toBeNull()
+
+    await user.selectOptions(finance, 'Floor 3')
+    await waitFor(() => expect(writes(requests).map((request) => request.body)).toEqual([{ floor_id: FLOOR_3.id }]))
+    expect(await screen.findByText('Floor of Finance saved')).toBeInTheDocument()
+    await waitFor(() => expect(within(table).getByRole('combobox', { name: 'Floor of Finance' })).toHaveValue(FLOOR_3.id))
+
+    await user.selectOptions(within(table).getByRole('combobox', { name: 'Floor of Finance' }), 'No floor')
+    await waitFor(() => expect(writes(requests).map((request) => request.body)).toEqual([{ floor_id: FLOOR_3.id }, { floor_id: null }]))
+    await waitFor(() => expect(within(table).getByRole('combobox', { name: 'Floor of Finance' })).toHaveValue(''))
+  })
+
+  it('keeps a floor that was archived as the current choice, marked', async () => {
+    const archived = floorOf({ id: 'f1000000-0000-4000-8000-000000000009', name: 'Floor 9', name_ar: null, level: 9 }, false)
+    trackedSetup([{ ...FINANCE, floor: archived }, LEGAL])
+    const finance = await screen.findByRole('combobox', { name: 'Floor of Finance' })
+    expect(finance).toHaveValue(archived.id)
+    await waitFor(() => expect(within(finance).getByRole('option', { name: 'Floor 9 (archived)' })).toBeInTheDocument())
+    expect(screen.getByRole('combobox', { name: 'Floor of Legal' })).toHaveValue('')
+  })
+
+  it('groups the floors by building when the company has several', async () => {
+    const annex = { id: 'b2000000-0000-4000-8000-000000000002', name: 'Annex', name_ar: 'الملحق' }
+    const tree = makeLocationTree()
+    const second = { ...tree.buildings[0]!, ...annex, floors: [{ ...tree.buildings[0]!.floors[0]!, id: 'f2000000-0000-4000-8000-000000000001', building_id: annex.id, name: 'Annex ground', zones: [] }] }
+    setup([FINANCE], '/admin/departments', TRACKED_ADMIN, {
+      // By name, as the server orders them.
+      'GET /locations': () => jsonResponse(makeLocationTree([second, tree.buildings[0]!])),
+      ...alertSummaryRoute(),
+    })
+    const finance = await screen.findByRole('combobox', { name: 'Floor of Finance' })
+    await waitFor(() => expect(finance.querySelectorAll('optgroup')).toHaveLength(2))
+    expect([...finance.querySelectorAll('optgroup')].map((group) => group.label)).toEqual(['Annex', 'North Tower'])
+  })
+
+  it('keeps the focus on the select while it saves: busy, never disabled (F16-45)', async () => {
+    const held = deferred<Response>()
+    const { user } = trackedSetup([FINANCE, LEGAL], () => held.promise)
+    const finance = await screen.findByRole('combobox', { name: 'Floor of Finance' })
+    await waitFor(() => expect(within(finance).getAllByRole('option')).toHaveLength(4))
+    act(() => finance.focus())
+    await user.selectOptions(finance, 'Floor 3')
+    await waitFor(() => expect(finance).toHaveAttribute('aria-busy', 'true'))
+    expect(finance).toHaveAttribute('aria-disabled', 'true')
+    expect(finance).toBeEnabled()
+    expect(finance).toHaveValue(FLOOR_3.id)
+    expect(finance).toHaveFocus()
+    // Another choice meanwhile is ignored: the one being saved stays shown.
+    await user.selectOptions(finance, 'Floor 4')
+    expect(finance).toHaveValue(FLOOR_3.id)
+    held.resolve(jsonResponse({ ...FINANCE, floor: floorOf(FLOOR_3) }))
+    expect(await screen.findByText('Floor of Finance saved')).toBeInTheDocument()
+    expect(finance).toHaveFocus()
+  })
+
+  it('shows the saved floor at once, not the list’s old one until it is asked again (F16-45)', async () => {
+    const held = deferred<Response>()
+    let saved = false
+    const { user } = setup([FINANCE, LEGAL], '/admin/departments', TRACKED_ADMIN, {
+      'GET /departments': () => (saved ? held.promise : jsonResponse([FINANCE, LEGAL])),
+      'GET /locations': () => jsonResponse(makeLocationTree()),
+      ...alertSummaryRoute(),
+      [`PATCH /departments/${FINANCE.id}`]: () => {
+        saved = true
+        return jsonResponse({ ...FINANCE, floor: floorOf(FLOOR_3) })
+      },
+    })
+    const finance = await screen.findByRole('combobox', { name: 'Floor of Finance' })
+    await waitFor(() => expect(within(finance).getAllByRole('option')).toHaveLength(4))
+    await user.selectOptions(finance, 'Floor 3')
+    expect(await screen.findByText('Floor of Finance saved')).toBeInTheDocument()
+    // The list's refetch has not answered yet.
+    expect(screen.getByRole('combobox', { name: 'Floor of Finance' })).toHaveValue(FLOOR_3.id)
+    held.resolve(jsonResponse([{ ...FINANCE, floor: floorOf(FLOOR_3) }, LEGAL]))
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Floor of Finance' })).toHaveValue(FLOOR_3.id))
+  })
+
+  it('says why a floor could not be saved, and shows the saved one again', async () => {
+    const { user } = trackedSetup([FINANCE, LEGAL], () =>
+      errorResponse(422, 'VALIDATION_ERROR', 'Please correct the highlighted fields.', { fields: { floor_id: 'This location is archived.' }, field_codes: { floor_id: { code: 'location_archived', params: {} } } }),
+    )
+    const finance = await screen.findByRole('combobox', { name: 'Floor of Finance' })
+    await waitFor(() => expect(within(finance).getAllByRole('option')).toHaveLength(4))
+    await user.selectOptions(finance, 'Floor 4')
+    const toast = await screen.findByText('The floor of Finance could not be saved')
+    expect(toast.parentElement).toHaveTextContent('This location is archived.')
+    expect(toast.parentElement).not.toHaveTextContent('highlighted')
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Floor of Finance' })).toHaveValue(''))
   })
 })

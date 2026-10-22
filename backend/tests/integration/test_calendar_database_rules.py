@@ -19,7 +19,7 @@ from sqlalchemy.pool import NullPool
 from tests.integration.test_migrations import _downgrade_racing
 from tests.support import BACKEND_DIR, ThrowawayDatabase, World, alembic_config
 
-HEAD = "0018"
+HEAD = "0020"
 HOST_KINDS = ("HOST_VISIT_SCHEDULED", "HOST_VISIT_RESCHEDULED", "HOST_VISIT_CANCELLED")
 COMPANY_ID = "00000000-0000-0000-0000-000000000016"
 NEW_COMPANY = "INSERT INTO companies (id, name, slug, timezone) VALUES (:id, :name, :slug, 'UTC')"

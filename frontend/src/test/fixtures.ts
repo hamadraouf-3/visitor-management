@@ -13,6 +13,7 @@ export const FINANCE: Department = {
   is_active: true,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
+  floor: null,
 }
 export const LEGAL: Department = { ...FINANCE, id: '7f0d1c0e-2222-4a5b-9c1d-000000000099', name: 'Legal' }
 
@@ -79,10 +80,11 @@ export function makeVisit({ invitation, pass, permissions, ...overrides }: Visit
       ...invitation,
     },
     last_notice: null,
+    access_areas: { floors: [], zones: [] },
     calendar_sequence: 0,
     visitor_calendar_sent: false,
     pass: { status: 'ACTIVE', issued_at: '2026-10-05T06:10:00Z', revoke_reason: null, ...pass },
-    permissions: { can_edit: true, can_cancel: true, can_resend: true, can_check_in: false, can_check_out: false, ...permissions },
+    permissions: { can_edit: true, can_cancel: true, can_resend: true, can_check_in: false, can_check_out: false, can_edit_access_areas: true, ...permissions },
     ...overrides,
   }
 }

@@ -23,6 +23,7 @@ import { paths } from '../../paths'
 import type { Me, Visit } from '../../types/api'
 import { formatDateAtTime } from '../../utils/datetime'
 import { focusPageHeading, isFocusLost } from '../../utils/focus'
+import { AllowedAreasCard } from '../accessAreas/AllowedAreasCard'
 import { EditVisitorDialog } from '../visitors/EditVisitorDialog'
 import { AddToCalendar } from './AddToCalendar'
 import { CancelVisitDialog } from './CancelVisitDialog'
@@ -396,6 +397,10 @@ export function VisitDetail({ visitId, me }: VisitDetailProps) {
             announce={newPass === null || !newPass.emailed}
           />
           <PassCard visit={visit} timeZone={timeZone} onIssuePass={canIssuePassLink(visit) ? () => setDialog('issue-pass') : undefined} />
+          {/* Phase 16: only while the company's tracking is allowed (nothing reads the areas otherwise). */}
+          {me.company.tracking_allowed && (
+            <AllowedAreasCard visitId={visit.id} visitorName={visit.visitor.full_name} areas={visit.access_areas} canEdit={visit.permissions.can_edit_access_areas} />
+          )}
         </div>
         <div className="min-w-0 lg:col-span-2 lg:row-start-2">
           <VisitTimelineCard visit={visit} timeZone={timeZone} />

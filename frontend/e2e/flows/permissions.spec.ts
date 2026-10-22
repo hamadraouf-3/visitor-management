@@ -19,6 +19,8 @@ const ALL_LINKS = [
   'Inside now',
   // Phase 15: administrators, management and reception; never a host.
   'Visitor Journey',
+  // Phase 16: the same people.
+  'Tracking alerts',
   'Visit history',
   'Reports',
   'Dashboard',
@@ -45,7 +47,7 @@ async function expectRedirects(page: Page, paths: readonly string[], landing: Re
   }
 }
 
-async function expectForbidden(api: Api, requests: readonly (readonly [method: 'GET' | 'POST' | 'PATCH', path: string, body?: unknown])[]) {
+async function expectForbidden(api: Api, requests: readonly (readonly [method: 'GET' | 'POST' | 'PATCH' | 'PUT', path: string, body?: unknown])[]) {
   for (const [method, path, body] of requests) {
     expect((await api.fails(method, path, 403, body)).error.code, `${method} ${path}`).toBe('FORBIDDEN')
   }
@@ -80,7 +82,7 @@ test.describe('permission violations per role', () => {
     await page.goto('/')
     await expect(page).toHaveURL(/\/visits$/)
     await expectNavigation(page, ['My visits', 'Invite visitor', 'Visitors'])
-    await expectRedirects(page, ['/reception', '/history', '/inside', '/journey', '/reports', '/admin', '/admin/users', '/admin/audit', '/admin/settings', '/admin/email-templates', '/admin/tracking'], /\/visits$/)
+    await expectRedirects(page, ['/reception', '/history', '/inside', '/journey', '/journey/alerts', '/reports', '/admin', '/admin/users', '/admin/audit', '/admin/settings', '/admin/email-templates', '/admin/tracking'], /\/visits$/)
     await page.goto(`/visits/${foreign.visit.id}`)
     await expect(page.getByRole('heading', { level: 1, name: 'Visit not found' })).toBeVisible()
     await page.goto(`/visitors/${foreign.visit.visitor.id}`)
@@ -100,8 +102,16 @@ test.describe('permission violations per role', () => {
       // Phase 15: a host reads no journey, not even the tracking's status.
       ['GET', '/journeys'],
       ['GET', '/tracking/status'],
-      ['GET', '/locations'],
+      // Phase 16: nor the live map or the tracking alerts.
+      ['GET', '/journeys/live'],
+      ['GET', '/tracking/alerts'],
+      ['GET', '/tracking/alerts/summary'],
     ])
+    // Phase 16: a host reads the company's places, the active ones only (the invitation's allowed areas).
+    const places = await api.ok<{ buildings: { is_active: boolean; floors: { is_active: boolean; zones: { is_active: boolean }[] }[] }[] }>('GET', '/locations')
+    expect(places.buildings.length).toBeGreaterThan(0)
+    const everyPlace = places.buildings.flatMap((building) => [building, ...building.floors, ...building.floors.flatMap((floor) => floor.zones)])
+    expect(everyPlace.every((place) => place.is_active)).toBe(true)
     // Denials are recorded (§7.4).
     const me = await api.me()
     const denied = await (await apiAs('admin')).auditLogs({ action: 'ACCESS_DENIED', actor_user_id: me.user.id })
@@ -112,7 +122,7 @@ test.describe('permission violations per role', () => {
     const { page, api } = await open({ as: 'reception' })
     await page.goto('/')
     await expect(page).toHaveURL(/\/reception$/)
-    await expectNavigation(page, ['Reception', 'Visitors', 'Inside now', 'Visitor Journey', 'Visit history'])
+    await expectNavigation(page, ['Reception', 'Visitors', 'Inside now', 'Visitor Journey', 'Tracking alerts', 'Visit history'])
     await expectRedirects(page, ['/visits', '/visits/new', '/reports', '/admin', '/admin/departments', '/admin/audit', '/admin/tracking'], /\/reception$/)
     const now = Date.now()
     await expectForbidden(api, [
@@ -138,7 +148,7 @@ test.describe('permission violations per role', () => {
     const { page, api } = await open({ as: 'management' })
     await page.goto('/')
     await expect(page).toHaveURL(/\/reports$/)
-    await expectNavigation(page, ['Visitors', 'Inside now', 'Visitor Journey', 'Visit history', 'Reports'])
+    await expectNavigation(page, ['Visitors', 'Inside now', 'Visitor Journey', 'Tracking alerts', 'Visit history', 'Reports'])
     await expectRedirects(page, ['/reception', '/visits', '/visits/new', '/admin', '/admin/users', '/admin/tracking'], /\/reports$/)
     // Read-only: the visit opens, without any action.
     await page.goto(`/visits/${visit.visit.id}`)
@@ -165,6 +175,10 @@ test.describe('permission violations per role', () => {
       ['POST', `/visits/${visit.visit.id}/tracking/enroll`, { camera_id: visit.visit.id }],
       ['POST', `/visits/${visit.visit.id}/tracking/revoke`],
       ['PATCH', '/tracking/settings', { enabled: false }],
+      // Phase 16: management reads the alerts and changes neither an alert nor a visit's areas.
+      ['POST', `/tracking/alerts/${visit.visit.id}/acknowledge`, {}],
+      ['POST', `/tracking/alerts/${visit.visit.id}/resolve`, {}],
+      ['PUT', `/visits/${visit.visit.id}/access-areas`, { floor_ids: [], zone_ids: [] }],
     ])
     expect((await host.visit(visit.visit.id)).status).toBe('SCHEDULED')
   })
@@ -185,6 +199,7 @@ test.describe('permission violations per role', () => {
       ['/history', 'Visit history'],
       ['/inside', 'Inside now'],
       ['/journey', 'Visitor Journey'],
+      ['/journey/alerts', 'Tracking alerts'],
       ['/admin/tracking', 'Visitor tracking'],
       ['/visits', 'My visits'],
       ['/visits/new', 'Invite visitor'],

@@ -354,6 +354,14 @@ class LocationInUse(AppError):
     default_message = "Archive the floors, zones and cameras in it first."
 
 
+class AlertResolved(AppError):
+    """A tracking alert that is already resolved cannot be acknowledged (Phase 16, B16-9)."""
+
+    status_code = 409
+    code = "ALERT_RESOLVED"
+    default_message = "This alert is already resolved."
+
+
 # ---- 410 ----------------------------------------------------------------------------------------
 
 

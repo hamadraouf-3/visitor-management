@@ -147,6 +147,11 @@ SUBJECT_SEPARATOR = " | "
 SUBJECT_NAME_MIN = 12
 # Before the subject of a test e-mail of a company's texts (B11-29), in the language that leads it.
 TEST_SUBJECT_PREFIX = {Language.AR: "[رسالة تجريبية] ", Language.EN: "[Test] "}
+# Before the subject of a tracking alert the simulator raised (Phase 16, B16-12).
+SIMULATED_SUBJECT_PREFIX = {Language.AR: "[محاكاة] ", Language.EN: "[Simulated] "}
+# Where a tracking alert's button leads (B16-14): the visitor's journey (the company's alert addresses), or
+# the visit's page (the host, who may not open journeys).
+type AlertLink = Literal["journey", "visit"]
 LANGUAGES = (Language.AR, Language.EN)
 # The host's three e-mails of a scheduled visit (B14-2): the catalog's prefix of each, and the iTIP method
 # of the event it carries.
@@ -502,6 +507,23 @@ def build_test_email(
         reply_to=sanitize_header(reply_to) if reply_to else None,
         inline_images=(qr_image, *identity.images),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class AlertFacts:
+    """What a tracking alert's e-mail says (B16-14), per language where it differs. Names, places and
+    times only: never a pass link, a token, a tracking reference or a key."""
+
+    alert_type: str  # TrackingAlertType
+    simulated: bool
+    visitor_name: str
+    visitor_company_name: str | None
+    host_name: str
+    place: dict[Language, str]  # building > floor > zone, in that language's names
+    restricted: bool  # the zone is RESTRICTED: said beside the place
+    seen_at: datetime
+    allowed_floors: dict[Language, str | None]  # the floors' names, None when there are none
+    allowed_zones: dict[Language, str | None]  # the extra zones' names, None when there are none
 
 
 @dataclass(frozen=True, slots=True)
@@ -1247,6 +1269,83 @@ class EmailService:
             rendered=rendered,
             reply_to=reply_to,
             recipient_user_id=recipient.id,
+            identity=self.identity_of(company),
+            sender=self._sender(company, lead),
+        )
+
+    # ---- tracking alerts (Phase 16, B16-14) -----------------------------------------------------
+
+    def queue_tracking_alert(
+        self,
+        alert: AlertFacts,
+        *,
+        company: Company,
+        to: str,
+        language: str | None,
+        link: AlertLink,
+        visit_id: uuid.UUID,
+        recipient_user_id: uuid.UUID | None = None,
+    ) -> DeliveryJob:
+        """A visitor seen outside the visit's allowed areas, or in a restricted zone: the visitor, the
+        host, where (building > floor > zone, with "Restricted" beside a restricted one), when (the company's
+        time zone), the visit's allowed floors (or "Not set") and a button. `link` "journey" opens the
+        visitor's journey (the company's alert addresses), "visit" the visit's page (the host: B15-13 gives
+        a host who is only an employee no journey). In `language` (the host's preference) or the company's
+        language, the subject in that language only (B10-9), after "[Simulated] " for the simulator's.
+        Product texts, not editable (B11-21)."""
+        lead = as_language(language, company.default_language)
+        reply_to = self.settings.email_reply_to
+        page = "journey" if link == "journey" else "visits"
+        link_url = company_link(f"{self.settings.app_base_url}/{page}/{visit_id}", company.slug)
+        zone = company.timezone
+        seen_at = {
+            lang: f"{_date_time(alert.seen_at, zone, lang)} ({timezone_label(alert.seen_at, zone, lang)})"
+            for lang in LANGUAGES
+        }
+        where = {
+            lang: alert.place[lang]
+            + (f" ({translate(lang, 'alert.restricted')})" if alert.restricted else "")
+            for lang in LANGUAGES
+        }
+        not_set = alert.allowed_floors[Language.EN] is None and alert.allowed_zones[Language.EN] is None
+        floors = {
+            lang: translate(lang, "alert.not_set") if not_set else alert.allowed_floors[lang]
+            for lang in LANGUAGES
+        }
+        prefix = SIMULATED_SUBJECT_PREFIX[lead] if alert.simulated else ""
+        rendered = self.renderer.render(
+            "tracking_alert",
+            subject=prefixed(
+                prefix,
+                cut_at_its_end(
+                    translate(lead, f"alert.subject.{alert.alert_type}", visitor=one_line(alert.visitor_name))
+                ),
+            ),
+            language=lead,
+            context={
+                **self._company_context(company, has_reply_to=reply_to is not None),
+                "alert_type": alert.alert_type,
+                "simulated": alert.simulated,
+                "visitor_name": one_line(alert.visitor_name),
+                "visitor_company_name": one_line(alert.visitor_company_name),
+                "host_name": one_line(alert.host_name),
+                "place": alert.place,
+                "where": where,
+                "seen_at": seen_at,
+                "allowed_floors": floors,
+                "allowed_zones": alert.allowed_zones,
+                "link_url": link_url,
+                "link_kind": link,
+            },
+        )
+        return self._queue(
+            kind=EmailKind.TRACKING_ALERT,
+            company_id=company.id,
+            to=to,
+            rendered=rendered,
+            reply_to=reply_to,
+            recipient_user_id=recipient_user_id,
+            visit_id=visit_id,
             identity=self.identity_of(company),
             sender=self._sender(company, lead),
         )

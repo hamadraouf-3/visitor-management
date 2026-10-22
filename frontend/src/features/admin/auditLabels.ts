@@ -97,6 +97,12 @@ const ACTION_GROUP_CODES = [
       'TRACKING_CAMERA_UPDATED',
       'LOCATION_CREATED',
       'LOCATION_UPDATED',
+      // Phase 16: a visit's allowed areas, and the area alerts (opened and escalated by the system, acknowledged and resolved by staff or the system).
+      'VISIT_ACCESS_AREAS_CHANGED',
+      'TRACKING_ALERT_OPENED',
+      'TRACKING_ALERT_ESCALATED',
+      'TRACKING_ALERT_ACKNOWLEDGED',
+      'TRACKING_ALERT_RESOLVED',
     ],
   },
 ] as const satisfies readonly { key: string; actions: readonly string[] }[]

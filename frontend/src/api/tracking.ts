@@ -7,7 +7,14 @@ import type {
   FloorUpdate,
   JourneyListParams,
   JourneyPage,
+  LiveJourneyParams,
+  LiveJourneys,
   LocationTree,
+  TrackingAlert,
+  TrackingAlertAction,
+  TrackingAlertListParams,
+  TrackingAlertPage,
+  TrackingAlertSummary,
   TrackingCamera,
   TrackingCameraCreate,
   TrackingCameraListParams,
@@ -120,6 +127,11 @@ export function listJourneys(params: JourneyListParams, options?: CallOptions): 
   return apiRequest('/journeys', { ...options, query: params })
 }
 
+/** Phase 16: every visitor inside now, with the place a confirmed observation gave (in one building, those without a place always). */
+export function getLiveJourneys(params: LiveJourneyParams = {}, options?: CallOptions): Promise<LiveJourneys> {
+  return apiRequest('/journeys/live', { ...options, query: params })
+}
+
 /** Opening a journey is audited by the server (one entry per person, visit and hour). */
 export function getVisitJourney(visitId: string, options?: CallOptions): Promise<VisitJourney> {
   return apiRequest(`/visits/${segment(visitId)}/journey`, options)
@@ -133,4 +145,26 @@ export function enrollVisit(visitId: string, body: TrackingEnrollRequest, option
 /** Idempotent: nothing running leaves the journey as it is. */
 export function revokeVisitTracking(visitId: string, options?: CallOptions): Promise<VisitJourney> {
   return apiRequest(`/visits/${segment(visitId)}/tracking/revoke`, { ...options, method: 'POST' })
+}
+
+/* Alerts (Phase 16) ------------------------------------------------------------------------------- */
+
+/** Administrators, management and reception: the active alerts (any day), or those opened on a day. */
+export function listTrackingAlerts(params: TrackingAlertListParams = {}, options?: CallOptions): Promise<TrackingAlertPage> {
+  return apiRequest('/tracking/alerts', { ...options, query: params })
+}
+
+/** The counts the shell polls; zeros while tracking is off. */
+export function getTrackingAlertSummary(options?: CallOptions): Promise<TrackingAlertSummary> {
+  return apiRequest('/tracking/alerts/summary', options)
+}
+
+/** Reception and administrators; idempotent. A resolved alert → 409 `ALERT_RESOLVED`. */
+export function acknowledgeTrackingAlert(id: string, body: TrackingAlertAction = {}, options?: CallOptions): Promise<TrackingAlert> {
+  return apiRequest(`/tracking/alerts/${segment(id)}/acknowledge`, { ...options, method: 'POST', body })
+}
+
+/** Reception and administrators; idempotent. */
+export function resolveTrackingAlert(id: string, body: TrackingAlertAction = {}, options?: CallOptions): Promise<TrackingAlert> {
+  return apiRequest(`/tracking/alerts/${segment(id)}/resolve`, { ...options, method: 'POST', body })
 }

@@ -125,8 +125,15 @@ class AuditAction(StrEnum):
     LOCATION_UPDATED = "LOCATION_UPDATED"
     JOURNEY_VIEWED = "JOURNEY_VIEWED"  # coalesced: one row per user and visit per hour
     # GET /journeys whose answer shows at least one location; coalesced: one row per user per hour
-    # (B15-31). `day`, `located` (how many rows of that answer showed one).
+    # (B15-31). `day`, `located` (how many rows of that answer showed one). Also GET /journeys/live
+    # (Phase 16, B16-11): `view` LIVE and `located`, in the same hourly window.
     JOURNEY_LIST_VIEWED = "JOURNEY_LIST_VIEWED"
+    # Allowed areas and area alerts (Phase 16, B16-16): filed on the visit; IDs and enums only.
+    VISIT_ACCESS_AREAS_CHANGED = "VISIT_ACCESS_AREAS_CHANGED"  # added / removed floor and zone IDs
+    TRACKING_ALERT_OPENED = "TRACKING_ALERT_OPENED"  # by the system (an observation) or an areas change
+    TRACKING_ALERT_ESCALATED = "TRACKING_ALERT_ESCALATED"  # UNAUTHORIZED_AREA -> RESTRICTED_AREA
+    TRACKING_ALERT_ACKNOWLEDGED = "TRACKING_ALERT_ACKNOWLEDGED"
+    TRACKING_ALERT_RESOLVED = "TRACKING_ALERT_RESOLVED"  # `resolution`; no actor: the system
 
 
 class AuditEntity(StrEnum):

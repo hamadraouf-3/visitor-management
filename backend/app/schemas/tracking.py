@@ -9,12 +9,13 @@
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import Field, StringConstraints, ValidationError, model_validator
+from pydantic import AfterValidator, Field, StringConstraints, ValidationError, model_validator
 from pydantic_core import InitErrorDetails
 
 from app.core.field_errors import FieldCode, FieldProblem, FieldValueError
 from app.models.enums import ObservationMatch
 from app.models.tracking import (
+    ALERT_EMAILS_MAX,
     CAMERA_NAME_MAX_LENGTH,
     KEY_LABEL_MAX_LENGTH,
     MODEL_VERSION_MAX_LENGTH,
@@ -26,6 +27,7 @@ from app.schemas.common import (
     NO_BIDI_CONTROLS,
     ONE_LINE,
     TRIMMED,
+    EmailAddress,
     NotNull,
     QueryModel,
     RequestDatetime,
@@ -69,6 +71,16 @@ KeyLabel = Annotated[
 ]
 StaleAfterMinutes = Annotated[int, Field(ge=1, le=STALE_AFTER_MINUTES_MAX)]
 RetentionDays = Annotated[int, Field(ge=1, le=RETENTION_DAYS_MAX)]
+
+
+def _distinct(addresses: list[str]) -> list[str]:
+    """In the order given, each address once (they are already lower case: `EmailAddress`)."""
+    return list(dict.fromkeys(addresses))
+
+
+# The company's alert addresses (Phase 16, B16-13): at most ALERT_EMAILS_MAX valid addresses, stored lower
+# case and once each. A bad one is answered at its own path (`alert_emails.<index>`).
+AlertEmails = Annotated[list[EmailAddress], Field(max_length=ALERT_EMAILS_MAX), AfterValidator(_distinct)]
 
 
 # ---- status and settings -------------------------------------------------------------------------
@@ -115,6 +127,10 @@ class TrackingSettings(ResponseModel):
     stale_after_minutes: int
     retention_days: int
     health: TrackingHealth
+    # Area alerts (Phase 16, B16-13): evaluated at all; e-mailed to the visit's host; e-mailed to these.
+    area_alerts_enabled: bool
+    alert_notify_host: bool
+    alert_emails: list[str]
 
 
 class TrackingSettingsUpdate(RequestModel):
@@ -124,6 +140,9 @@ class TrackingSettingsUpdate(RequestModel):
     min_confidence: Confidence | None = None
     stale_after_minutes: Annotated[StaleAfterMinutes | None, NotNull] = None
     retention_days: Annotated[RetentionDays | None, NotNull] = None
+    area_alerts_enabled: Annotated[bool | None, NotNull] = None
+    alert_notify_host: Annotated[bool | None, NotNull] = None
+    alert_emails: Annotated[AlertEmails | None, NotNull] = None
 
 
 # ---- keys ----------------------------------------------------------------------------------------------

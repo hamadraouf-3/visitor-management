@@ -8,6 +8,7 @@ import { FINANCE, LEGAL, makeVisit, makeVisitor, VISIT_ID, VISITOR_ID } from '..
 import { i18n } from '../i18n'
 import { findAlert, renderRoutes } from '../test/render'
 import type { Role, Visit } from '../types/api'
+import { FLOOR_3, FLOOR_3_AREAS, FLOOR_4, makeLocationTree, makeTower, makeTrackedMe, MEETING, NO_AREAS, OPEN_OFFICE, SERVER_ROOM, TOWER } from '../features/journey/testRoutes'
 
 const NOW = new Date('2026-10-05T06:10:00Z') // 09:10 Amman
 const PASS_URL = 'https://visitors.example.com/pass#Yp4_wL0-bR3sU8nO5cM9dZ2aX7fI6kQ1tE-hG_vJl3B'
@@ -1222,5 +1223,142 @@ describe('Add to my calendar', () => {
     expect(await findAlert('The visit could not be loaded')).toBeInTheDocument()
     expect(screen.queryByRole('menu')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Visit details' })).toBeInTheDocument()
+  })
+})
+
+function setupTracked({ visit = makeVisit({ access_areas: FLOOR_3_AREAS }), roles = ['EMPLOYEE'] as Role[], extra = {} }: { visit?: Visit; roles?: Role[]; extra?: Record<string, RouteHandler> } = {}) {
+  const api = mockApi({
+    'GET /auth/me': () => jsonResponse(makeTrackedMe(roles)),
+    [`GET ${DETAIL}`]: () => jsonResponse(visit),
+    'GET /departments': () => jsonResponse([FINANCE, LEGAL]),
+    'GET /locations': () => jsonResponse(makeLocationTree()),
+    ...extra,
+  })
+  return { ...api, ...renderRoutes(routes, { initialEntries: [DETAIL] }) }
+}
+
+const areasCard = () => screen.getByRole('heading', { name: 'Allowed areas' }).closest('section') as HTMLElement
+
+describe('Visit detail: the allowed areas (Phase 16)', () => {
+
+  it('are not shown while the company’s tracking is not allowed', async () => {
+    setup({ visit: makeVisit({ access_areas: FLOOR_3_AREAS }) })
+    await loaded()
+    expect(screen.queryByRole('heading', { name: 'Allowed areas' })).toBeNull()
+  })
+
+  it('shows the visit’s floors and zones, «Not set» without, and an archived one marked', async () => {
+    const areas = { floors: [...FLOOR_3_AREAS.floors, { ...FLOOR_4, building: TOWER, is_active: false }], zones: [{ ...SERVER_ROOM, floor: FLOOR_4, building: TOWER, is_active: true }] }
+    setupTracked({ visit: makeVisit({ access_areas: areas, permissions: { can_edit_access_areas: false } }) })
+    await loaded()
+    expect(areasCard().querySelector(`[data-allowed-floor="${FLOOR_3.id}"]`)).toHaveTextContent('Floor 3')
+    expect(areasCard().querySelector(`[data-allowed-floor="${FLOOR_4.id}"]`)).toHaveTextContent('Floor 4Archived')
+    expect(areasCard().querySelector(`[data-allowed-zone="${SERVER_ROOM.id}"]`)).toHaveTextContent('Floor 4,Server roomRestricted')
+    expect(within(areasCard()).queryByRole('button', { name: 'Edit allowed areas' })).toBeNull()
+  })
+
+  it('says «Not set» when the visit has none', async () => {
+    setupTracked({ visit: makeVisit({ access_areas: NO_AREAS }) })
+    await loaded()
+    expect(areasCard().querySelector('[data-areas-not-set]')).toHaveTextContent('Not set')
+  })
+
+  it('lets the host change them: the same sets close without a request, a change is sent and the visit is shown as answered', async () => {
+    const saved = makeVisit({ access_areas: { floors: FLOOR_3_AREAS.floors, zones: [{ ...SERVER_ROOM, floor: FLOOR_4, building: TOWER, is_active: true }] } })
+    const { user, requests } = setupTracked({ extra: { [`PUT ${DETAIL}/access-areas`]: () => jsonResponse(saved) } })
+    await loaded()
+    await user.click(await within(areasCard()).findByRole('button', { name: 'Edit allowed areas' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Allowed areas of Élodie Martin' })
+    expect(within(dialog).getByRole('checkbox', { name: 'Floor 3' })).toBeChecked()
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(requests.some((request) => request.method === 'PUT')).toBe(false)
+
+    await user.click(within(areasCard()).getByRole('button', { name: 'Edit allowed areas' }))
+    dialog = await screen.findByRole('dialog', { name: 'Allowed areas of Élodie Martin' })
+    await user.type(within(dialog).getByRole('combobox', { name: 'Extra zones' }), 'server')
+    await user.click(await within(await screen.findByRole('listbox')).findByRole('option', { name: /Server room/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(bodyOf(requests, 'PUT', `${DETAIL}/access-areas`)).toEqual({ floor_ids: [FLOOR_3.id], zone_ids: [SERVER_ROOM.id] }))
+    expect(await screen.findByText('Allowed areas saved')).toBeInTheDocument()
+    await waitFor(() => expect(areasCard().querySelector(`[data-allowed-zone="${SERVER_ROOM.id}"]`)).not.toBeNull())
+  })
+
+  it('says a visit that ended meanwhile in the dialog’s own words, not the visit edit’s (409 VISIT_NOT_EDITABLE, F16-42)', async () => {
+    const { user } = setupTracked({ extra: { [`PUT ${DETAIL}/access-areas`]: () => errorResponse(409, 'VISIT_NOT_EDITABLE', 'Only scheduled visits can be changed.') } })
+    await loaded()
+    await user.click(await within(areasCard()).findByRole('button', { name: 'Edit allowed areas' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Allowed areas of Élodie Martin' })
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Floor 4' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert).toHaveTextContent('This visit has ended; its allowed areas can no longer be changed.')
+    expect(alert).not.toHaveTextContent('Only scheduled visits')
+  })
+
+  it('clears a visit whose only allowed area is archived: nothing checked is sent as nothing (F16-42)', async () => {
+    const archivedOnly = { floors: [{ ...FLOOR_4, building: TOWER, is_active: false }], zones: [] }
+    const { user, requests } = setupTracked({
+      visit: makeVisit({ access_areas: archivedOnly }),
+      extra: { [`PUT ${DETAIL}/access-areas`]: () => jsonResponse(makeVisit({ access_areas: NO_AREAS })) },
+    })
+    await loaded()
+    await user.click(await within(areasCard()).findByRole('button', { name: 'Edit allowed areas' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Allowed areas of Élodie Martin' })
+    expect(within(dialog).getAllByRole('checkbox').filter((box) => (box as HTMLInputElement).checked)).toEqual([])
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(bodyOf(requests, 'PUT', `${DETAIL}/access-areas`)).toEqual({ floor_ids: [], zone_ids: [] }))
+    await waitFor(() => expect(areasCard().querySelector('[data-areas-not-set]')).toHaveTextContent('Not set'))
+  })
+
+  it('asks for the places again after a refusal of an archived one, which the picker then neither offers nor sends (F16-43)', async () => {
+    let floor4Active = true
+    const tree = () => {
+      const tower = makeTower()
+      tower.floors[2]!.is_active = floor4Active
+      return makeLocationTree([tower])
+    }
+    const { user, requests } = setupTracked({
+      extra: {
+        'GET /locations': () => jsonResponse(tree()),
+        [`PUT ${DETAIL}/access-areas`]: () => {
+          floor4Active = false
+          return errorResponse(422, 'VALIDATION_ERROR', 'Some fields are invalid.', {
+            fields: { floor_ids: 'This location is archived.' },
+            field_codes: { floor_ids: { code: 'location_archived', params: {} } },
+          })
+        },
+      },
+    })
+    await loaded()
+    await user.click(await within(areasCard()).findByRole('button', { name: 'Edit allowed areas' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Allowed areas of Élodie Martin' })
+    const places = requests.filter((request) => request.path === '/locations').length
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Floor 4' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('This location is archived.')
+    await waitFor(() => expect(requests.filter((request) => request.path === '/locations').length).toBeGreaterThan(places))
+    await waitFor(() => expect(within(dialog).queryByRole('checkbox', { name: 'Floor 4' })).toBeNull())
+    // What is left is the visit's own sets: nothing to send.
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(requests.filter((request) => request.method === 'PUT')).toHaveLength(1)
+  })
+
+  it('moves the focus on from a removed extra zone: to the next chip’s button, then to the search (F16-44)', async () => {
+    const { user } = setupTracked()
+    await loaded()
+    await user.click(await within(areasCard()).findByRole('button', { name: 'Edit allowed areas' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Allowed areas of Élodie Martin' })
+    const search = within(dialog).getByRole('combobox', { name: 'Extra zones' })
+    for (const zone of [MEETING.name, OPEN_OFFICE.name]) {
+      await user.type(search, zone)
+      await user.click(await within(await screen.findByRole('listbox')).findByRole('option', { name: new RegExp(zone) }))
+    }
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Floor 3 › Meeting rooms' }))
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Remove Floor 4 › Open office' })).toHaveFocus())
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(search).toHaveFocus())
+    expect(within(dialog).queryByRole('list', { name: 'Extra zones' })).toBeNull()
   })
 })

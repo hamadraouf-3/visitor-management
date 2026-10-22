@@ -58,10 +58,10 @@ describe('departmentOtherName and departmentSearchNames', () => {
 describe('compareDepartmentNames', () => {
   it('orders by the name the UI language shows, digits by value', () => {
     const departments: Department[] = [
-      { id: 'a', name: 'Administration', name_ar: 'الإدارة', is_active: true, created_at: '', updated_at: '' },
-      { id: 'b', name: 'Bookkeeping', name_ar: 'المحاسبة', is_active: true, created_at: '', updated_at: '' },
-      { id: 'c', name: 'Team 10', name_ar: null, is_active: true, created_at: '', updated_at: '' },
-      { id: 'd', name: 'Team 9', name_ar: null, is_active: true, created_at: '', updated_at: '' },
+      { id: 'a', name: 'Administration', name_ar: 'الإدارة', is_active: true, created_at: '', updated_at: '', floor: null },
+      { id: 'b', name: 'Bookkeeping', name_ar: 'المحاسبة', is_active: true, created_at: '', updated_at: '', floor: null },
+      { id: 'c', name: 'Team 10', name_ar: null, is_active: true, created_at: '', updated_at: '', floor: null },
+      { id: 'd', name: 'Team 9', name_ar: null, is_active: true, created_at: '', updated_at: '', floor: null },
     ]
     expect(departments.toSorted(compareDepartmentNames('en')).map((department) => department.id)).toEqual(['a', 'b', 'd', 'c'])
     // In Arabic: «الإدارة», «المحاسبة» by their Arabic names; the departments without one by their names.

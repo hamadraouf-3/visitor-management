@@ -30,6 +30,15 @@ STALE.
 "Latest" orders by `observed_at` (then `received_at`, then the row ID), never by arrival: an older
 event that arrives late never replaces a newer one. A location is shown only from a confirmed
 observation; with a null threshold nothing counts as confirmed (B15-12).
+
+**Allowed areas and alerts (Phase 16, B16-4).** A visit's allowed areas are a set of floors and a set of
+extra zones; with neither the areas are "not set". A confirmed location (building, floor, zone) violates
+them (`violation`):
+
+* a COMMON zone, or a zone the visit's zones name: never;
+* a RESTRICTED zone otherwise: RESTRICTED_AREA, whether the areas are set or not;
+* a STANDARD zone on one of the visit's floors: allowed;
+* a STANDARD zone otherwise: UNAUTHORIZED_AREA, only while the visit's areas are set.
 """
 
 import base64
@@ -41,7 +50,13 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from uuid import UUID
 
-from app.models.enums import JourneyEventType, ObservationMatch, TrackingAssociationStatus
+from app.models.enums import (
+    JourneyEventType,
+    ObservationMatch,
+    TrackingAlertType,
+    TrackingAssociationStatus,
+    ZoneAccess,
+)
 
 # ---- placeholders pending real footage (B15-16) ----------------------------------------------------
 # Two confirmed observations this close in time that name different floors make the state UNCERTAIN.
@@ -64,6 +79,16 @@ JOURNEY_LIST_AUDIT_WINDOW = timedelta(minutes=60)
 TIMELINE_LIMIT = 500
 # One JOURNEY_VIEWED audit row per user and visit in this window (B15-19).
 JOURNEY_VIEW_AUDIT_WINDOW = timedelta(minutes=60)
+
+# ---- allowed areas, alerts and the live view (Phase 16, B16-18) ---------------------------------------
+# The floors, and the extra zones, a visit's allowed areas may name.
+ACCESS_AREAS_MAX = 50
+# A visit's journey answers its latest alerts, newest first.
+VISIT_ALERTS_LIMIT = 20
+# The live view answers at most this many visitors inside (newest check-in first), and says so beyond.
+LIVE_VISITORS_LIMIT = 1000
+# The alert summary names the latest open alerts.
+SUMMARY_LATEST_LIMIT = 5
 
 # ---- the ingestion contract (docs/visitor-tracking-integration.md) ----------------------------------
 MAX_EVENTS_PER_BATCH = 100
@@ -284,3 +309,46 @@ def freshness_seconds(observed_at: datetime | None, *, now: datetime) -> int | N
     if observed_at is None:
         return None
     return max(0, int((now - observed_at).total_seconds()))
+
+
+# ---- allowed areas (Phase 16, B16-4) -------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class AccessAreas:
+    """A visit's allowed areas: its floors and its extra zones. Neither: "not set"."""
+
+    floor_ids: frozenset[UUID] = frozenset()
+    zone_ids: frozenset[UUID] = frozenset()
+
+    @property
+    def is_set(self) -> bool:
+        return bool(self.floor_ids or self.zone_ids)
+
+
+NOT_SET = AccessAreas()
+
+
+def violation(
+    *, access: ZoneAccess | str, zone_id: UUID, floor_id: UUID, areas: AccessAreas
+) -> TrackingAlertType | None:
+    """The alert a confirmed location (its zone, of `access`, on `floor_id`) raises under `areas`, or None
+    when the location is allowed (the module's table)."""
+    level = ZoneAccess(access)
+    if level is ZoneAccess.COMMON or zone_id in areas.zone_ids:
+        return None
+    if level is ZoneAccess.RESTRICTED:
+        return TrackingAlertType.RESTRICTED_AREA
+    if floor_id in areas.floor_ids or not areas.is_set:
+        return None
+    return TrackingAlertType.UNAUTHORIZED_AREA
+
+
+def is_allowed(*, access: ZoneAccess | str, zone_id: UUID, floor_id: UUID, areas: AccessAreas) -> bool:
+    return violation(access=access, zone_id=zone_id, floor_id=floor_id, areas=areas) is None
+
+
+def escalates(current: TrackingAlertType | str, new: TrackingAlertType) -> bool:
+    """Whether a violation of type `new` escalates an active alert of type `current`: a visitor already
+    outside the allowed areas who walks into a restricted zone (B16-8). Never the other way round."""
+    return new is TrackingAlertType.RESTRICTED_AREA and current == TrackingAlertType.UNAUTHORIZED_AREA

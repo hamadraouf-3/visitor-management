@@ -1,6 +1,16 @@
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String, UniqueConstraint, func, text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -13,6 +23,13 @@ class Department(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("company_id", "id"),
         CheckConstraint("btrim(name) <> ''", name="name_not_blank"),
         CheckConstraint("name_ar IS NULL OR btrim(name_ar) <> ''", name="name_ar_not_blank"),
+        # The department's floor, of the same company (revision 0019, Phase 16, B16-3).
+        ForeignKeyConstraint(
+            ["company_id", "floor_id"],
+            ["floors.company_id", "floors.id"],
+            name="fk_departments_floor",
+            ondelete="RESTRICT",
+        ),
     )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
@@ -26,6 +43,9 @@ class Department(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )
+    # Where the department works (revision 0019, B16-3): a new visit of the department is allowed on this
+    # floor unless its request names its own areas. An archived floor is skipped, not refused.
+    floor_id: Mapped[uuid.UUID | None] = mapped_column()
 
 
 # Case-insensitive uniqueness per company; services map these names to 409 CONFLICT (fields "name" and

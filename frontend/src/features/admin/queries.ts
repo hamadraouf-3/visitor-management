@@ -10,6 +10,7 @@ import { useEmailTemplatesSource } from './emailTemplatesSource'
 import type {
   AuditLogListParams,
   CompanySettingsUpdate,
+  Department,
   DepartmentCreate,
   DepartmentUpdate,
   EmailTemplate,
@@ -129,11 +130,21 @@ export function useCreateDepartment() {
   return useMutation({ mutationFn: (body: DepartmentCreate) => createDepartment(body), onSuccess: refresh })
 }
 
+/**
+ * Updates a department. The answer is written into every list of departments at once, then they are asked again:
+ * a row (its floor select) shows what was saved, not the list's old copy until the refetch lands (F16-45).
+ */
 export function useUpdateDepartment() {
+  const queryClient = useQueryClient()
   const refresh = useRefreshAfterDepartmentChange()
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: DepartmentUpdate }) => updateDepartment(id, body),
-    onSuccess: refresh,
+    onSuccess: (department) => {
+      queryClient.setQueriesData<Department[]>({ queryKey: queryKeys.departments.all }, (list) =>
+        Array.isArray(list) ? list.map((candidate) => (candidate.id === department.id ? department : candidate)) : list,
+      )
+      refresh()
+    },
   })
 }
 

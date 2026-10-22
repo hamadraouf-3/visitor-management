@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
  */
 
 const SOURCE = fileURLToPath(new URL('../..', import.meta.url))
-const FEATURE_PATHS = ['features/journey', 'features/admin/tracking', 'features/platform/CompanyTrackingCard.tsx', 'api/tracking.ts']
+const FEATURE_PATHS = ['features/journey', 'features/accessAreas', 'features/admin/tracking', 'features/platform/CompanyTrackingCard.tsx', 'api/tracking.ts']
 const FORBIDDEN = /<img\b|<video\b|<canvas\b|<picture\b|getUserMedia|mediaDevices|ImageCapture|createObjectURL|\.toDataURL\(|new Image\(/
 
 function sources(path: string): string[] {

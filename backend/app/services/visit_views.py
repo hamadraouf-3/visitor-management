@@ -36,6 +36,7 @@ from app.repositories.users import UserRepository, UserSummary
 from app.repositories.visitors import VisitorContact, VisitorRepository
 from app.repositories.visits import VisitRecord
 from app.schemas.common import DepartmentRef, InvitationStatus, UserRef
+from app.schemas.locations import VisitAccessAreas
 from app.schemas.reception import InsideVisit, InsideVisitor
 from app.schemas.visits import (
     NoticeKind,
@@ -52,6 +53,7 @@ from app.schemas.visits import (
 )
 from app.security.sessions import AuthContext
 from app.services import visit_rules
+from app.services.access_areas import AccessAreaService
 from app.services.calendar_state import failed_calendar_invitation, holds_event, messages_to
 from app.services.visit_rules import Caller
 
@@ -181,6 +183,8 @@ class VisitViewBuilder:
         notices = messages.latest_notices(company_id, visit_ids)
         passes = PassRepository(self.db).current_for_visits(company_id, visit_ids)
         contacts = VisitorRepository(self.db).contacts(company_id, {visit.visitor_id for visit in visits})
+        # Where each visitor may be (Phase 16, B16-2): three queries whatever the page's size.
+        areas = AccessAreaService(self.db).views(company_id, visit_ids)
         parts = _SharedParts(users)
         day = visit_rules.CompanyDay.at(self.now, self.viewer.timezone)
         views = []
@@ -199,6 +203,7 @@ class VisitViewBuilder:
                 notice=notices.get(visit.id),
                 visitor_pass=passes.get(visit.id),
                 visitor_has_email=contact is not None and contact.email is not None,
+                access_areas=areas[visit.id],
             )
             views.append((view, contact))
         return views
@@ -215,6 +220,7 @@ class VisitViewBuilder:
         notice: LatestEmail | None,
         visitor_pass: CurrentPass | None,
         visitor_has_email: bool,
+        access_areas: VisitAccessAreas,
     ) -> VisitOut:
         """`failed_calendar`: the calendar invitation that followed `invitation` and failed, when nothing
         put the event in the visitor's calendar since (`calendar_state.failed_calendar_invitation`);
@@ -297,6 +303,7 @@ class VisitViewBuilder:
                 ),
             ),
             permissions=parts.permissions(flags),
+            access_areas=access_areas,
         )
 
 
@@ -342,5 +349,6 @@ class _SharedParts:
                 can_resend=flags.can_resend,
                 can_check_in=flags.can_check_in,
                 can_check_out=flags.can_check_out,
+                can_edit_access_areas=flags.can_edit_access_areas,
             )
         return permissions

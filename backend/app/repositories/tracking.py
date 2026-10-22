@@ -9,6 +9,18 @@ key row, then the open associations in ID order. An ingested batch and an expiry
 `FOR KEY SHARE` too, then the key row, then the associations in ID order, then the health rows. Inserting
 an event takes `FOR KEY SHARE` on the rows its foreign keys name (the company among them), which a batch
 already holds; so no writer waits for the company row while it holds a row another writer needs first.
+
+Phase 16 (B16-7) adds the alerts: **a visit before its association, and its alert after it**. An
+ingested batch takes the company row, the key, then **the visits its refs name `FOR KEY SHARE` (ID
+order)**, then its associations (ID order), its contact's health row, then the alerts of those visits; a
+check-out and a change of a visit's allowed areas take the company row, the visit `FOR UPDATE`, its
+association, then its alert; a receptionist's acknowledge or resolve holds only the company row
+(`FOR KEY SHARE`) and the alert. The batch must hold its visits first because an alert's e-mail row refers
+to the visit (its foreign key takes `FOR KEY SHARE` on it): taken only then, after the association, a
+check-out holding the visit and waiting for the association would deadlock with it. Only the holder of
+an association's lock opens or moves its visit's alert, so a batch waiting for an alert while it holds the
+health row waits for nobody who needs that row. The alert itself refers to its association, not to the
+visit row.
 """
 
 from collections.abc import Collection, Sequence
@@ -26,16 +38,23 @@ from app.models import (
     Building,
     CompanyTrackingSettings,
     Floor,
+    TrackingAlert,
     TrackingAssociation,
     TrackingCamera,
     TrackingHealth,
     TrackingHealthCount,
     TrackingKey,
     Visit,
+    VisitAccessArea,
     VisitorJourneyEvent,
     Zone,
 )
-from app.models.enums import JourneyEventType, ObservationMatch, TrackingAssociationStatus
+from app.models.enums import (
+    JourneyEventType,
+    ObservationMatch,
+    TrackingAlertStatus,
+    TrackingAssociationStatus,
+)
 from app.models.tracking import HEALTH_SLOTS
 from app.repositories.locking import RowLock, with_lock
 
@@ -58,6 +77,18 @@ class PlacedZone:
     @property
     def active(self) -> bool:
         return self.zone.is_active and self.floor.is_active and self.building.is_active
+
+
+@dataclass(frozen=True, slots=True)
+class PlacedFloor:
+    """A floor with its building (one row of `LocationRepository.placed_floors`)."""
+
+    floor: Floor
+    building: Building
+
+    @property
+    def active(self) -> bool:
+        return self.floor.is_active and self.building.is_active
 
 
 class LocationRepository:
@@ -112,6 +143,17 @@ class LocationRepository:
             .where(Zone.company_id == company_id, Zone.id.in_(list(zone_ids)))
         ).all()
         return {zone.id: PlacedZone(zone, floor, building) for zone, floor, building in rows}
+
+    def placed_floors(self, company_id: UUID, floor_ids: Collection[UUID]) -> dict[UUID, PlacedFloor]:
+        """Each of `floor_ids` (of the company) with its building."""
+        if not floor_ids:
+            return {}
+        rows = self.db.execute(
+            select(Floor, Building)
+            .join(Building, and_(Building.company_id == Floor.company_id, Building.id == Floor.building_id))
+            .where(Floor.company_id == company_id, Floor.id.in_(list(floor_ids)))
+        ).all()
+        return {floor.id: PlacedFloor(floor, building) for floor, building in rows}
 
     def building_by_name(self, company_id: UUID, name: str) -> Building | None:
         return self.db.scalars(
@@ -443,6 +485,24 @@ class AssociationRepository:
         )
         return {association.visit_id: association for association in self.db.scalars(statement)}
 
+    def hold_visits_of_refs(self, company_id: UUID, refs: Collection[str]) -> None:
+        """The visits of the company's associations among `refs`, `FOR KEY SHARE` in ID order, before their
+        associations (Phase 16, B16-7): an alert's e-mail row refers to its visit, and a check-out holds the
+        visit `FOR UPDATE` before it waits for the association. Held so, a check-out and a batch meet at the
+        visit, in the same order."""
+        if not refs:
+            return
+        visits_of_refs = select(TrackingAssociation.visit_id).where(
+            TrackingAssociation.company_id == company_id, TrackingAssociation.ref.in_(list(refs))
+        )
+        statement = (
+            select(Visit.id)
+            .where(Visit.company_id == company_id, Visit.id.in_(visits_of_refs))
+            .order_by(Visit.id)
+            .with_for_update(read=True, key_share=True)
+        )
+        self.db.execute(statement).all()
+
     def lock_by_refs(self, company_id: UUID, refs: Collection[str]) -> dict[str, TrackingAssociation]:
         """The company's associations among `refs`, locked `FOR UPDATE` in ID order."""
         if not refs:
@@ -601,16 +661,15 @@ class JourneyEventRepository:
             )
         )
 
-    def add(self, values: dict[str, object]) -> bool:
-        """Append one event; False when its (company, provider, provider event ID) is already stored (a
-        retried batch, or the same event in two batches at once)."""
-        inserted = self.db.execute(
+    def add(self, values: dict[str, object]) -> UUID | None:
+        """Append one event; its ID, or None when its (company, provider, provider event ID) is already
+        stored (a retried batch, or the same event in two batches at once)."""
+        return self.db.execute(
             insert(VisitorJourneyEvent)
             .values(**values)
             .on_conflict_do_nothing(constraint="uq_journey_events_provider_event")
             .returning(VisitorJourneyEvent.id)
         ).scalar_one_or_none()
-        return inserted is not None
 
     def timeline(self, company_id: UUID, visit_id: UUID, *, limit: int) -> list[VisitorJourneyEvent]:
         """The visit's most recent `limit` events, oldest first: of associations the provider activated only
@@ -667,3 +726,197 @@ def present_during(start: datetime, end: datetime) -> ColumnElement[bool]:
         Visit.check_in_at < end,
         or_(Visit.check_out_at.is_(None), Visit.check_out_at >= start),
     )
+
+
+# ---- allowed areas (Phase 16, B16-2) ---------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class LiveAreas:
+    """A visit's live allowed areas, as IDs."""
+
+    floor_ids: frozenset[UUID]
+    zone_ids: frozenset[UUID]
+
+
+NO_AREAS = LiveAreas(frozenset(), frozenset())
+
+
+class AccessAreaRepository:
+    """`visit_access_areas`: a visit's allowed floors and extra zones. The runtime role cannot delete, so an
+    area taken away keeps its row with `removed_at` (B16-2); only rows without one are live."""
+
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    def live(self, company_id: UUID, visit_ids: Collection[UUID]) -> dict[UUID, LiveAreas]:
+        """Each visit's live areas (a visit without any is not in the answer)."""
+        if not visit_ids:
+            return {}
+        rows = self.db.execute(
+            select(VisitAccessArea.visit_id, VisitAccessArea.floor_id, VisitAccessArea.zone_id).where(
+                VisitAccessArea.company_id == company_id,
+                VisitAccessArea.visit_id.in_(list(visit_ids)),
+                VisitAccessArea.removed_at.is_(None),
+            )
+        ).all()
+        floors: dict[UUID, set[UUID]] = {}
+        zones: dict[UUID, set[UUID]] = {}
+        for visit_id, floor_id, zone_id in rows:
+            if floor_id is not None:
+                floors.setdefault(visit_id, set()).add(floor_id)
+            if zone_id is not None:
+                zones.setdefault(visit_id, set()).add(zone_id)
+        return {
+            visit_id: LiveAreas(frozenset(floors.get(visit_id, ())), frozenset(zones.get(visit_id, ())))
+            for visit_id in floors.keys() | zones.keys()
+        }
+
+    def replace(
+        self,
+        company_id: UUID,
+        visit_id: UUID,
+        *,
+        current: LiveAreas,
+        floor_ids: Collection[UUID],
+        zone_ids: Collection[UUID],
+        now: datetime,
+    ) -> None:
+        """Make `floor_ids` and `zone_ids` the visit's live areas: the others get `removed_at`, the new ones a
+        row. The caller holds the visit's row lock."""
+        removed_floors = current.floor_ids - set(floor_ids)
+        removed_zones = current.zone_ids - set(zone_ids)
+        if removed_floors or removed_zones:
+            self.db.execute(
+                update(VisitAccessArea)
+                .where(
+                    VisitAccessArea.company_id == company_id,
+                    VisitAccessArea.visit_id == visit_id,
+                    VisitAccessArea.removed_at.is_(None),
+                    or_(
+                        VisitAccessArea.floor_id.in_(list(removed_floors)),
+                        VisitAccessArea.zone_id.in_(list(removed_zones)),
+                    ),
+                )
+                .values(removed_at=now)
+            )
+        for floor_id in sorted(set(floor_ids) - current.floor_ids):
+            self.db.add(
+                VisitAccessArea(company_id=company_id, visit_id=visit_id, floor_id=floor_id, created_at=now)
+            )
+        for zone_id in sorted(set(zone_ids) - current.zone_ids):
+            self.db.add(
+                VisitAccessArea(company_id=company_id, visit_id=visit_id, zone_id=zone_id, created_at=now)
+            )
+        self.db.flush()
+
+
+# ---- area alerts (Phase 16, B16-5 to B16-12) -----------------------------------------------------------
+
+ACTIVE_ALERT_STATUSES = (TrackingAlertStatus.OPEN.value, TrackingAlertStatus.ACKNOWLEDGED.value)
+
+
+@dataclass(frozen=True, slots=True)
+class AlertCounts:
+    open: int
+    active: int
+
+
+class TrackingAlertRepository:
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    def get(self, company_id: UUID, alert_id: UUID, *, lock: RowLock | None = None) -> TrackingAlert | None:
+        statement = select(TrackingAlert).where(
+            TrackingAlert.company_id == company_id, TrackingAlert.id == alert_id
+        )
+        return self.db.scalars(with_lock(statement, lock)).one_or_none()
+
+    def active_for_visit(
+        self, company_id: UUID, visit_id: UUID, *, lock: RowLock | None = None
+    ) -> TrackingAlert | None:
+        """The visit's OPEN or ACKNOWLEDGED alert (one at most: `uq_tracking_alerts_active_visit`). Locked,
+        a row another transaction resolved meanwhile no longer matches once its lock is granted."""
+        statement = select(TrackingAlert).where(
+            TrackingAlert.company_id == company_id,
+            TrackingAlert.visit_id == visit_id,
+            TrackingAlert.status.in_(ACTIVE_ALERT_STATUSES),
+        )
+        return self.db.scalars(with_lock(statement, lock)).one_or_none()
+
+    def active_for_visits(self, company_id: UUID, visit_ids: Collection[UUID]) -> dict[UUID, TrackingAlert]:
+        if not visit_ids:
+            return {}
+        alerts = self.db.scalars(
+            select(TrackingAlert).where(
+                TrackingAlert.company_id == company_id,
+                TrackingAlert.visit_id.in_(list(visit_ids)),
+                TrackingAlert.status.in_(ACTIVE_ALERT_STATUSES),
+            )
+        )
+        return {alert.visit_id: alert for alert in alerts}
+
+    def of_visit(self, company_id: UUID, visit_id: UUID, *, limit: int) -> list[TrackingAlert]:
+        """The visit's latest alerts, newest `opened_at` first."""
+        return list(
+            self.db.scalars(
+                select(TrackingAlert)
+                .where(TrackingAlert.company_id == company_id, TrackingAlert.visit_id == visit_id)
+                .order_by(TrackingAlert.opened_at.desc(), TrackingAlert.id.desc())
+                .limit(limit)
+            )
+        )
+
+    def listed(
+        self,
+        company_id: UUID,
+        *,
+        active_only: bool,
+        opened_from: datetime | None = None,
+        opened_before: datetime | None = None,
+        visit_id: UUID | None = None,
+    ) -> Select[TrackingAlert]:
+        """The statement of a list: the active alerts, or those opened in `[opened_from, opened_before)`;
+        newest `opened_at` first."""
+        statement = select(TrackingAlert).where(TrackingAlert.company_id == company_id)
+        if active_only:
+            statement = statement.where(TrackingAlert.status.in_(ACTIVE_ALERT_STATUSES))
+        if opened_from is not None:
+            statement = statement.where(TrackingAlert.opened_at >= opened_from)
+        if opened_before is not None:
+            statement = statement.where(TrackingAlert.opened_at < opened_before)
+        if visit_id is not None:
+            statement = statement.where(TrackingAlert.visit_id == visit_id)
+        return statement.order_by(TrackingAlert.opened_at.desc(), TrackingAlert.id.desc())
+
+    def counts(self, company_id: UUID) -> AlertCounts:
+        rows = self.db.execute(
+            select(TrackingAlert.status, func.count().label("total"))
+            .where(
+                TrackingAlert.company_id == company_id,
+                TrackingAlert.status.in_(ACTIVE_ALERT_STATUSES),
+            )
+            .group_by(TrackingAlert.status)
+        ).all()
+        by_status = {row.status: int(row.total) for row in rows}
+        opened = by_status.get(TrackingAlertStatus.OPEN.value, 0)
+        acknowledged = by_status.get(TrackingAlertStatus.ACKNOWLEDGED.value, 0)
+        return AlertCounts(open=opened, active=opened + acknowledged)
+
+    def latest_open(self, company_id: UUID, *, limit: int) -> list[TrackingAlert]:
+        """The newest OPEN alerts, by when each opened or, once escalated, escalated (B16-26): an escalation
+        keeps `opened_at`, and would otherwise stay behind newer alerts and never be named."""
+        return list(
+            self.db.scalars(
+                select(TrackingAlert)
+                .where(
+                    TrackingAlert.company_id == company_id,
+                    TrackingAlert.status == TrackingAlertStatus.OPEN.value,
+                )
+                .order_by(
+                    func.coalesce(TrackingAlert.escalated_at, TrackingAlert.opened_at).desc(),
+                    TrackingAlert.id.desc(),
+                )
+                .limit(limit)
+            )
+        )

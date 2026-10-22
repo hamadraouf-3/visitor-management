@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { chooseAppearance } from '../appearance/appearance'
 import { RequireAuth } from '../auth/RequireAuth'
 import { adminDashboardRoutes, auditLogRoutes } from '../features/admin/testRoutes'
+import { alertSummaryRoute } from '../features/journey/testRoutes'
 import { navigation } from '../router'
 import { routes } from '../test/appRoutes'
 import { jsonResponse, makeMe, mockApi } from '../test/api'
@@ -350,13 +351,13 @@ describe('AppLayout', () => {
     ])
   })
 
-  it('places the Visitor Journey after Inside now and Visitor tracking after Email texts, while tracking is allowed (Phase 15)', async () => {
-    mockApi({ 'GET /auth/me': () => jsonResponse(makeMe(['SYSTEM_ADMIN', 'EMPLOYEE'], {}, { tracking_allowed: true })), ...adminDashboardRoutes() })
+  it('places the Visitor Journey and Tracking alerts after Inside now and Visitor tracking after Email texts, while tracking is allowed (Phases 15, 16)', async () => {
+    mockApi({ 'GET /auth/me': () => jsonResponse(makeMe(['SYSTEM_ADMIN', 'EMPLOYEE'], {}, { tracking_allowed: true })), ...adminDashboardRoutes(), ...alertSummaryRoute() })
     renderRoutes(routes, { initialEntries: ['/admin'] })
 
     const nav = await screen.findByRole('navigation', { name: 'Main navigation' })
     const links = within(nav).getAllByRole('link').map((link) => link.textContent)
-    expect(links.slice(links.indexOf('Inside now'), links.indexOf('Inside now') + 3)).toEqual(['Inside now', 'Visitor Journey', 'Visit history'])
+    expect(links.slice(links.indexOf('Inside now'), links.indexOf('Inside now') + 4)).toEqual(['Inside now', 'Visitor Journey', 'Tracking alerts', 'Visit history'])
     expect(links.slice(links.indexOf('Email texts'), links.indexOf('Email texts') + 3)).toEqual(['Email texts', 'Visitor tracking', 'Audit log'])
   })
 

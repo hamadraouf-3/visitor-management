@@ -134,11 +134,20 @@ MAIN_ONLY_ROUTES = frozenset(
         "POST /api/v1/tracking/cameras",
         "PATCH /api/v1/tracking/cameras/{camera_id}",
         "POST /api/v1/tracking/events",
+        # Phase 16: the area alerts (docs/decisions/phase-16-backend.md, B16-9).
+        "GET /api/v1/tracking/alerts",
+        "GET /api/v1/tracking/alerts/summary",
+        "POST /api/v1/tracking/alerts/{alert_id}/acknowledge",
+        "POST /api/v1/tracking/alerts/{alert_id}/resolve",
     }
 )
 # The one request whose body may exceed MAX_REQUEST_BODY_BYTES (B12-6): the upload of a company's brand
 # image. nginx gives the location of exactly this route's paths the API's own limit for it.
 BRAND_UPLOAD = "PUT /api/v1/platform/companies/{company_id}/brand/assets/{kind}"
+# The API's other PUT routes: a small JSON body under the default limit, outside the upload's location
+# (whose paths no other route matches: `test_no_other_route_of_the_api_gets_the_larger_limit`), so no
+# upload place is ever counted for them. Phase 16: a visit's allowed areas (B16-2).
+OTHER_PUTS = ("PUT /api/v1/visits/{visit_id}/access-areas",)
 # Uploads in progress at a time: on the whole site, and from one client address (B12-18). The platform
 # owner's page uploads one image at a time; several operators may share an address. No single address
 # may have more than half the site's places.
@@ -535,10 +544,12 @@ class BrandUploadTests(unittest.TestCase):
         self.assertIsNotNone(match, matcher)
         return re.compile(match[1]), body
 
-    def test_the_upload_route_exists_and_is_the_api_s_only_put(self) -> None:
+    def test_the_upload_route_exists_and_the_api_s_other_puts_are_known(self) -> None:
         declared = backend_routes()
         self.assertIn(BRAND_UPLOAD, declared)
-        self.assertEqual([route for route in declared if route.startswith("PUT ")], [BRAND_UPLOAD])
+        self.assertEqual(
+            sorted(route for route in declared if route.startswith("PUT ")), sorted([BRAND_UPLOAD, *OTHER_PUTS])
+        )
 
     def test_the_location_matches_what_the_route_matches(self) -> None:
         pattern, _body = self.upload_location()

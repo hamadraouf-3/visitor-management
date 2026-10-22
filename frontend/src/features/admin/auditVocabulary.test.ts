@@ -123,6 +123,11 @@ const METADATA_ENUMS = [
   // Phase 15: why a visit's tracking ended (`reason`), and the provider (`provider`).
   'TrackingEndReason',
   'TrackingProviderName',
+  // Phase 16: a zone's access level, and an area alert's type, status and resolution.
+  'ZoneAccess',
+  'TrackingAlertType',
+  'TrackingAlertStatus',
+  'TrackingAlertResolution',
 ]
 const UPDATE_REQUESTS = [
   'CompanySettingsUpdate',

@@ -19,7 +19,9 @@
                     company's retention (default 30 days); runs as the schema owner
                     (MIGRATION_DATABASE_URL); allowed in production
   simulate-journey  Send synthetic observations for a visit's simulator tracking association through the
-                    ingestion service, marked Simulated (refused in production; TRACKING_PROVIDER=simulator)
+                    ingestion service, marked Simulated (refused in production; TRACKING_PROVIDER=simulator);
+                    --cameras walks the given provider camera IDs in order (Phase 16), and the area alerts it
+                    raises are e-mailed through the configured provider
   send-test-email   Send a short test message with a sample QR code through the configured e-mail
                     provider (EMAIL_PROVIDER) and print the result; Arabic first unless
                     --language en; allowed in production
@@ -42,16 +44,19 @@ from pydantic import ValidationError
 from app.core import time as app_time
 from app.core.config import ConfigurationError, Settings, get_settings
 from app.core.errors import validation_fields
+from app.core.rate_limit import RatePolicies, create_rate_limiter
 from app.db.session import create_app_engine, create_db_engine, session_factory
+from app.email.dispatcher import EmailDispatcher
 from app.email.providers.base import EmailDeliveryError
 from app.email.providers.factory import create_email_provider, email_configuration_warnings
 from app.email.rendering import EmailRenderer
-from app.email.service import TEST_EMAIL_SAMPLE_FRAGMENT, build_test_email
+from app.email.service import TEST_EMAIL_SAMPLE_FRAGMENT, EmailService, build_test_email
 from app.models import DEFAULT_LANGUAGE, Language
 from app.models.enums import ObservationMatch
 from app.schemas.common import EmailAddress, Name200, RequestModel
 from app.security.passwords import PasswordHasherService, password_policy_error
 from app.services.bootstrap import AdminBootstrapService, BootstrapError
+from app.services.email_quota import EmailQuota
 from app.services.maintenance import SESSION_RETENTION_DAYS, E2ETimeTravel, MaintenanceError, prune_sessions
 from app.services.no_shows import mark_no_shows_everywhere
 from app.services.platform_bootstrap import DEFAULT_FULL_NAME as DEFAULT_PLATFORM_ADMIN_NAME
@@ -68,6 +73,7 @@ from app.services.seeding import (
     SeedPlatformAdmin,
     SeedReport,
 )
+from app.services.tracking_alerts import AlertMailer
 from app.services.tracking_maintenance import TrackingMaintenanceError, prune_journeys, simulate_journey
 
 EXIT_USAGE = 2
@@ -286,15 +292,31 @@ def _prune_journeys(settings: Settings) -> None:
     finally:
         engine.dispose()
     print(
-        f"journey events deleted: {pruned.events}; ended tracking associations deleted: "
-        f"{pruned.associations} (older than each company's retention)"
+        f"tracking alerts deleted: {pruned.alerts}; journey events deleted: {pruned.events}; ended tracking "
+        f"associations deleted: {pruned.associations} (older than each company's retention)"
     )
+
+
+def _camera_ids(value: str) -> list[str]:
+    cameras = [part.strip() for part in value.split(",")]
+    if not all(cameras):
+        raise argparse.ArgumentTypeError("expected provider camera IDs separated by commas")
+    return cameras
 
 
 def _simulate_journey(settings: Settings, args: argparse.Namespace) -> None:
     _refuse_in_production(settings, "simulate-journey")
     _connect(settings)
+    try:
+        provider = create_email_provider(settings)
+    except ConfigurationError as exc:
+        raise CommandError(str(exc)) from None
     with session_factory() as db:
+        # The area alerts' e-mails (B16-14), within a budget of this process's own (B16-20).
+        mailer = AlertMailer(
+            EmailService(db, settings=settings, renderer=EmailRenderer(), provider_name=provider.name),
+            EmailQuota(create_rate_limiter(settings), RatePolicies.from_settings(settings)),
+        )
         try:
             result = simulate_journey(
                 db,
@@ -305,11 +327,18 @@ def _simulate_journey(settings: Settings, args: argparse.Namespace) -> None:
                 match=ObservationMatch(args.match),
                 confidence=args.confidence,
                 now=app_time.now(),
+                cameras=args.cameras,
+                mailer=mailer,
             )
         except TrackingMaintenanceError as exc:
             raise CommandError(str(exc)) from None
+    dispatcher = EmailDispatcher(provider)
+    sent = [dispatcher.deliver(job) for job in result.alert_jobs]
     outcomes = ", ".join(f"{name}: {count}" for name, count in sorted(result.results.items()))
     print(f"simulated observations for association {result.association_id}: {outcomes} (marked Simulated)")
+    if sent:
+        delivered = sum(1 for status in sent if status is not None)
+        print(f"tracking alert e-mails: {len(sent)} ({delivered} delivered)")
 
 
 def _send_test_email(settings: Settings, args: argparse.Namespace) -> None:
@@ -405,7 +434,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="send synthetic observations for a visit's simulator association (non-production)",
     )
     simulate.add_argument("--visit", required=True, type=_visit_id, help="the visit's ID")
-    simulate.add_argument("--steps", type=int, default=3, help="how many observations (default 3)")
+    simulate.add_argument(
+        "--steps",
+        type=int,
+        default=None,
+        help="how many observations (default 3, or one per camera of --cameras)",
+    )
+    simulate.add_argument(
+        "--cameras",
+        type=_camera_ids,
+        default=None,
+        help="the provider camera IDs to walk, in order, one observation each, the last one now "
+        "(e.g. cam-2f,cam-4f); default: the company's active cameras",
+    )
     simulate.add_argument(
         "--interval-seconds",
         type=int,

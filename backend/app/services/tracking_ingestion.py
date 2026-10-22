@@ -9,9 +9,12 @@ never a valid request in flight, B15-36), good ones against the key (`tracking_r
 
 **Locks** (B15-18 as corrected after the independent review, B15-29): a batch first takes the company row
 `FOR KEY SHARE`, the first lock of every writer (`repositories.locking`), and re-checks under it that the
-key is still unrevoked and the company active; only then the key row, the associations (in ID order) and
-the health rows. A switch-off, a key revocation, the platform owner's switch and a deactivation all lock
-the company row `FOR UPDATE` first, so they and a batch run one after the other and never deadlock.
+key is still unrevoked and the company active; only then the key row, the visits its refs name
+(`FOR KEY SHARE`, Phase 16, B16-7: an alert's e-mail row refers to its visit), the associations (in ID
+order), the contact's health row, the alerts of those visits and the rejection counts. A switch-off, a key
+revocation, the platform owner's switch and a deactivation all lock the company row `FOR UPDATE` first, so
+they and a batch run one after the other and never deadlock; a check-out locks the visit before the
+association, as the batch does.
 
 **Server-side resolution.** Nothing the provider sends names a company or a visit: the company is the
 key's, an association is found by its ref within that company, a camera by the provider's camera ID
@@ -38,11 +41,19 @@ batch's order), so a sighting sent with the enrollment that activates its associ
 Rejected events are never stored, only counted by reason in the company's health record: rows about
 people who are not enrolled visitors, or who were never bound to an association, would be surveillance
 data. Nothing of an event, a ref or a key is logged.
+
+**Area alerts** (Phase 16, B16-5): once the batch's events are applied and its contact recorded (the
+journey they read is the one the API shows once the batch commits), the visits whose confirmed OBSERVED
+events with a location this batch stored (for an ACTIVE association) are evaluated in the same transaction
+(`TrackingAlerts.after_ingest`), each visit's alert locked after its association (lock order, B16-7).
+Their e-mails are queued in the transaction and available as `alert_jobs` once `ingest` has committed; the
+caller schedules them.
 """
 
 import logging
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID
@@ -55,6 +66,7 @@ from app.core.errors import NotAuthenticated, RateLimited
 from app.core.rate_limit import RateLimiter, RatePolicies, limiter_key
 from app.core.request_context import SYSTEM_CONTEXT, RequestContext
 from app.db.session import session_factory
+from app.email.service import DeliveryJob
 from app.models import Company, TrackingAssociation, TrackingCamera, TrackingEndReason
 from app.models.enums import JourneyEventType, TrackingAssociationStatus
 from app.repositories.companies import CompanyRepository
@@ -70,6 +82,7 @@ from app.repositories.tracking import (
 )
 from app.services import audit
 from app.services.audit import AuditAction, AuditEntity
+from app.services.tracking_alerts import AlertMail, AlertMailer, TrackingAlerts
 from app.services.tracking_lifecycle import EndTrigger, TrackingLifecycle
 from app.services.tracking_provider import IncomingEvent, TrackingProvider
 from app.services.tracking_rules import (
@@ -78,10 +91,11 @@ from app.services.tracking_rules import (
     IngestResult,
     RejectReason,
     active_expiry,
+    is_confirmed,
     key_digest,
     presented_key,
 )
-from app.services.tracking_settings import effective_settings
+from app.services.tracking_settings import EffectiveSettings, effective_settings
 
 logger = logging.getLogger("app.tracking")
 
@@ -149,13 +163,18 @@ def limit_key(key: TrackingKeyContext, *, limiter: RateLimiter, policies: RatePo
 
 
 class TrackingIngestion:
-    def __init__(self, db: Session, provider: TrackingProvider) -> None:
+    def __init__(self, db: Session, provider: TrackingProvider, *, mailer: AlertMailer | None = None) -> None:
+        """`mailer`: where the alert e-mails of a batch come from; without one, alerts open and escalate
+        without e-mails (the simulator's enrollment, whose batch holds only an ENROLLED event)."""
         self.db = db
         self.provider = provider
+        self.mailer = mailer
         self.lifecycle = TrackingLifecycle(db, provider)
         self.associations = AssociationRepository(db)
         self.events = JourneyEventRepository(db)
         self.health = TrackingHealthRepository(db)
+        # The alert e-mails the last `ingest` queued and committed, for the caller to schedule (B16-14).
+        self.alert_jobs: tuple[DeliveryJob, ...] = ()
 
     def ingest(
         self,
@@ -167,33 +186,54 @@ class TrackingIngestion:
     ) -> list[Outcome]:
         """Apply a batch for the company and commit; one outcome per event, in order."""
         now = app_time.now()
-        # The company row first (B15-29): every writer that conflicts with a batch locks it first too.
-        company = CompanyRepository(self.db).get(company_id, lock=RowLock.KEY_SHARE)
-        if company is None:  # pragma: no cover - the key's company exists (foreign key)
-            raise NotAuthenticated(KEY_REQUIRED)
-        if key_id is not None:
-            # Re-checked under the lock (SEC-07): a revocation or a deactivation that committed while this
-            # request waited wins.
-            keys = TrackingKeyRepository(self.db)
-            key = keys.get(company_id, key_id)
-            if key is None or key.revoked_at is not None or not company.is_active:
+        self.alert_jobs = ()
+        with self._mail() as mail:
+            # The company row first (B15-29): every writer that conflicts with a batch locks it first too.
+            company = CompanyRepository(self.db).get(company_id, lock=RowLock.KEY_SHARE)
+            if company is None:  # pragma: no cover - the key's company exists (foreign key)
                 raise NotAuthenticated(KEY_REQUIRED)
-            keys.touch(company_id, key_id, now=now)
-        self.lifecycle.expire_due(company_id, now=now, context=context)
-        batch = _Batch(self, company, events, now=now, context=context)
-        outcomes = batch.run()
-        rejected = Counter(outcome.reason.value for outcome in outcomes if outcome.reason is not None)
-        accepted_events = any(
-            outcome.result is IngestResult.ACCEPTED and event.type is not IngestEventType.HEARTBEAT
-            for outcome, event in zip(outcomes, events, strict=True)
-        )
-        # Health rows last (lock order, `repositories.tracking`).
-        self.health.record(company_id, contact_at=now, accepted_at=now if accepted_events else None)
-        if rejected:
-            self.health.count(company_id, dict(rejected), now=now)
-        self.db.commit()
+            if key_id is not None:
+                # Re-checked under the lock (SEC-07): a revocation or a deactivation that committed while
+                # this request waited wins.
+                keys = TrackingKeyRepository(self.db)
+                key = keys.get(company_id, key_id)
+                if key is None or key.revoked_at is not None or not company.is_active:
+                    raise NotAuthenticated(KEY_REQUIRED)
+                keys.touch(company_id, key_id, now=now)
+            # The visits the batch names, before any association, the expired ones included (B16-7).
+            self.associations.hold_visits_of_refs(
+                company_id, {event.association_ref for event in events if event.association_ref is not None}
+            )
+            self.lifecycle.expire_due(company_id, now=now, context=context)
+            batch = _Batch(self, company, events, now=now, context=context)
+            outcomes = batch.run()
+            rejected = Counter(outcome.reason.value for outcome in outcomes if outcome.reason is not None)
+            accepted_events = any(
+                outcome.result is IngestResult.ACCEPTED and event.type is not IngestEventType.HEARTBEAT
+                for outcome, event in zip(outcomes, events, strict=True)
+            )
+            # The batch is the provider's contact: recorded before the area alerts read the journey, so they
+            # read the journey the API shows once the batch commits (B16-5); after the associations (lock
+            # order, `repositories.tracking`).
+            self.health.record(company_id, contact_at=now, accepted_at=now if accepted_events else None)
+            # Area alerts after the associations (B16-7).
+            alerts = TrackingAlerts(self.db, self.provider, mail=mail)
+            alerts.after_ingest(company, batch.confirmed, settings=batch.settings, now=now, context=context)
+            if rejected:
+                self.health.count(company_id, dict(rejected), now=now)
+            self.db.commit()
+        self.alert_jobs = tuple(alerts.jobs)
         self.lifecycle.after_commit(now=now)
         return outcomes
+
+    @contextmanager
+    def _mail(self) -> Iterator[AlertMail | None]:
+        """The batch's alert e-mails and their budget slots, counted once the batch has committed."""
+        if self.mailer is None:
+            yield None
+            return
+        with self.mailer.unit() as mail:
+            yield mail
 
 
 class _Batch:
@@ -216,6 +256,10 @@ class _Batch:
         self.context = context
         self.provider = ingestion.provider.name
         settings = effective_settings(TrackingSettingsRepository(self.db).get(company.id))
+        self.settings: EffectiveSettings = settings
+        # Visit -> the confirmed OBSERVED events with a location this batch stored for its ACTIVE
+        # association: what the area alerts evaluate (B16-5).
+        self.confirmed: dict[UUID, set[UUID]] = {}
         self.tracking_on = settings.allowed and settings.enabled and company.is_active
         self.retention = timedelta(days=settings.retention_days)
         refs = {event.association_ref for event in events if event.association_ref is not None}
@@ -319,9 +363,16 @@ class _Batch:
                 context=self.context,
             )
             return Outcome(event.provider_event_id, IngestResult.ACCEPTED)
-        if not self._store(event, association):
+        stored = self._store(event, association)
+        if stored is None:
             return Outcome(event.provider_event_id, IngestResult.DUPLICATE)
         self.seen.add(event.provider_event_id)
+        if (
+            event.type is IngestEventType.OBSERVED
+            and association.status == TrackingAssociationStatus.ACTIVE
+            and is_confirmed(event.match, event.confidence, self.settings.min_confidence)
+        ):
+            self.confirmed.setdefault(association.visit_id, set()).add(stored)
         if event.type is IngestEventType.ENROLLED:
             association.status = TrackingAssociationStatus.ACTIVE.value
             association.activated_at = self.now
@@ -340,7 +391,7 @@ class _Batch:
             )
         return Outcome(event.provider_event_id, IngestResult.ACCEPTED)
 
-    def _store(self, event: IncomingEvent, association: TrackingAssociation) -> bool:
+    def _store(self, event: IncomingEvent, association: TrackingAssociation) -> UUID | None:
         camera = self._camera(event)
         place = self.places.get(camera.zone_id) if camera is not None else None
         return self.ingestion.events.add(

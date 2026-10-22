@@ -71,7 +71,9 @@ def test_create_visit_with_inline_visitor(host: Api, world: World, db: Session, 
         "can_resend": True,
         "can_check_in": False,
         "can_check_out": False,
+        "can_edit_access_areas": True,  # Phase 16: the host (B16-2)
     }
+    assert visit["access_areas"] == {"floors": [], "zones": []}  # no department floor: not set (B16-3)
     # The pass URL is the QR payload: QR_BASE_URL/pass?c=<slug>#<token> (B12-14); only the token's
     # hash is stored.
     assert result["pass_url"].startswith(f"https://vms.test/pass?c={world.a.company.slug}#")

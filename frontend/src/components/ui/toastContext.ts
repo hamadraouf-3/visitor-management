@@ -11,6 +11,16 @@ export interface ToastOptions {
    * so errors are never missed (WCAG 2.2.1).
    */
   durationMs?: number | null
+  /**
+   * One action under the text (Phase 16: «عرض» / "View" on a tracking alert), which also dismisses the
+   * toast. The toasts live above the router: the caller does the navigation (`useNavigate` where it shows it).
+   */
+  action?: ToastAction
+}
+
+export interface ToastAction {
+  label: string
+  onAction: () => void
 }
 
 export interface ToastApi {

@@ -1,8 +1,13 @@
 # API reference
 
 The HTTP API of Mawdoo3 Visitors («زوار موضوع»), the visitor-pass system; its OpenAPI title is "Mawdoo3
-Visitors API". Every endpoint in this document is registered in the application: 100 operations on 80
-paths, re-counted from the application's OpenAPI document on 2026-10-20. Phase 15 added the Visitor
+Visitors API". Every endpoint in this document is registered in the application: 106 operations on 86
+paths, re-counted from the application's OpenAPI document on 2026-10-21. Phase 16 added each visit's allowed
+areas, the area alerts and the live view ([`phase-16-backend.md`](decisions/phase-16-backend.md),
+[§10.14](#1014-the-visitor-journey)): `PUT /api/v1/visits/{visit_id}/access-areas`, `GET /api/v1/journeys/live`
+and the four `/api/v1/tracking/alerts` operations; zones' access levels, departments' floors, the companies'
+alert settings and the `TRACKING_ALERT` e-mail; `GET /api/v1/locations` became readable by every role.
+Phase 15 added the Visitor
 Journey ([`phase-15-backend.md`](decisions/phase-15-backend.md), [§10.14](#1014-the-visitor-journey)): the
 location registry (`/api/v1/locations`, 7 operations), tracking status, settings, keys, cameras and the
 provider's ingestion (`/api/v1/tracking`, 10), journeys and the tracking actions (4), and the platform
@@ -291,6 +296,7 @@ All 42 codes the API can return (the `error_codes` list of the contract snapshot
 | 409 | `TRACKING_NOT_AVAILABLE` | Visitor tracking is not available for this request. (`details.reason`) | Phase 15: enrollment while the provider is `disabled`, tracking not allowed or not enabled, or the pass window over; enabling tracking while not allowed ([§10.14](#1014-the-visitor-journey)) |
 | 409 | `TRACKING_KEY_LIMIT` | This company already has two active tracking keys. Revoke one first. | Phase 15: a third unrevoked tracking key |
 | 409 | `LOCATION_IN_USE` | Archive the floors, zones and cameras in it first. | Phase 15: archiving a building, floor or zone that holds active ones |
+| 409 | `ALERT_RESOLVED` | This alert is already resolved. | Phase 16: acknowledging a resolved tracking alert ([§10.14](#1014-the-visitor-journey)) |
 | 410 | `PASS_EXPIRED` | This visitor pass has expired. | After the pass window, or visit NO_SHOW |
 | 410 | `PASS_REVOKED` | This visitor pass has been replaced. Ask the visitor for their latest invitation, or verify their ID and check in manually. | Pass rotated or revoked by an e-mail change |
 | 413 | `PAYLOAD_TOO_LARGE` | The request is too large. | Body above `MAX_REQUEST_BODY_BYTES`; a brand image above 512 KiB |
@@ -469,8 +475,8 @@ row-level rules.
 | `VIEW_REPORTS` | ✓ | – | – | ✓ | |
 | `ADMINISTER` | ✓ | – | – | – | users, departments, company settings (write), the company's e-mail texts |
 | `READ_AUDIT` | ✓ | – | – | – | |
-| `VIEW_JOURNEYS` | ✓ | – | ✓ | ✓ | Phase 15: journeys, the tracking status, the location tree (hosts who are only employees: 403, least privilege) |
-| `TRACK_VISITS` | ✓ | – | ✓ | – | Phase 15: enroll, revoke, the enrollment cameras (receptionists see only those) |
+| `VIEW_JOURNEYS` | ✓ | – | ✓ | ✓ | Phase 15: journeys, the tracking status (hosts who are only employees: 403, least privilege); Phase 16: the live view and the tracking alerts. Since Phase 16 every role reads the location tree, a caller without this capability its active places only (B16-19) |
+| `TRACK_VISITS` | ✓ | – | ✓ | – | Phase 15: enroll, revoke, the enrollment cameras (receptionists see only those); Phase 16: acknowledge and resolve alerts, change any visit's allowed areas (a host changes their own visit's) |
 
 The platform owner holds no role: its endpoints (`/api/v1/platform`) need a platform session and accept
 no company session, and every endpoint of this table refuses a platform session (401).
@@ -531,6 +537,8 @@ audited as `RATE_LIMITED` with the policy name in `metadata.policy`.
 | `brand_changes_per_user` | 120 (`RATE_LIMIT_BRAND_CHANGES_PER_HOUR`) | 1 h | platform account | `PATCH /platform/companies/{id}/brand`, `PUT` and `DELETE …/brand/assets/{kind}`: every attempt, refused files included | 429 `RATE_LIMITED` |
 | `tracking_requests_per_key` | 120 (`RATE_LIMIT_TRACKING_REQUESTS_PER_MINUTE`) | 1 min | tracking key | `POST /tracking/events` (Phase 15): every request with a valid key | 429 `RATE_LIMITED` |
 | `tracking_key_failures_ip` | 30 (`RATE_LIMIT_TRACKING_KEY_FAILURES_PER_IP`) | 5 min | IP | `POST /tracking/events` with a wrong, revoked or absent key (counted before any lookup) | 429 `RATE_LIMITED` |
+| `tracking_alert_emails_per_company_day` | 500 (a constant, `TRACKING_ALERT_EMAILS_PER_COMPANY_DAY`) | 24 h | company | Phase 16: each recipient of a tracking alert's e-mail (an opening or an escalation, B16-15) | no error: the alert opens or escalates; the e-mails that do not fit are left out (`notified`, `notice_limited_by` in its audit row) |
+| `tracking_alert_notices_per_visit` | 3 (a constant, `TRACKING_ALERT_NOTICES_PER_VISIT_HOUR`) | 1 h | visit | Phase 16: each e-mailed opening or escalation of a visit's alert, whatever its number of recipients; taken with its first recipient's company slot, both or neither (B16-25) | no error: the alert opens or escalates; none of its e-mails is queued (`notified` 0, `notice_limited_by` this policy) |
 
 The platform sign-in (`POST /platform/auth/login`) takes the `login_*` budgets with keys of its own per
 account, typed e-mail and device, and **shares** `login_failures_ip` and `login_failures_prefix` with the
@@ -636,6 +644,9 @@ set; nullable, blank means none). Neither may be another department's name or Ar
 (B10-29, §10.4).
 **`DepartmentUpdate`** — `name?` (not null), `name_ar?` (nullable: null or blank clears it), `is_active?`
 (not null).
+*(Phase 16)* Both take `floor_id?` (UUID of an active floor of the company, nullable; on `DepartmentUpdate` null
+clears it): the default allowed floor of the department's new visits (422 `floor_id` `not_found` or
+`location_archived`).
 
 **`CompanySettingsUpdate`** — all optional: `name` (1–200, one line, not null; the English or only
 name), `name_ar` (the Arabic name: the rules of `name`, i.e. trimmed, 1–200 characters, one line, no
@@ -662,7 +673,9 @@ EMPLOYEE or SYSTEM_ADMIN, anyone else gets 422 `host_must_be_self`); `department
 department; default: the host's department if it is active); `purpose` (1–500); `scheduled_start`,
 `scheduled_end` (instants with offset; end after start, at most 24 h long, start not more than 5 min in
 the past and at most 365 days ahead); `send_invitation` (boolean, required; `true` needs a visitor
-e-mail).
+e-mail); *(Phase 16)* `access_areas?` (`VisitAccessAreasInput` or null: the visit's allowed areas; omitted or
+null, the floor of the visit's department while it is active, else not set; errors on
+`access_areas.floor_ids` / `access_areas.zone_ids`, [§10.14](#1014-the-visitor-journey)).
 
 **`VisitUpdate`** — all optional: `purpose` (not null), `department_id` (nullable),
 `scheduled_start`, `scheduled_end` (not null; the start rules apply only when the start changes).
@@ -698,7 +711,8 @@ note). `LOST_PASS` must name a registered visitor (`visitor_id`, or inline detai
 a registered visitor); new visitor details are refused with 422 on `reason`. It is also refused with
 422 on `reason` while that visitor has a SCHEDULED visit whose pass window opens before the end of the
 company-local day: the message points reception to that visit (check them in there instead, after an
-ID check), so the reported-lost pass stops working at check-out.
+ID check), so the reported-lost pass stops working at check-out. *(Phase 16)* `access_areas?` as in
+`VisitCreate`.
 
 ### 8.3 Response bodies
 
@@ -758,7 +772,9 @@ Visit {
                              // true and the other fields are the calendar invitation's (B14-18)
   last_notice: { kind, status, to_email, sent_at | null, error | null } | null,
   pass: { status, issued_at | null, revoke_reason | null },
-  permissions: { can_edit, can_cancel, can_resend, can_check_in, can_check_out }
+  permissions: { can_edit, can_cancel, can_resend, can_check_in, can_check_out,
+                 can_edit_access_areas },   // Phase 16: SCHEDULED or CHECKED_IN, and A, R or the visit's host
+  access_areas: VisitAccessAreas            // Phase 16: { floors: AccessFloor[], zones: AccessZone[] }, §10.14
 }
 VisitCreateResult { visit: Visit, pass_url, visitor_match: { reused } }   // pass_url shown once
 VisitResendResult { visit: Visit, pass_url | null, visitor_match: { reused } }
@@ -875,7 +891,7 @@ any signed-in user, including one who still has to change a temporary password.
 | 76 | GET | `/api/v1/public/companies/{slug}/brand` | public, no session | – | – | 200 `PublicCompanyBrand` |
 | 77 | GET | `/api/v1/public/companies/{slug}/brand/{kind}.png` | public, no session | – | query `v` | 200 `image/png` |
 | 78 | GET | `/api/v1/public/companies/{slug}/manifest.webmanifest` | public, no session | – | – | 200 `application/manifest+json` |
-| 79 | GET | `/api/v1/locations` | `VIEW_JOURNEYS` | A R M | – | 200 `LocationTree` |
+| 79 | GET | `/api/v1/locations` | session | A E R M (E: active places only) | – | 200 `LocationTree` |
 | 80 | POST | `/api/v1/locations/buildings` | `ADMINISTER` | A | `BuildingCreate` | 201 `Building` |
 | 81 | PATCH | `/api/v1/locations/buildings/{building_id}` | `ADMINISTER` | A | `BuildingUpdate` | 200 `Building` |
 | 82 | POST | `/api/v1/locations/floors` | `ADMINISTER` | A | `FloorCreate` | 201 `Floor` |
@@ -897,6 +913,12 @@ any signed-in user, including one who still has to change a temporary password.
 | 98 | POST | `/api/v1/visits/{visit_id}/tracking/enroll` | `TRACK_VISITS` | A R | `TrackingEnrollRequest` | 200 `VisitJourney` |
 | 99 | POST | `/api/v1/visits/{visit_id}/tracking/revoke` | `TRACK_VISITS` | A R | – | 200 `VisitJourney` |
 | 100 | PATCH | `/api/v1/platform/companies/{company_id}/tracking` | platform | platform | `PlatformTrackingUpdate` | 200 `PlatformCompany` |
+| 101 | PUT | `/api/v1/visits/{visit_id}/access-areas` | `READ_VISITS` + rule | A R, the visit's host (E) | `VisitAccessAreasInput` | 200 `Visit` |
+| 102 | GET | `/api/v1/journeys/live` | `VIEW_JOURNEYS` | A R M | query `LiveJourneyQuery` | 200 `LiveJourneys` |
+| 103 | GET | `/api/v1/tracking/alerts` | `VIEW_JOURNEYS` | A R M | query `TrackingAlertListQuery` | 200 `Paginated[TrackingAlert]` |
+| 104 | GET | `/api/v1/tracking/alerts/summary` | `VIEW_JOURNEYS` | A R M | – | 200 `TrackingAlertSummary` |
+| 105 | POST | `/api/v1/tracking/alerts/{alert_id}/acknowledge` | `TRACK_VISITS` | A R | `TrackingAlertAction` (optional) | 200 `TrackingAlert` |
+| 106 | POST | `/api/v1/tracking/alerts/{alert_id}/resolve` | `TRACK_VISITS` | A R | `TrackingAlertAction` (optional) | 200 `TrackingAlert` |
 
 The one `PUT` and one of the two `DELETE`s are those of a company's brand images (Phase 12); the other
 `DELETE` revokes a tracking key, which stays listed (Phase 15). Nothing else is deleted through the API (users and departments are deactivated; visits and visitors are kept), and a
@@ -1056,6 +1078,13 @@ equal. The checks run in this order: `name` against names, then against Arabic n
 Arabic names, then against names.
 
 #### `PATCH /api/v1/departments/{department_id}` — `ADMINISTER`
+
+*(Phase 16, B16-3)* `Department` carries `floor: { id, name, name_ar | null, level, building: { id, name,
+name_ar | null }, is_active } | null`, the default allowed floor of the department's new visits; `floor_id`
+in `DepartmentCreate` and `DepartmentUpdate` sets it (null clears it): an active floor of the company, else
+**422** `floor_id` `not_found` or `location_archived`. Archiving a floor a department names is not refused:
+the department shows it with `is_active` false and new visits skip it. A change names `floor_id` in the
+audit row's `changed_fields`.
 
 Body `DepartmentUpdate`. **200** `Department`. A rename in either language updates the department-name
 snapshots (`name` and `name_ar` of the visit's `department`) of SCHEDULED visits; checked-in and later
@@ -1984,6 +2013,11 @@ type TrackingRejectReason = 'TRACKING_OFF' | 'UNKNOWN_ASSOCIATION' | 'ASSOCIATIO
                           | 'NOT_ACTIVE' | 'UNKNOWN_CAMERA' | 'CAMERA_MISMATCH' | 'TOO_OLD' | 'IN_FUTURE'
                           | 'BEFORE_ASSOCIATION'
 type ProviderOperation = 'ENROLL' | 'REVOKE'
+// Phase 16
+type ZoneAccess = 'COMMON' | 'STANDARD' | 'RESTRICTED'
+type TrackingAlertType = 'UNAUTHORIZED_AREA' | 'RESTRICTED_AREA'
+type TrackingAlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+type TrackingAlertResolution = 'RETURNED' | 'AREAS_CHANGED' | 'CHECKED_OUT' | 'MANUAL'
 ```
 
 #### Shapes
@@ -1991,12 +2025,13 @@ type ProviderOperation = 'ENROLL' | 'REVOKE'
 ```ts
 LocationRef       { id, name, name_ar | null }
 FloorRef          { id, name, name_ar | null, level }
-JourneyLocation   { building: LocationRef, floor: FloorRef, zone: LocationRef }
+ZoneRef           { id, name, name_ar | null, access: ZoneAccess }          // Phase 16: the level now
+JourneyLocation   { building: LocationRef, floor: FloorRef, zone: ZoneRef }
 CameraRef         { id, name }
 
 Building          { id, name, name_ar | null, is_active, created_at, updated_at }
 Floor             { id, building_id, name, name_ar | null, level, is_active, created_at, updated_at }
-Zone              { id, floor_id, name, name_ar | null, is_active, created_at, updated_at }
+Zone              { id, floor_id, name, name_ar | null, access: ZoneAccess, is_active, created_at, updated_at }
 LocationTree      { buildings: (Building & { floors: (Floor & { zones: Zone[] })[] })[] }
 
 TrackingCamera    { id, provider_camera_id, name, zone_id, location: JourneyLocation,
@@ -2004,7 +2039,8 @@ TrackingCamera    { id, provider_camera_id, name, zone_id, location: JourneyLoca
 TrackingStatus    { provider: TrackingProviderName, simulated, available, allowed, enabled,
                     last_contact_at | null, healthy }
 TrackingSettings  { provider, allowed, enabled, min_confidence: number | null, stale_after_minutes,
-                    retention_days, health: TrackingHealth }
+                    retention_days, health: TrackingHealth,
+                    area_alerts_enabled, alert_notify_host, alert_emails: string[] }   // Phase 16
 TrackingHealth    { last_contact_at | null, last_accepted_event_at | null,
                     rejected_last_24h: { reason: TrackingRejectReason, count }[],
                     provider_errors_last_24h: { operation: ProviderOperation, count }[] }
@@ -2019,15 +2055,47 @@ TrackingAssociation { id, status, provider: TrackingProviderName, simulated, cre
                       enrollment_camera: CameraRef | null }         // never the provider's ref
 JourneyEvent      { id, type: JourneyEventType, observed_at, received_at, camera: CameraRef | null,
                     location: JourneyLocation | null, match: ObservationMatch | null, confidence | null,
-                    confirmed, model_version | null }
+                    confirmed, model_version | null,
+                    allowed: boolean | null }        // Phase 16: a confirmed observation with a location,
+                                                     // under the visit's current areas; else null
 JourneyListItem   { visit: JourneyVisitSummary, state: JourneyState, simulated,
                     last_location: JourneyLocation | null, last_observed_at | null,
-                    freshness_seconds | null }       // by the server's clock, as on VisitJourney
+                    freshness_seconds | null,        // by the server's clock, as on VisitJourney
+                    alert: TrackingAlertRef | null } // Phase 16: the visit's active alert
 VisitJourney      { visit: JourneyVisitSummary, state: JourneyState, association: TrackingAssociation | null,
                     last_location: JourneyLocation | null, last_observed_at | null, freshness_seconds | null,
                     timeline: JourneyEvent[], timeline_total, can_enroll,
-                    enroll_blocker: EnrollBlocker | null, can_revoke }
+                    enroll_blocker: EnrollBlocker | null, can_revoke,
+                    access_areas: VisitAccessAreas, can_edit_access_areas,     // Phase 16
+                    alerts: TrackingAlert[],          // the visit's latest 20, newest first
+                    path: JourneyStay[] }             // oldest first
 JourneyPage       Paginated<JourneyListItem>
+
+// Phase 16: allowed areas, alerts, the live view
+AccessFloor       { id, name, name_ar | null, level, building: LocationRef, is_active }
+AccessZone        { id, name, name_ar | null, access: ZoneAccess, floor: FloorRef, building: LocationRef, is_active }
+VisitAccessAreas  { floors: AccessFloor[], zones: AccessZone[] }   // floors by building name then level;
+                                                                   // zones by floor level then name; both empty:
+                                                                   // "not set"
+JourneyStay       { location: JourneyLocation, from, to, observations, allowed }
+TrackingAlertRef  { id, type: TrackingAlertType, status: TrackingAlertStatus }
+TrackingAlert     { id, type, status, simulated, visit: JourneyVisitSummary,
+                    first_location: JourneyLocation, last_location: JourneyLocation,   // as resolved then
+                    opened_at, last_seen_at,          // observed_at of the first and the latest violation
+                    escalated_at | null,              // the server's time of the escalation; null if never
+                    observations, access_areas: VisitAccessAreas,                     // the visit's areas now
+                    acknowledged_at | null, acknowledged_by: UserRef | null,
+                    resolved_at | null, resolved_by: UserRef | null,                 // null actor: the system
+                    resolution: TrackingAlertResolution | null, note | null, can_act }
+TrackingAlertBrief { id, type, visit_id, visitor_name, location: JourneyLocation, opened_at,
+                    escalated_at | null, simulated }  // as on TrackingAlert
+TrackingAlertSummary { open, active, latest: TrackingAlertBrief[] }   // latest: up to 5 OPEN, by
+                                                      // coalesce(escalated_at, opened_at) desc, then id desc
+TrackingAlertPage Paginated<TrackingAlert>
+LiveVisitor       { visit: JourneyVisitSummary, state: JourneyState, simulated,
+                    last_location: JourneyLocation | null, last_observed_at | null, freshness_seconds | null,
+                    alert: TrackingAlertRef | null, access_areas: VisitAccessAreas }
+LiveJourneys      { generated_at, truncated, visitors: LiveVisitor[] }
 ```
 
 Request bodies (unknown fields refused; PATCH: omitted = unchanged, the marked fields may not be null):
@@ -2037,18 +2105,23 @@ BuildingCreate          { name, name_ar? }                                // nam
 BuildingUpdate          { name?¹, name_ar?, is_active?¹ }                 // ¹ not null; name_ar null/blank clears
 FloorCreate             { building_id, name, name_ar?, level }            // level: integer −20 … 200
 FloorUpdate             { name?¹, name_ar?, level?¹, is_active?¹ }
-ZoneCreate              { floor_id, name, name_ar? }
-ZoneUpdate              { name?¹, name_ar?, is_active?¹ }
+ZoneCreate              { floor_id, name, name_ar?, access? = 'STANDARD' }
+ZoneUpdate              { name?¹, name_ar?, access?¹, is_active?¹ }
 TrackingCameraCreate    { provider_camera_id, name, zone_id, is_enrollment_point? = false }
 TrackingCameraUpdate    { provider_camera_id?¹, name?¹, zone_id?¹, is_enrollment_point?¹, is_active?¹ }
-TrackingSettingsUpdate  { enabled?¹, min_confidence? (0–1 or null), stale_after_minutes?¹ (1–240), retention_days?¹ (1–90) }
+TrackingSettingsUpdate  { enabled?¹, min_confidence? (0–1 or null), stale_after_minutes?¹ (1–240), retention_days?¹ (1–90),
+                          area_alerts_enabled?¹, alert_notify_host?¹, alert_emails?¹ (≤ 5 addresses) }
 TrackingKeyCreate       { label }                                         // 1–100, one line
 TrackingEnrollRequest   { camera_id }                                     // TrackingCamera.id, not the provider's ID
 PlatformTrackingUpdate  { allowed }
+VisitAccessAreasInput   { floor_ids: string[], zone_ids: string[] }      // Phase 16: each ≤ 50, no duplicates
+TrackingAlertAction     { note?: string | null }                         // Phase 16: ≤ 300, one line
 ```
 
 Query models: `JourneyListParams` `{ day?: YYYY-MM-DD, q?, state?: JourneyState[] (comma-separated), page, page_size }`;
-`TrackingCameraListParams` `{ include_archived?: boolean }`.
+`TrackingCameraListParams` `{ include_archived?: boolean }`; *(Phase 16)* `TrackingAlertListParams`
+`{ scope?: 'active' | 'day', day?: YYYY-MM-DD (scope=day only), visit_id?, page, page_size }`;
+`LiveJourneyParams` `{ building_id? }`.
 
 #### The journey state
 
@@ -2103,15 +2176,18 @@ not from `match`. The constants (5 min, 60 s, 2 min, 10 min, 12 h) are placehold
   in an archived zone, floor or building → 422 **`location_archived`** (on `is_active` for a restore). A
   camera holds no URL, address or credential: such fields are refused like any unknown one. Audited
   `TRACKING_CAMERA_CREATED` / `TRACKING_CAMERA_UPDATED`.
-- **`GET /locations`** (V) → `LocationTree`: every building, active and archived, by name; floors by
-  `level`; zones by name. **`POST /locations/buildings`**, **`/floors`**, **`/zones`** (A) → **201**;
+- **`GET /locations`** (every role since Phase 16, B16-19) → `LocationTree`: every building, active and
+  archived, by name; floors by `level`; zones by name, each with its `access`. A caller without V (a host who
+  is only an employee, for an invitation's allowed areas) gets the **active** buildings, floors and zones only. **`POST /locations/buildings`**, **`/floors`**, **`/zones`** (A) → **201**;
   **`PATCH /locations/{buildings|floors|zones}/{id}`** (A) → 200. Archive / restore = `is_active`.
   **Nothing is deleted.** Conflicts → **409 `CONFLICT`**: a building's `name` in the company, a floor's
   `level` in its building, a zone's `name` on its floor (all case-insensitive for names). Archiving a
   location that still holds active floors, zones or cameras → **409 `LOCATION_IN_USE`**; creating a child
   of, or restoring one under, an archived parent → 422 **`location_archived`** (`building_id`, `floor_id`, or
   `is_active`). Audited `LOCATION_CREATED` / `LOCATION_UPDATED` (`changed_fields`), entity `building`,
-  `floor` or `zone`.
+  `floor` or `zone`. *(Phase 16)* A zone's `access` (default STANDARD; an unknown value 422 `invalid_choice`)
+  takes effect at each visit's next confirmed observation. Archiving a floor a department names is not
+  refused.
 - **`GET /journeys`** (V) `JourneyListParams` → `JourneyPage`: the visits that were inside at some time of
   the company-local `day` (default today): checked in before the day's end and not checked out before its
   start. Newest check-in first. Each row's `freshness_seconds` is the whole seconds since
@@ -2141,11 +2217,95 @@ not from `match`. The constants (5 min, 60 s, 2 min, 10 min, 12 h) are placehold
   `Me.company.tracking_allowed`). Disallowing also switches the company's `enabled`
   off and ends its open associations. Audited in both trails (`TRACKING_ALLOWED`, `TRACKING_DISALLOWED`
   with `was_enabled` and `ended_tracking`).
+- **`PATCH /tracking/settings`** *(Phase 16)* also takes `area_alerts_enabled` (alerts evaluated at all),
+  `alert_notify_host` (the visit's host is e-mailed) and `alert_emails` (at most 5 addresses, stored lower
+  case and once each, in the order given): a bad address → 422 at **`alert_emails.<index>`** `invalid_email`;
+  more than 5 → `alert_emails` `too_many_items`; null → `required`. Audited `TRACKING_SETTINGS_UPDATED` with
+  the changed field names only.
 - **`POST /tracking/events`** — the provider's ingestion, with `Authorization: Bearer <tracking key>` only
   (no cookie, no CSRF token, 401 for a wrong, revoked or absent key, 404 for every method while the
   provider is `disabled`, 405 for any other method otherwise).
   Not part of the web application's contract snapshot; documented in
   [`visitor-tracking-integration.md`](visitor-tracking-integration.md).
+
+#### Allowed areas and area alerts (Phase 16)
+
+[`phase-16-backend.md`](decisions/phase-16-backend.md) B16-1 … B16-24;
+[`visitor-journey-design.md`](visitor-journey-design.md) §9.
+
+**A visit's allowed areas** are a set of floors and a set of extra zones (any level, any floor); both empty is
+"not set". A confirmed location **violates** them: a COMMON zone or a listed zone never; a RESTRICTED zone
+otherwise → `RESTRICTED_AREA`; a STANDARD zone on an allowed floor → allowed; a STANDARD zone otherwise →
+`UNAUTHORIZED_AREA` **only while the areas are set**. At creation (`VisitCreate`, `WalkInCreate`):
+`access_areas` when sent, else the floor of the visit's department while it is active, else not set. Every
+`Visit` answers its `access_areas` and `permissions.can_edit_access_areas`.
+
+- **`PUT /visits/{visit_id}/access-areas`** (A, R, or the visit's host holding EMPLOYEE) `VisitAccessAreasInput`
+  → 200 `Visit`. Refusals in this order: **404** (another company's or unknown visit; a visit an EMPLOYEE-only
+  caller neither hosts nor created) → **403** `FORBIDDEN` (management; an employee who booked it but is not its
+  host) → **409** `VISIT_NOT_EDITABLE` unless SCHEDULED or CHECKED_IN → **422** on `floor_ids` / `zone_ids`:
+  `not_found` (unknown or another company's), `location_archived`, `duplicates`, `too_many_items` (50),
+  `required`. The same sets again: 200, nothing written. Otherwise audited **`VISIT_ACCESS_AREAS_CHANGED`**
+  (`added_floor_ids`, `removed_floor_ids`, `added_zone_ids`, `removed_zone_ids`), and the visit's alert is
+  re-evaluated under the new areas (below).
+
+**Alerts.** After an ingested batch stores a confirmed OBSERVED event with a location for an ACTIVE
+association, the visit is evaluated in the batch's transaction from **the journey's own current location**:
+only while its state is ACTIVE, `last_location` is not null and the latest confirmed observation is one this
+batch stored (a late old event, a late sighting of an ended association, an unconfirmed observation, a null
+threshold or a conflict within 60 s never alert). The company's `area_alerts_enabled` false: not evaluated.
+At most one **active** alert (OPEN or ACKNOWLEDGED) per visit:
+
+| Now | Active alert | Then |
+|---|---|---|
+| violation | none | OPEN (first and last location the current one, `opened_at` = `last_seen_at` = its `observed_at`, 1 observation); audited `TRACKING_ALERT_OPENED` (no actor); e-mailed |
+| violation | yes | the latest location, `last_seen_at` and `observations` move on; a RESTRICTED violation of an UNAUTHORIZED alert **escalates** it (RESTRICTED_AREA, OPEN again, acknowledgement cleared; `TRACKING_ALERT_ESCALATED`, e-mailed again); an alert never backs down |
+| allowed | yes | RESOLVED `RETURNED`, no actor |
+
+A **check-out** resolves the active alert (`CHECKED_OUT`, the checking-out user) in its transaction; a
+**change of the areas** resolves it (`AREAS_CHANGED`, the editor) when the current location is now allowed,
+or, when the editor is an administrator or a receptionist, opens (or escalates) one, by the editor, when it
+now violates them. **A host's change never opens or escalates an alert, nor e-mails anyone** (B16-25): the
+next confirmed observation does. A revoke, an expiry or tracking switched off leave it.
+`simulated` marks an alert of the simulator's association.
+
+- **`GET /tracking/alerts`** (V) `TrackingAlertListParams` → `TrackingAlertPage`, newest `opened_at` first.
+  `scope=active` (default): OPEN and ACKNOWLEDGED, any day; `scope=day`: opened during the company-local
+  `day` (default today), any status. `day` with another scope → 422 `day` `not_allowed`; a `visit_id` that is
+  not a visit of the company → 422 `visit_id` `not_found`.
+- **`GET /tracking/alerts/summary`** (V) → `TrackingAlertSummary`: `open`, `active` and the latest five OPEN
+  alerts, the newest opened or escalated first (an escalation keeps its `opened_at` but comes first; B16-26):
+  ordered by `escalated_at` (the server's time of the escalation, null on an alert that never escalated,
+  also one opened as RESTRICTED_AREA) or else `opened_at`, then `id`, both fields on each brief, so a client
+  can compare with the order's key (`location` = the latest violating one). **All zeros while the deployment has no provider or the
+  company is not allowed tracking.** Poll it with `X-Background-Refresh: 1`, which never extends the session
+  ([§2](#2-authentication-and-sessions)). Neither this nor the list is audited.
+- **`POST /tracking/alerts/{alert_id}/acknowledge`** (T), optional body `TrackingAlertAction` → 200
+  `TrackingAlert`: OPEN → ACKNOWLEDGED; an ACKNOWLEDGED alert answers unchanged; a RESOLVED one → **409
+  `ALERT_RESOLVED`**. **`POST /tracking/alerts/{alert_id}/resolve`** (T) → 200 `TrackingAlert`: RESOLVED
+  `MANUAL`; a resolved alert answers unchanged. `note`: one line, at most 300 characters; it replaces the
+  alert's note. Another company's or an unknown alert → 404. Audited `TRACKING_ALERT_ACKNOWLEDGED` /
+  `TRACKING_ALERT_RESOLVED` (IDs and the resolution, never the note). Management reads only (`can_act` false).
+- **`GET /journeys/live`** (V) `LiveJourneyParams` → `LiveJourneys`: every CHECKED_IN visit of the company,
+  newest check-in first, **at most 1000** (`truncated` beyond, before the building filter), with its state,
+  location, freshness (the server's clock), active alert and areas. `building_id` keeps the visitors located
+  in that building and every visitor without a location (a `building_id` that is not one of the company's →
+  422 `building_id` `not_found`). Audited like the list: `JOURNEY_LIST_VIEWED` with `view: "LIVE"` and
+  `located`, at most once per user an hour.
+- `GET /visits/{visit_id}/journey` also answers `access_areas`, `can_edit_access_areas`, `alerts` (the latest
+  20) and `path`: the confirmed observations with a location of its timeline's events, oldest first,
+  consecutive ones in one zone collapsed into one stay, each `allowed` under the current areas; every
+  confirmed observation of the timeline carries `allowed` too.
+
+**The alert e-mail** (`TRACKING_ALERT`; product texts, not editable): on an opening and an escalation only,
+after the commit, within **500 e-mails per company and 24 hours** (one per recipient) and **3 e-mailed
+openings or escalations per visit and hour** (whatever their recipients); beyond either the alert still opens
+or escalates, and its audit row names the budget (`notice_limited_by`). To each address of `alert_emails` (the company's language; a link to the visitor's journey,
+`/journey/{visit_id}`) and, with `alert_notify_host`, to the visit's active host (the host's language; a link
+to the visit's page, `/visits/{visit_id}`, never to the journey); an address that is both gets one e-mail.
+It says who (visitor, company, host), where (building › floor › zone, "Restricted" beside a restricted zone),
+when (the company's time zone) and the allowed floors (or "Not set"); the subject starts with
+"[Simulated] " / «[محاكاة] » for the simulator's. Never a pass link, a token, a tracking reference or a key.
 
 **The association's lifetime.** It ends at the visit's check-out (in the check-out's transaction, reason
 `CHECKED_OUT`, every check-out method included), an explicit revoke, tracking switched off or disallowed,
@@ -2225,6 +2385,12 @@ caching is what the client receives.
   `tests/integration/test_platform_recovery.py`, `test_seed_guard.py`, `test_company_inactive_sign_in.py`,
   the additions to `test_platform_auth.py`, `test_platform_companies.py`, `test_credential_races.py`,
   `test_email_templates_api.py` and `test_platform_database_rules.py`, and `tests/unit/test_email_review.py`.
+- **Phase 16 (2026-10-21).** 106 operations on 86 paths from `app.openapi()` of the current code (43 error
+  codes, 73 field codes in the contract snapshot). The allowed areas, alerts and live view are covered through
+  the API by `tests/integration/test_tracking_alerts.py`, `test_access_areas.py`, `test_simulate_cameras.py`,
+  `test_area_alerts_database_rules.py` and, on real connections, `test_tracking_alert_races.py`; the rule and
+  the e-mail by `tests/unit/test_area_rules.py` and `test_tracking_alert_email.py`. No real tracking provider
+  was available (BLOCKED BY ENVIRONMENT): the simulator stood in for it.
 - **Phase 15 (2026-10-20).** 100 operations on 80 paths from `app.openapi()` of the current code. The
   Visitor Journey's endpoints are covered through the API by `tests/integration/test_tracking_admin.py`,
   `test_tracking_lifecycle.py`, `test_tracking_ingestion.py`, `test_journeys_api.py`,

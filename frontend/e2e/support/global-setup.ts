@@ -168,7 +168,7 @@ async function warmUpVite() {
   try {
     const context = await browser.newContext({ baseURL: BASE_URL, storageState: storageStatePath('admin') })
     const page = await context.newPage()
-    for (const path of ['/login', '/pass', '/reception', '/visits/new', '/reports', '/admin/audit', '/history', '/inside', '/visitors', '/admin/email-templates', '/admin/email-templates/VISITOR_INVITATION', '/journey', '/admin/tracking']) {
+    for (const path of ['/login', '/pass', '/reception', '/visits/new', '/reports', '/admin/audit', '/history', '/inside', '/visitors', '/admin/email-templates', '/admin/email-templates/VISITOR_INVITATION', '/journey', '/journey?view=list', '/journey/alerts', '/admin/tracking']) {
       await page.goto(path, { waitUntil: 'networkidle', timeout: 120_000 })
     }
     // A visit's journey (Phase 15): its own lazy module.

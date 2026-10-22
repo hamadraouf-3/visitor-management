@@ -25,6 +25,9 @@ import type { Department, Me } from '../../types/api'
 import { cn } from '../../utils/cn'
 import { formatDate } from '../../utils/datetime'
 import { focusPageHeading, isFocusLost } from '../../utils/focus'
+import { useAreaOptions } from '../accessAreas/queries'
+import type { AreaOptions } from '../accessAreas/accessAreas'
+import { DepartmentFloorSelect } from './DepartmentFloorSelect'
 import { sortDepartments } from './departmentForm'
 import { DepartmentNameDialog } from './DepartmentNameDialog'
 import { useAllDepartments, useUpdateDepartment } from './queries'
@@ -40,12 +43,28 @@ interface DepartmentColumnContext {
   onDeactivate: (department: Department) => void
   onReactivate: (department: Department) => void
   reactivatingId: string | null
+  /**
+   * Phase 16, while the company's tracking is allowed: a floor column, each department's floor chosen in place
+   * (`options`: the company's active places, undefined while they load). Null: no column.
+   */
+  floors: { options: AreaOptions | undefined } | null
 }
 
 function departmentColumns(
-  { timeZone, language, departmentName, onRename, onDeactivate, onReactivate, reactivatingId }: DepartmentColumnContext,
+  { timeZone, language, departmentName, onRename, onDeactivate, onReactivate, reactivatingId, floors }: DepartmentColumnContext,
   t: TFunction<'admin'>,
 ): TableColumn<Department>[] {
+  const floorColumn: TableColumn<Department>[] = floors
+    ? [
+        {
+          id: 'floor',
+          header: t('departments.columns.floor'),
+          headerClassName: 'xl:w-[24%]',
+          className: 'xl:align-middle',
+          cell: (department) => <DepartmentFloorSelect department={department} options={floors.options} />,
+        },
+      ]
+    : []
   return [
     {
       // Only the exception is flagged, as on the Users list: an inactive department's name is
@@ -55,7 +74,7 @@ function departmentColumns(
       id: 'name',
       header: t('departments.columns.name'),
       primary: true,
-      headerClassName: 'md:w-[48%]',
+      headerClassName: floors ? 'xl:w-[32%]' : 'md:w-[48%]',
       className: 'md:align-middle',
       cell: (department) => {
         const other = departmentOtherName(department, language)
@@ -80,10 +99,11 @@ function departmentColumns(
         )
       },
     },
+    ...floorColumn,
     {
       id: 'updated',
       header: t('departments.columns.updated'),
-      headerClassName: 'md:w-[20%]',
+      headerClassName: floors ? 'xl:w-[16%]' : 'md:w-[20%]',
       className: 'md:align-middle',
       cell: (department) => <span className="text-fg-secondary tabular-nums">{formatDate(department.updated_at, timeZone)}</span>,
     },
@@ -189,7 +209,9 @@ export interface DepartmentListProps {
 /**
  * The departments people and visits belong to: create, rename, deactivate and reactivate them
  * (they are never deleted, D-12). Inactive ones are listed on request ("Show inactive
- * departments"); the header counts both.
+ * departments"); the header counts both. While the company's tracking is allowed (Phase 16), each
+ * department's floor is chosen in its row; with that column the rows are cards below the extra-large
+ * breakpoint, where the table's five columns would crowd the actions.
  */
 export function DepartmentList({ me }: DepartmentListProps) {
   const { t } = useTranslation('admin')
@@ -198,6 +220,9 @@ export function DepartmentList({ me }: DepartmentListProps) {
   const toast = useToast()
   const departments = useAllDepartments()
   const reactivate = useUpdateDepartment()
+  const withFloors = me.company.tracking_allowed
+  // The places only while the column is shown: a company that is not allowed to track asks for none.
+  const areaOptions = useAreaOptions(withFloors)
   const [params, updateParams] = useUrlParams()
   const showInactive = params.get(SHOW_INACTIVE_PARAM) === '1'
   const [naming, setNaming] = useState<{ department?: Department } | null>(null)
@@ -280,12 +305,14 @@ export function DepartmentList({ me }: DepartmentListProps) {
               onDeactivate: setDeactivating,
               onReactivate,
               reactivatingId: reactivate.isPending ? (reactivate.variables?.id ?? null) : null,
+              floors: withFloors ? { options: areaOptions.data } : null,
             }, t)}
             rows={rows}
             getRowKey={(department) => department.id}
             caption={t('departments.title')}
             loading={departments.isPending}
-            layout="fixed"
+            layout={withFloors ? 'fixed-xl' : 'fixed'}
+            stackBelow={withFloors ? 'xl' : 'md'}
             framed={false}
             empty={
               <EmptyState

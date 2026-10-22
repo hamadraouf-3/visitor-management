@@ -8,6 +8,7 @@ import type {
   PlatformAuditLogListParams,
   PlatformCompanyListParams,
   ReportSummaryParams,
+  TrackingAlertListParams,
   TrackingCameraListParams,
   UserListParams,
   VisitListParams,
@@ -89,6 +90,12 @@ export const queryKeys = {
       list: (params: TrackingCameraListParams = {}) => ['tracking', 'cameras', params] as const,
     },
     locations: ['tracking', 'locations'] as const,
+    /** Phase 16: the alerts, and the counts the shell polls. */
+    alerts: {
+      all: ['tracking', 'alerts'] as const,
+      list: (params: TrackingAlertListParams = {}) => ['tracking', 'alerts', 'list', params] as const,
+      summary: ['tracking', 'alerts', 'summary'] as const,
+    },
   },
 
   /** The Visitor Journey (Phase 15): the day's journeys and one visit's. */
@@ -96,6 +103,8 @@ export const queryKeys = {
     all: ['journeys'] as const,
     list: (params: JourneyListParams = {}) => ['journeys', 'list', params] as const,
     detail: (visitId: string) => ['journeys', 'detail', visitId] as const,
+    /** Phase 16: everyone inside now, on the live map (the whole company: the map places them by building). */
+    live: ['journeys', 'live'] as const,
   },
 
   /** A company's public identity (Phase 12), asked for by slug without a session: display data, nobody's own. */

@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import type { ComponentType } from 'react'
 import type { RouteObject } from 'react-router'
 import type { Role } from '../types/api'
 
@@ -20,6 +21,26 @@ export interface NavEntry {
    * Phase 15): the Visitor Journey and visitor tracking's administration.
    */
   requiresTracking?: boolean
+  /**
+   * A count at the end of the entry (Phase 16: the tracking alerts' active count), drawn by the feature: a
+   * component that reads its own data and renders nothing when there is nothing to count. It renders a
+   * `NavBadge` (layouts/NavBadge), which carries the count's words for assistive technology.
+   */
+  badge?: ComponentType
+}
+
+/**
+ * Something a feature runs in the company shell on every page (Phase 16: the tracking alerts' watcher, which
+ * polls and notifies). Mounted once by `AppLayout` for the people its roles (and tracking) allow, never while a
+ * password change is required; renders nothing of its own on the page.
+ */
+export interface ShellExtension {
+  /** A name, for React's key. */
+  id: string
+  component: ComponentType
+  roles: readonly Role[]
+  /** Only while the company's tracking is allowed, as `NavEntry.requiresTracking`. */
+  requiresTracking?: boolean
 }
 
 /**
@@ -32,4 +53,6 @@ export interface FeatureModule {
   /** Routes inside RequireAuth + AppLayout; each guards its own roles. */
   routes?: RouteObject[]
   nav?: NavEntry[]
+  /** Run in the company shell (Phase 16). */
+  shell?: ShellExtension[]
 }

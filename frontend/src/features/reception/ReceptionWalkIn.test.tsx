@@ -1,8 +1,9 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { errorResponse, jsonResponse, type RecordedRequest, type RouteHandler } from '../../test/api'
 import { FINANCE, LEGAL, makeHost, makeVisitor, page, VISITOR_ID } from '../../test/fixtures'
 import type { WalkInCreate } from '../../types/api'
+import { FLOOR_3, FLOOR_4, makeLocationTree, makeTower, makeTrackedMe, SERVER_ROOM, TOWER } from '../journey/testRoutes'
 import { insideVisit, makeSettings, RECEPTION_NOW } from './testing/receptionFixtures'
 import { renderReception, requestsTo, stubCoarsePointer } from './testing/renderReception'
 
@@ -270,5 +271,107 @@ describe('Walk-in tab', () => {
     })
     expect(await screen.findByText('Walk-in registration is turned off')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Check in walk-in' })).toBeNull()
+  })
+})
+
+describe('Walk-in tab: the allowed areas (Phase 16)', () => {
+  const legalOn4 = { ...LEGAL, floor: { ...FLOOR_4, building: TOWER, is_active: true } }
+
+  function setupTracked() {
+    return setup({
+      'GET /auth/me': () => jsonResponse(makeTrackedMe(['RECEPTIONIST'])),
+      'GET /departments': () => jsonResponse([FINANCE, legalOn4]),
+      'GET /locations': () => jsonResponse(makeLocationTree()),
+    })
+  }
+
+  it('starts from the host’s department’s floor, and sends what the field shows', async () => {
+    const { user, requests } = setupTracked()
+    await fillReturningVisitor(user)
+    const areas = await screen.findByRole('group', { name: 'Allowed areas (optional)' })
+    expect(within(areas).getByRole('checkbox', { name: 'Floor 4' })).toBeChecked()
+    await user.click(within(areas).getByRole('checkbox', { name: 'Floor 3' }))
+
+    await user.click(screen.getByRole('button', { name: 'Check in walk-in' }))
+    await waitFor(() => expect(walkInBodies(requests)).toHaveLength(1))
+    expect(walkInBodies(requests)[0]!.access_areas).toEqual({ floor_ids: [FLOOR_4.id, FLOOR_3.id], zone_ids: [] })
+  })
+
+  it('starts again from the department after Clear form', async () => {
+    const { user } = setupTracked()
+    await fillReturningVisitor(user)
+    const areas = await screen.findByRole('group', { name: 'Allowed areas (optional)' })
+    await user.click(within(areas).getByRole('checkbox', { name: 'Floor 4' }))
+    expect(within(areas).getByRole('checkbox', { name: 'Floor 4' })).not.toBeChecked()
+
+    await user.click(screen.getByRole('button', { name: 'Clear form' }))
+    await fillReturningVisitor(user)
+    expect(within(await screen.findByRole('group', { name: 'Allowed areas (optional)' })).getByRole('checkbox', { name: 'Floor 4' })).toBeChecked()
+  })
+
+  it('follows a new department until reception changes the field', async () => {
+    const financeOn3 = { ...FINANCE, floor: { ...FLOOR_3, building: TOWER, is_active: true } }
+    const { user } = setup({
+      'GET /auth/me': () => jsonResponse(makeTrackedMe(['RECEPTIONIST'])),
+      'GET /departments': () => jsonResponse([financeOn3, legalOn4]),
+      'GET /locations': () => jsonResponse(makeLocationTree()),
+    })
+    await fillReturningVisitor(user)
+    const areas = await screen.findByRole('group', { name: 'Allowed areas (optional)' })
+    const checked = () => within(areas).getAllByRole('checkbox').filter((box) => (box as HTMLInputElement).checked).map((box) => box.getAttribute('data-area-floor'))
+    expect(checked()).toEqual([FLOOR_4.id])
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Department/ }), FINANCE.id)
+    expect(checked()).toEqual([FLOOR_3.id])
+
+    await user.click(within(areas).getByRole('checkbox', { name: 'Floor 4' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Department/ }), LEGAL.id)
+    expect(checked()).toEqual([FLOOR_3.id, FLOOR_4.id])
+  })
+
+  it('drops an extra zone archived since it was chosen: its chip goes, and it is not sent (F16-43)', async () => {
+    let serverRoomActive = true
+    const { user, requests, queryClient } = setup({
+      'GET /auth/me': () => jsonResponse(makeTrackedMe(['RECEPTIONIST'])),
+      'GET /departments': () => jsonResponse([FINANCE, legalOn4]),
+      'GET /locations': () => {
+        const tower = makeTower()
+        tower.floors[2]!.zones[1]!.is_active = serverRoomActive
+        return jsonResponse(makeLocationTree([tower]))
+      },
+    })
+    await fillReturningVisitor(user)
+    const areas = await screen.findByRole('group', { name: 'Allowed areas (optional)' })
+    await user.type(within(areas).getByRole('combobox', { name: 'Extra zones' }), 'server')
+    await user.click(await popupOption(/Server room/))
+    expect(areas.querySelector(`[data-area-zone="${SERVER_ROOM.id}"]`)).not.toBeNull()
+
+    // An administrator archives the server room; the places are asked for again (a window's focus, minutes later).
+    serverRoomActive = false
+    await act(() => queryClient.invalidateQueries({ queryKey: ['tracking', 'locations'] }))
+    await waitFor(() => expect(areas.querySelector(`[data-area-zone="${SERVER_ROOM.id}"]`)).toBeNull())
+    await user.click(screen.getByRole('button', { name: 'Check in walk-in' }))
+    await waitFor(() => expect(walkInBodies(requests)).toHaveLength(1))
+    expect(walkInBodies(requests)[0]!.access_areas).toEqual({ floor_ids: [FLOOR_4.id], zone_ids: [] })
+  })
+
+  it('says a refused area at the field, which gets the focus, and asks for the places again (F16-43)', async () => {
+    const { user, requests } = setup({
+      'GET /auth/me': () => jsonResponse(makeTrackedMe(['RECEPTIONIST'])),
+      'GET /departments': () => jsonResponse([FINANCE, legalOn4]),
+      'GET /locations': () => jsonResponse(makeLocationTree()),
+      'POST /reception/walk-ins': () =>
+        errorResponse(422, 'VALIDATION_ERROR', 'Some fields are invalid.', {
+          fields: { 'access_areas.floor_ids': 'This location is archived.' },
+          field_codes: { 'access_areas.floor_ids': { code: 'location_archived', params: {} } },
+        }),
+    })
+    await fillReturningVisitor(user)
+    const areas = await screen.findByRole('group', { name: 'Allowed areas (optional)' })
+    const places = requestsTo(requests, 'GET', '/locations').length
+    await user.click(screen.getByRole('button', { name: 'Check in walk-in' }))
+    // The server's words in English (the catalog's in Arabic), at the field.
+    await waitFor(() => expect(areas).toHaveAccessibleDescription('This location is archived.'))
+    await waitFor(() => expect(within(areas).getAllByRole('checkbox')[0]).toHaveFocus())
+    await waitFor(() => expect(requestsTo(requests, 'GET', '/locations').length).toBeGreaterThan(places))
   })
 })

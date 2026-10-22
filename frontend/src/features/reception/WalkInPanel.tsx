@@ -2,6 +2,7 @@ import { DoorOpen, Eraser, LogIn } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useActiveDepartments, useCompanySettings, useHostById } from '../../api/queries'
+import { useAuth } from '../../auth/useAuth'
 import { Alert } from '../../components/ui/Alert'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -19,6 +20,8 @@ import type { DepartmentRef, Visit, WalkInReason } from '../../types/api'
 import { momentOnDay, type MomentOnDay } from '../../utils/datetime'
 import type { FieldErrorCodes, ServerFieldPaths } from '../../utils/forms'
 import { characterCountLabel } from '../../utils/text'
+import { AccessAreasPicker } from '../accessAreas/AccessAreasPicker'
+import { useFormAccessAreas } from '../accessAreas/useFormAccessAreas'
 import { useVisitor } from '../visitors/queries'
 import { VisitorSourceFields } from '../visitors/VisitorSourceFields'
 import { inviteDepartmentChoice, PURPOSE_MAX_LENGTH } from '../visits/inviteForm'
@@ -56,6 +59,7 @@ const SERVER_FIELDS: ServerFieldPaths<WalkInField> = {
   expectedEnd: 'expected_end',
   reason: 'reason',
   reasonNote: 'reason_note',
+  areas: ['access_areas', 'access_areas.floor_ids', 'access_areas.zone_ids'],
 }
 
 /**
@@ -92,10 +96,13 @@ export interface WalkInPanelProps {
  * comes with their phone and the department follows the host. How long the visitor stays is a
  * quick pick (default one hour from when the form is sent, company time zone); the date and
  * time fields appear only for "Other…". "Other" as the reason needs a note. On touch screens
- * the actions stay in reach at the bottom of the screen. The visitor is created checked in.
+ * the actions stay in reach at the bottom of the screen. The visitor is created checked in. Phase 16:
+ * «المناطق المسموحة» / "Allowed areas" while the company's tracking is allowed and it has floors, prefilled
+ * from the department's floor until reception changes the field, and sent only while shown.
  */
 export function WalkInPanel({ timeZone, draft, onDraftChange, onCreated }: WalkInPanelProps) {
   const { t } = useTranslation('reception')
+  const { me } = useAuth()
   const [fresh] = useState<WalkInDraft>(() => ({ values: initialWalkInValues(), ...NO_PENDING_LOADS }))
   const now = useNow()
   const [contactOpened, setContactOpened] = useState(false)
@@ -134,6 +141,7 @@ export function WalkInPanel({ timeZone, draft, onDraftChange, onCreated }: WalkI
     : undefined
   const department = inviteDepartmentChoice(values, activeDepartmentIds)
   const listedDepartment = department.pending ?? (activeDepartmentIds ? null : current.prefillDepartment)
+  const areas = useFormAccessAreas(me, department.value, values.accessAreas)
 
   const update = (next: WalkInFormValues) =>
     onDraftChange({
@@ -152,7 +160,7 @@ export function WalkInPanel({ timeZone, draft, onDraftChange, onCreated }: WalkI
     // One instant for the check and the request: a quick-pick stay counts from the moment the form is sent.
     const sentAt = Date.now()
     if (!form.validate(validateWalkIn(values, sentAt, timeZone))) return
-    mutation.mutate(toWalkInCreate({ ...values, departmentId: department.value }, sentAt, timeZone), { onSuccess: onCreated })
+    mutation.mutate(toWalkInCreate({ ...values, departmentId: department.value }, sentAt, timeZone, areas.shown ? areas.value : null), { onSuccess: onCreated })
   }
 
   const clear = () => {
@@ -200,7 +208,11 @@ export function WalkInPanel({ timeZone, draft, onDraftChange, onCreated }: WalkI
               required
               hint={
                 values.host?.phone ? (
-                  <PhoneLink phone={values.host.phone} label={t('call', { name: values.host.full_name })} />
+                  // On a touch screen the link's tap area reaches 12 px above it, past the field's 6 px gap: the host's
+                  // input took the top of it (41 px left). Room above it there keeps the 44 px whole.
+                  <span className="inline-block pointer-coarse:pt-2">
+                    <PhoneLink phone={values.host.phone} label={t('call', { name: values.host.full_name })} />
+                  </span>
                 ) : values.host ? (
                   t('walkIn.hostNoPhone')
                 ) : loadingHost ? (
@@ -267,6 +279,11 @@ export function WalkInPanel({ timeZone, draft, onDraftChange, onCreated }: WalkI
             >
               <Textarea rows={2} value={values.reasonNote} onChange={(event) => set('reasonNote', event.target.value)} />
             </Field>
+          )}
+          {areas.shown && areas.options && (
+            <div className="border-t border-border-subtle pt-4">
+              <AccessAreasPicker options={areas.options} value={areas.value} onChange={(next) => set('accessAreas', next)} optional {...form.field('areas')} />
+            </div>
           )}
         </div>
       </Card>

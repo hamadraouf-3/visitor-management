@@ -21,6 +21,13 @@ the visit. A reschedule keeps the pass (D-22) and tells the visitor by e-mail wh
 requested; a resend rotates the pass, and so does a pass reissued for the host to share (no e-mail).
 Visitor e-mails, the host's e-mails of a visit and pass replacements count against the budgets of
 `EmailQuota` (B14-15).
+
+Allowed areas (Phase 16, B16-2, B16-3): a new visit gets the request's `access_areas`, or else its
+department's active floor; `set_access_areas` (PUT /visits/{id}/access-areas) changes them while the visit
+is SCHEDULED or CHECKED_IN, for an administrator, a receptionist or the visit's host, and re-evaluates the
+visit's area alert under the new areas (`TrackingAlerts.after_areas_change`): any editor's change may
+resolve it, only an administrator's or a receptionist's may open or escalate it (B16-25). Locks: the
+company row (shared), the visit, its open tracking association, then its alert (B16-7).
 """
 
 from datetime import datetime
@@ -37,10 +44,12 @@ from app.email.service import DeliveryJob
 from app.models import Company, EmailKind, PassRevokeReason, User, Visit, VisitStatus
 from app.repositories.departments import DepartmentRepository
 from app.repositories.locking import RowLock
+from app.repositories.tracking import AssociationRepository
 from app.repositories.users import UserRepository
 from app.repositories.visitors import VisitorRepository
 from app.repositories.visits import VisitFilters, VisitRepository
 from app.schemas.common import Paginated
+from app.schemas.locations import VisitAccessAreasInput
 from app.schemas.visits import Visit as VisitOut
 from app.schemas.visits import (
     VisitCancel,
@@ -55,6 +64,7 @@ from app.schemas.visits import (
 from app.security.permissions import Capability, has_capability, is_host
 from app.security.sessions import AuthContext
 from app.services import audit, visit_rules
+from app.services.access_areas import AccessAreaService, ids_of
 from app.services.audit import AuditAction, AuditEntity
 from app.services.departments import assignable_department
 from app.services.email_quota import QuotaUnit
@@ -62,6 +72,7 @@ from app.services.environment import ServiceEnvironment
 from app.services.no_shows import mark_if_expired, mark_no_shows_committed
 from app.services.results import Mutation
 from app.services.scoping import FieldErrors, require_found, visit_read_owner, visitor_read_owner
+from app.services.tracking_alerts import AlertMail, TrackingAlerts
 from app.services.visit_lifecycle import VisitLifecycle, begin_visit_change
 from app.services.visit_references import (
     HOST_MUST_BE_SELF,
@@ -87,6 +98,7 @@ class VisitsService:
         self.resolver = VisitorResolver(db)
         self.lifecycle = VisitLifecycle(db, env)
         self.quota = env.email_quota()
+        self.areas = AccessAreaService(db)
 
     # ---- reads ----------------------------------------------------------------------------------
 
@@ -131,6 +143,11 @@ class VisitsService:
         ).items():
             errors.add(field, message)
         choice = self.resolver.choose(auth, data, errors)
+        requested_areas = (
+            self.areas.resolve(auth.company_id, data.access_areas, errors, prefix="access_areas.")
+            if data.access_areas is not None
+            else None
+        )
         errors.raise_if_any()
         if host is None:  # excluded by `raise_if_any`; narrows the type
             raise NotFound()
@@ -176,6 +193,13 @@ class VisitsService:
                     updated_at=now,
                 )
             )
+            # The request's areas, else the department's floor (B16-3).
+            areas = (
+                requested_areas
+                if requested_areas is not None
+                else self.areas.department_default(auth.company_id, department)
+            )
+            self.areas.write(visit, areas, now=now)
             # The host is told of the visit, with it as an event of the host's calendar (B14-2), whoever
             # booked it and whether or not the visitor is invited by e-mail, within the budgets of the
             # host's e-mails (B14-15), while calendar invitations are on (B14-27). It is delivered after the
@@ -202,6 +226,7 @@ class VisitsService:
                     "invitation_requested": data.send_invitation,
                     "host_notified": host_notice.job is not None,
                     "host_notice_limited_by": host_notice.limited_by,
+                    **{f"access_{name}": ids for name, ids in ids_of(areas).items()},
                 },
             )
             issued = self.lifecycle.passes.issue(
@@ -419,6 +444,65 @@ class VisitsService:
             )
             self.db.commit()
         return payload
+
+    def set_access_areas(
+        self, auth: AuthContext, visit_id: UUID, data: VisitAccessAreasInput, context: RequestContext
+    ) -> Mutation[VisitOut]:
+        """PUT /visits/{id}/access-areas (B16-2): 404 outside the caller's read scope, 403 for a caller who
+        may not change them (management; an employee who is not the visit's host), 409 VISIT_NOT_EDITABLE
+        unless SCHEDULED or CHECKED_IN, 422 for an ID that is not an active floor (zone) of the company. The
+        same sets again: 200, nothing written. Otherwise audited VISIT_ACCESS_AREAS_CHANGED, and the
+        visit's area alert re-evaluated under the new areas (its e-mails after the commit): resolved when
+        the current location is now allowed; opened or escalated when it now violates them only for an
+        editor who tracks visits (B16-25: a host toggling the areas would learn the visitor's zone, and
+        e-mail everyone, on demand)."""
+        company = begin_visit_change(self.db, auth)
+        visit = require_found(self.visits.lock(auth.company_id, visit_id, owner_id=visit_read_owner(auth)))
+        now = app_time.now()
+        caller = Caller(user_id=auth.user_id, roles=auth.roles)
+        if not visit_rules.may_edit_access_areas(caller, host_id=visit.host_id):
+            raise Forbidden()
+        mark_if_expired(self.db, visit, now=now)
+        if not visit_rules.can_edit_access_areas(caller, status=visit.status, host_id=visit.host_id):
+            raise VisitNotEditable()
+        # The open association before the alert (lock order, B16-7): no batch changes the journey's
+        # location while the areas change.
+        AssociationRepository(self.db).open_for_visit(company.id, visit.id, lock=RowLock.UPDATE)
+        errors = FieldErrors()
+        requested = self.areas.resolve(company.id, data, errors)
+        errors.raise_if_any()
+        current = self.areas.of_visit(company.id, visit.id)
+        builder = VisitViewBuilder(self.db, Viewer.of(auth), now=now)
+        if requested == current:
+            payload = builder.one(visit)
+            self.db.commit()
+            return Mutation(payload)
+        self.areas.write(visit, requested, current=current, now=now)
+        self._audit(
+            auth,
+            AuditAction.VISIT_ACCESS_AREAS_CHANGED,
+            visit,
+            context,
+            {
+                "added_floor_ids": sorted(requested.floor_ids - current.floor_ids, key=str),
+                "removed_floor_ids": sorted(current.floor_ids - requested.floor_ids, key=str),
+                "added_zone_ids": sorted(requested.zone_ids - current.zone_ids, key=str),
+                "removed_zone_ids": sorted(current.zone_ids - requested.zone_ids, key=str),
+            },
+        )
+        with self.quota.unit() as quota:
+            alerts = TrackingAlerts(self.db, self.env.tracking, mail=AlertMail(self.lifecycle.emails, quota))
+            alerts.after_areas_change(
+                company,
+                visit,
+                actor_id=auth.user_id,
+                raises=has_capability(auth.roles, Capability.TRACK_VISITS),
+                now=now,
+                context=context,
+            )
+            payload = builder.one(visit)
+            self.db.commit()
+        return Mutation(payload, tuple(alerts.jobs))
 
     # ---- helpers --------------------------------------------------------------------------------
 

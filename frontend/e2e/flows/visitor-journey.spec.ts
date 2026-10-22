@@ -66,6 +66,11 @@ test('reception starts a visitor’s tracking; the simulator’s observations ma
   await expect(page.getByRole('heading', { level: 1, name: 'Reception' })).toBeVisible()
   await followNavLink(page, 'Visitor Journey')
   await expect(page.getByRole('heading', { level: 1, name: 'Visitor Journey' })).toBeVisible()
+  // Phase 16: the live map first; the visitor, not started, is counted as not tracked. The list is the second view.
+  await expect(page.getByRole('tab', { name: 'Live map' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('[data-not-tracked]')).toBeVisible()
+  await page.getByRole('tab', { name: 'List' }).click()
+  await expect(page).toHaveURL(/\?view=list$/)
   // The deployment's provider is the simulator: the page says so in its one line.
   await expect(page.getByRole('region', { name: 'Tracking' }).locator('[data-simulated]')).toHaveText('Simulated')
   const row = page.getByRole('table', { name: 'Visitor Journey' }).getByRole('row').filter({ hasText: name })
@@ -148,7 +153,7 @@ test('in Arabic on a phone: the journey as cards, «موقع مُستنتج», a
   expect(await simulateJourney(visit.id)).toMatch(/accepted: 2/)
 
   const { page } = await arabicReceptionist(await apiAs('admin'), open)
-  await page.goto('/journey')
+  await page.goto('/journey?view=list')
   await expect(page.getByRole('heading', { level: 1, name: 'رحلة الزائر' })).toBeVisible()
   const card = page.getByRole('row').filter({ hasText: name })
   await expect(card).toContainText('نشط')
@@ -191,7 +196,8 @@ test('an administrator prepares a place and a camera, and makes a provider key t
     const retention = page.getByRole('textbox', { name: 'Keep journeys for' })
     await retention.fill('45')
     const saved = page.waitForResponse((response) => response.url().endsWith('/tracking/settings') && response.request().method() === 'PATCH')
-    await page.getByRole('button', { name: 'Save changes' }).click()
+    // Exactly: the alert e-mails' list has its own "Save changes" (Phase 16), named for it.
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click()
     expect((await saved).request().postDataJSON()).toEqual({ retention_days: 45 })
     await expect(page.getByText('Tracking settings saved')).toBeVisible()
   } finally {
@@ -335,6 +341,11 @@ test('the platform owner allows a company’s tracking: its Visitor Journey appe
     expect(links).toEqual(expect.arrayContaining(['Visitor Journey', 'Visitor tracking']))
     await admin.page.goto('/journey')
     await expect(admin.page.getByRole('region', { name: 'Tracking' })).toContainText('Tracking is off')
+    // Phase 16: the live map of a company without places says so, with the way to set them up.
+    await expect(admin.page.getByRole('heading', { name: 'No locations yet' })).toBeVisible()
+    await expect(admin.page.getByRole('link', { name: 'Set up locations' })).toHaveAttribute('href', '/admin/tracking?tab=locations')
+    await accessible(admin.page, 'the live map while tracking is off')
+    await admin.page.goto('/journey?view=list')
     await expect(admin.page.getByRole('heading', { name: 'No visits on this day' })).toBeVisible()
     await accessible(admin.page, 'the Visitor Journey while tracking is off')
     await admin.page.goto('/admin/tracking')

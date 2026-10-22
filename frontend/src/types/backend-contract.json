@@ -1,5 +1,100 @@
 {
   "$defs": {
+    "AccessFloor": {
+      "description": "An allowed floor of a visit, with its building. `is_active`: the floor and its building are active.",
+      "properties": {
+        "building": {
+          "$ref": "#/$defs/LocationRef"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "level",
+        "building",
+        "is_active"
+      ],
+      "title": "AccessFloor",
+      "type": "object"
+    },
+    "AccessZone": {
+      "description": "An allowed extra zone of a visit (any access level, on any floor), with its floor and building.",
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/ZoneAccess"
+        },
+        "building": {
+          "$ref": "#/$defs/LocationRef"
+        },
+        "floor": {
+          "$ref": "#/$defs/FloorRef"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "access",
+        "floor",
+        "building",
+        "is_active"
+      ],
+      "title": "AccessZone",
+      "type": "object"
+    },
     "AdminDashboard": {
       "properties": {
         "counts": {
@@ -1084,6 +1179,16 @@
           "title": "Created At",
           "type": "string"
         },
+        "floor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DepartmentFloor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "id": {
           "format": "uuid",
           "title": "Id",
@@ -1119,7 +1224,8 @@
         "name_ar",
         "is_active",
         "created_at",
-        "updated_at"
+        "updated_at",
+        "floor"
       ],
       "title": "Department",
       "type": "object"
@@ -1171,6 +1277,19 @@
     "DepartmentCreate": {
       "additionalProperties": false,
       "properties": {
+        "floor_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Floor Id"
+        },
         "name": {
           "maxLength": 120,
           "minLength": 1,
@@ -1195,6 +1314,52 @@
         "name"
       ],
       "title": "DepartmentCreate",
+      "type": "object"
+    },
+    "DepartmentFloor": {
+      "description": "A department's floor with its building (B16-3). `is_active` false: archived, so new visits of the\ndepartment get no default floor until it is restored or replaced.",
+      "properties": {
+        "building": {
+          "$ref": "#/$defs/LocationRef"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "is_active": {
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "level": {
+          "title": "Level",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "level",
+        "building",
+        "is_active"
+      ],
+      "title": "DepartmentFloor",
       "type": "object"
     },
     "DepartmentListQuery": {
@@ -1243,8 +1408,21 @@
     },
     "DepartmentUpdate": {
       "additionalProperties": false,
-      "description": "PATCH: omitted fields are unchanged; `name_ar` may be null (or blank) to clear it.",
+      "description": "PATCH: omitted fields are unchanged; `name_ar` may be null (or blank) to clear it, and `floor_id`\nnull clears the department's floor.",
       "properties": {
+        "floor_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Floor Id"
+        },
         "is_active": {
           "anyOf": [
             {
@@ -2196,6 +2374,9 @@
     "InsideVisit": {
       "description": "`Visit` on the evacuation list (B57-72); only `visitor` differs.",
       "properties": {
+        "access_areas": {
+          "$ref": "#/$defs/VisitAccessAreas"
+        },
         "calendar_sequence": {
           "title": "Calendar Sequence",
           "type": "integer"
@@ -2476,7 +2657,8 @@
         "invitation",
         "last_notice",
         "pass",
-        "permissions"
+        "permissions",
+        "access_areas"
       ],
       "title": "InsideVisit",
       "type": "object"
@@ -2527,6 +2709,17 @@
     },
     "JourneyEvent": {
       "properties": {
+        "allowed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Allowed"
+        },
         "camera": {
           "anyOf": [
             {
@@ -2610,7 +2803,8 @@
         "match",
         "confidence",
         "confirmed",
-        "model_version"
+        "model_version",
+        "allowed"
       ],
       "title": "JourneyEvent",
       "type": "object"
@@ -2627,6 +2821,16 @@
     },
     "JourneyListItem": {
       "properties": {
+        "alert": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrackingAlertRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "freshness_seconds": {
           "anyOf": [
             {
@@ -2676,7 +2880,8 @@
         "simulated",
         "last_location",
         "last_observed_at",
-        "freshness_seconds"
+        "freshness_seconds",
+        "alert"
       ],
       "title": "JourneyListItem",
       "type": "object"
@@ -2746,7 +2951,7 @@
           "$ref": "#/$defs/FloorRef"
         },
         "zone": {
-          "$ref": "#/$defs/LocationRef"
+          "$ref": "#/$defs/ZoneRef"
         }
       },
       "required": [
@@ -2770,6 +2975,39 @@
       ],
       "title": "JourneyState",
       "type": "string"
+    },
+    "JourneyStay": {
+      "description": "Consecutive confirmed observations in one zone (Phase 16, B16-10), oldest first.",
+      "properties": {
+        "allowed": {
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "from": {
+          "title": "From",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/JourneyLocation"
+        },
+        "observations": {
+          "title": "Observations",
+          "type": "integer"
+        },
+        "to": {
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "from",
+        "to",
+        "observations",
+        "allowed"
+      ],
+      "title": "JourneyStay",
+      "type": "object"
     },
     "JourneyVisitSummary": {
       "properties": {
@@ -2867,6 +3105,125 @@
         "en"
       ],
       "title": "LanguageTexts",
+      "type": "object"
+    },
+    "LiveJourneyQuery": {
+      "additionalProperties": false,
+      "description": "`building_id`: only the visitors located in that building, and those without a location.",
+      "properties": {
+        "building_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Building Id"
+        }
+      },
+      "title": "LiveJourneyQuery",
+      "type": "object"
+    },
+    "LiveJourneys": {
+      "description": "GET /journeys/live: every visit of the company checked in now (at most 1000, newest check-in first;\n`truncated` beyond).",
+      "properties": {
+        "generated_at": {
+          "title": "Generated At",
+          "type": "string"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        },
+        "visitors": {
+          "items": {
+            "$ref": "#/$defs/LiveVisitor"
+          },
+          "title": "Visitors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "generated_at",
+        "truncated",
+        "visitors"
+      ],
+      "title": "LiveJourneys",
+      "type": "object"
+    },
+    "LiveVisitor": {
+      "properties": {
+        "access_areas": {
+          "$ref": "#/$defs/VisitAccessAreas"
+        },
+        "alert": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrackingAlertRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freshness_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Freshness Seconds"
+        },
+        "last_location": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JourneyLocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_observed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Observed At"
+        },
+        "simulated": {
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "state": {
+          "$ref": "#/$defs/JourneyState"
+        },
+        "visit": {
+          "$ref": "#/$defs/JourneyVisitSummary"
+        }
+      },
+      "required": [
+        "visit",
+        "state",
+        "simulated",
+        "last_location",
+        "last_observed_at",
+        "freshness_seconds",
+        "alert",
+        "access_areas"
+      ],
+      "title": "LiveVisitor",
       "type": "object"
     },
     "LocationRef": {
@@ -3354,6 +3711,37 @@
         "total"
       ],
       "title": "Paginated[PlatformCompany]",
+      "type": "object"
+    },
+    "Paginated_TrackingAlert_": {
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TrackingAlert"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "page_size",
+        "total"
+      ],
+      "title": "Paginated[TrackingAlert]",
       "type": "object"
     },
     "Paginated_User_": {
@@ -4599,6 +4987,360 @@
       "title": "TemplateField",
       "type": "string"
     },
+    "TrackingAlert": {
+      "properties": {
+        "access_areas": {
+          "$ref": "#/$defs/VisitAccessAreas"
+        },
+        "acknowledged_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Acknowledged At"
+        },
+        "acknowledged_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "can_act": {
+          "title": "Can Act",
+          "type": "boolean"
+        },
+        "escalated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Escalated At"
+        },
+        "first_location": {
+          "$ref": "#/$defs/JourneyLocation"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_location": {
+          "$ref": "#/$defs/JourneyLocation"
+        },
+        "last_seen_at": {
+          "title": "Last Seen At",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        },
+        "observations": {
+          "title": "Observations",
+          "type": "integer"
+        },
+        "opened_at": {
+          "title": "Opened At",
+          "type": "string"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrackingAlertResolution"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Resolved At"
+        },
+        "resolved_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "simulated": {
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/TrackingAlertStatus"
+        },
+        "type": {
+          "$ref": "#/$defs/TrackingAlertType"
+        },
+        "visit": {
+          "$ref": "#/$defs/JourneyVisitSummary"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "status",
+        "simulated",
+        "visit",
+        "first_location",
+        "last_location",
+        "opened_at",
+        "last_seen_at",
+        "escalated_at",
+        "observations",
+        "access_areas",
+        "acknowledged_at",
+        "acknowledged_by",
+        "resolved_at",
+        "resolved_by",
+        "resolution",
+        "note",
+        "can_act"
+      ],
+      "title": "TrackingAlert",
+      "type": "object"
+    },
+    "TrackingAlertAction": {
+      "additionalProperties": false,
+      "description": "POST /tracking/alerts/{id}/acknowledge and /resolve. A note replaces the alert's latest note.",
+      "properties": {
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "title": "TrackingAlertAction",
+      "type": "object"
+    },
+    "TrackingAlertBrief": {
+      "properties": {
+        "escalated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Escalated At"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/JourneyLocation"
+        },
+        "opened_at": {
+          "title": "Opened At",
+          "type": "string"
+        },
+        "simulated": {
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "type": {
+          "$ref": "#/$defs/TrackingAlertType"
+        },
+        "visit_id": {
+          "format": "uuid",
+          "title": "Visit Id",
+          "type": "string"
+        },
+        "visitor_name": {
+          "title": "Visitor Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "visit_id",
+        "visitor_name",
+        "location",
+        "opened_at",
+        "escalated_at",
+        "simulated"
+      ],
+      "title": "TrackingAlertBrief",
+      "type": "object"
+    },
+    "TrackingAlertListQuery": {
+      "additionalProperties": false,
+      "description": "GET /tracking/alerts: `active` (default) the OPEN and ACKNOWLEDGED alerts of any day; `day` those\nopened during a company-local day (default today), whatever their status. Newest `opened_at` first.",
+      "properties": {
+        "day": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Day"
+        },
+        "page": {
+          "default": 1,
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "scope": {
+          "default": "active",
+          "enum": [
+            "active",
+            "day"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "visit_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visit Id"
+        }
+      },
+      "title": "TrackingAlertListQuery",
+      "type": "object"
+    },
+    "TrackingAlertRef": {
+      "description": "A visit's active alert, as a list row or a visitor of the live view names it.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/TrackingAlertStatus"
+        },
+        "type": {
+          "$ref": "#/$defs/TrackingAlertType"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "status"
+      ],
+      "title": "TrackingAlertRef",
+      "type": "object"
+    },
+    "TrackingAlertResolution": {
+      "enum": [
+        "RETURNED",
+        "AREAS_CHANGED",
+        "CHECKED_OUT",
+        "MANUAL"
+      ],
+      "title": "TrackingAlertResolution",
+      "type": "string"
+    },
+    "TrackingAlertStatus": {
+      "enum": [
+        "OPEN",
+        "ACKNOWLEDGED",
+        "RESOLVED"
+      ],
+      "title": "TrackingAlertStatus",
+      "type": "string"
+    },
+    "TrackingAlertSummary": {
+      "description": "GET /tracking/alerts/summary: cheap, polled by the interface's shell. All zeros while tracking is\nnot allowed or the deployment has no provider.",
+      "properties": {
+        "active": {
+          "title": "Active",
+          "type": "integer"
+        },
+        "latest": {
+          "items": {
+            "$ref": "#/$defs/TrackingAlertBrief"
+          },
+          "title": "Latest",
+          "type": "array"
+        },
+        "open": {
+          "title": "Open",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "open",
+        "active",
+        "latest"
+      ],
+      "title": "TrackingAlertSummary",
+      "type": "object"
+    },
+    "TrackingAlertType": {
+      "enum": [
+        "UNAUTHORIZED_AREA",
+        "RESTRICTED_AREA"
+      ],
+      "title": "TrackingAlertType",
+      "type": "string"
+    },
     "TrackingAssociation": {
       "description": "A visit's tracking association. Its reference is the provider's and is never answered (B15-6).",
       "properties": {
@@ -5134,8 +5876,23 @@
     },
     "TrackingSettings": {
       "properties": {
+        "alert_emails": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Alert Emails",
+          "type": "array"
+        },
+        "alert_notify_host": {
+          "title": "Alert Notify Host",
+          "type": "boolean"
+        },
         "allowed": {
           "title": "Allowed",
+          "type": "boolean"
+        },
+        "area_alerts_enabled": {
+          "title": "Area Alerts Enabled",
           "type": "boolean"
         },
         "enabled": {
@@ -5180,7 +5937,10 @@
         "min_confidence",
         "stale_after_minutes",
         "retention_days",
-        "health"
+        "health",
+        "area_alerts_enabled",
+        "alert_notify_host",
+        "alert_emails"
       ],
       "title": "TrackingSettings",
       "type": "object"
@@ -5189,6 +5949,47 @@
       "additionalProperties": false,
       "description": "PATCH /tracking/settings: omitted fields are unchanged; `min_confidence` null clears it.",
       "properties": {
+        "alert_emails": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 320,
+                "type": "string"
+              },
+              "maxItems": 5,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alert Emails"
+        },
+        "alert_notify_host": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alert Notify Host"
+        },
+        "area_alerts_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area Alerts Enabled"
+        },
         "enabled": {
           "anyOf": [
             {
@@ -5618,6 +6419,9 @@
     },
     "Visit": {
       "properties": {
+        "access_areas": {
+          "$ref": "#/$defs/VisitAccessAreas"
+        },
         "calendar_sequence": {
           "title": "Calendar Sequence",
           "type": "integer"
@@ -5898,9 +6702,65 @@
         "invitation",
         "last_notice",
         "pass",
-        "permissions"
+        "permissions",
+        "access_areas"
       ],
       "title": "Visit",
+      "type": "object"
+    },
+    "VisitAccessAreas": {
+      "description": "A visit's allowed areas: floors by building name then level, zones by floor level then name. Both\nempty: \"not set\" (only RESTRICTED zones alert for the visit).",
+      "properties": {
+        "floors": {
+          "items": {
+            "$ref": "#/$defs/AccessFloor"
+          },
+          "title": "Floors",
+          "type": "array"
+        },
+        "zones": {
+          "items": {
+            "$ref": "#/$defs/AccessZone"
+          },
+          "title": "Zones",
+          "type": "array"
+        }
+      },
+      "required": [
+        "floors",
+        "zones"
+      ],
+      "title": "VisitAccessAreas",
+      "type": "object"
+    },
+    "VisitAccessAreasInput": {
+      "additionalProperties": false,
+      "description": "PUT /visits/{id}/access-areas, and `access_areas` of a new visit: active floors and zones of the\ncompany, each list at most 50, no duplicates. Both empty: \"not set\".",
+      "properties": {
+        "floor_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Floor Ids",
+          "type": "array"
+        },
+        "zone_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Zone Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "floor_ids",
+        "zone_ids"
+      ],
+      "title": "VisitAccessAreasInput",
       "type": "object"
     },
     "VisitCancel": {
@@ -5931,6 +6791,17 @@
     "VisitCreate": {
       "additionalProperties": false,
       "properties": {
+        "access_areas": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisitAccessAreasInput"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "department_id": {
           "anyOf": [
             {
@@ -6137,6 +7008,16 @@
     },
     "VisitJourney": {
       "properties": {
+        "access_areas": {
+          "$ref": "#/$defs/VisitAccessAreas"
+        },
+        "alerts": {
+          "items": {
+            "$ref": "#/$defs/TrackingAlert"
+          },
+          "title": "Alerts",
+          "type": "array"
+        },
         "association": {
           "anyOf": [
             {
@@ -6146,6 +7027,10 @@
               "type": "null"
             }
           ]
+        },
+        "can_edit_access_areas": {
+          "title": "Can Edit Access Areas",
+          "type": "boolean"
         },
         "can_enroll": {
           "title": "Can Enroll",
@@ -6197,6 +7082,13 @@
           ],
           "title": "Last Observed At"
         },
+        "path": {
+          "items": {
+            "$ref": "#/$defs/JourneyStay"
+          },
+          "title": "Path",
+          "type": "array"
+        },
         "state": {
           "$ref": "#/$defs/JourneyState"
         },
@@ -6226,7 +7118,11 @@
         "timeline_total",
         "can_enroll",
         "enroll_blocker",
-        "can_revoke"
+        "can_revoke",
+        "access_areas",
+        "can_edit_access_areas",
+        "alerts",
+        "path"
       ],
       "title": "VisitJourney",
       "type": "object"
@@ -6510,6 +7406,10 @@
           "title": "Can Edit",
           "type": "boolean"
         },
+        "can_edit_access_areas": {
+          "title": "Can Edit Access Areas",
+          "type": "boolean"
+        },
         "can_resend": {
           "title": "Can Resend",
           "type": "boolean"
@@ -6520,7 +7420,8 @@
         "can_cancel",
         "can_resend",
         "can_check_in",
-        "can_check_out"
+        "can_check_out",
+        "can_edit_access_areas"
       ],
       "title": "VisitPermissions",
       "type": "object"
@@ -7093,6 +7994,17 @@
     "WalkInCreate": {
       "additionalProperties": false,
       "properties": {
+        "access_areas": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisitAccessAreasInput"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "department_id": {
           "anyOf": [
             {
@@ -7183,6 +8095,9 @@
     },
     "Zone": {
       "properties": {
+        "access": {
+          "$ref": "#/$defs/ZoneAccess"
+        },
         "created_at": {
           "title": "Created At",
           "type": "string"
@@ -7226,6 +8141,7 @@
         "floor_id",
         "name",
         "name_ar",
+        "access",
         "is_active",
         "created_at",
         "updated_at"
@@ -7233,9 +8149,23 @@
       "title": "Zone",
       "type": "object"
     },
+    "ZoneAccess": {
+      "description": "Who may be in a zone (B16-1): COMMON every visitor (reception, lobby, lifts: never an alert);\nSTANDARD a visitor whose allowed areas name its floor or the zone; RESTRICTED only a visitor whose\nallowed zones name it (a server room, a board room).",
+      "enum": [
+        "COMMON",
+        "STANDARD",
+        "RESTRICTED"
+      ],
+      "title": "ZoneAccess",
+      "type": "string"
+    },
     "ZoneCreate": {
       "additionalProperties": false,
       "properties": {
+        "access": {
+          "$ref": "#/$defs/ZoneAccess",
+          "default": "STANDARD"
+        },
         "floor_id": {
           "format": "uuid",
           "title": "Floor Id",
@@ -7268,9 +8198,56 @@
       "title": "ZoneCreate",
       "type": "object"
     },
+    "ZoneRef": {
+      "description": "A zone as a location embeds it, with its access level (Phase 16, B16-1): the zone's level now.",
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/ZoneAccess"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "name_ar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Name Ar"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "name_ar",
+        "access"
+      ],
+      "title": "ZoneRef",
+      "type": "object"
+    },
     "ZoneUpdate": {
       "additionalProperties": false,
       "properties": {
+        "access": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ZoneAccess"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "is_active": {
           "anyOf": [
             {
@@ -7332,6 +8309,9 @@
     "PlatformCompanyPage": {
       "$ref": "#/$defs/Paginated_PlatformCompany_"
     },
+    "TrackingAlertPage": {
+      "$ref": "#/$defs/Paginated_TrackingAlert_"
+    },
     "UserPage": {
       "$ref": "#/$defs/Paginated_User_"
     },
@@ -7344,6 +8324,7 @@
   },
   "error_codes": [
     "ACCOUNT_INACTIVE",
+    "ALERT_RESOLVED",
     "BAD_REQUEST",
     "COMPANY_INACTIVE",
     "CONFLICT",
@@ -7527,6 +8508,9 @@
     "JourneyListParams": {
       "$ref": "#/$defs/JourneyListQuery"
     },
+    "LiveJourneyParams": {
+      "$ref": "#/$defs/LiveJourneyQuery"
+    },
     "PageParams": {
       "$ref": "#/$defs/PageQuery"
     },
@@ -7538,6 +8522,9 @@
     },
     "ReportSummaryParams": {
       "$ref": "#/$defs/ReportSummaryQuery"
+    },
+    "TrackingAlertListParams": {
+      "$ref": "#/$defs/TrackingAlertListQuery"
     },
     "TrackingCameraListParams": {
       "$ref": "#/$defs/TrackingCameraListQuery"
@@ -7664,6 +8651,9 @@
     "ScanRequest": {
       "$ref": "#/$defs/ScanRequest"
     },
+    "TrackingAlertAction": {
+      "$ref": "#/$defs/TrackingAlertAction"
+    },
     "TrackingCameraCreate": {
       "$ref": "#/$defs/TrackingCameraCreate"
     },
@@ -7684,6 +8674,9 @@
     },
     "UserUpdate": {
       "$ref": "#/$defs/UserUpdate"
+    },
+    "VisitAccessAreasInput": {
+      "$ref": "#/$defs/VisitAccessAreasInput"
     },
     "VisitCancelRequest": {
       "$ref": "#/$defs/VisitCancel"
@@ -7774,6 +8767,9 @@
     "JourneyListItem": {
       "$ref": "#/$defs/JourneyListItem"
     },
+    "LiveJourneys": {
+      "$ref": "#/$defs/LiveJourneys"
+    },
     "LocationTree": {
       "$ref": "#/$defs/LocationTree"
     },
@@ -7812,6 +8808,12 @@
     },
     "ScanWarning": {
       "$ref": "#/$defs/ScanWarning"
+    },
+    "TrackingAlert": {
+      "$ref": "#/$defs/TrackingAlert"
+    },
+    "TrackingAlertSummary": {
+      "$ref": "#/$defs/TrackingAlertSummary"
     },
     "TrackingCamera": {
       "$ref": "#/$defs/TrackingCamera"

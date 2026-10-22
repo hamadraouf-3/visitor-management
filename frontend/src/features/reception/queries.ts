@@ -5,6 +5,7 @@ import { queryKeys } from '../../api/queryKeys'
 import { checkOutStale, createWalkIn, getReceptionToday, scanPass } from '../../api/reception'
 import { searchVisitors } from '../../api/visitors'
 import { checkInVisit, checkOutVisit } from '../../api/visits'
+import { refreshPlacesAfterRefusal } from '../accessAreas/areaRefusal'
 import type { CheckInRequest, CheckOutRequest, CheckOutStaleRequest, ScanRequest, WalkInCreate } from '../../types/api'
 import { refreshAfterVisitChange } from '../visits/queries'
 
@@ -80,7 +81,8 @@ export function useCheckOutStale() {
 /**
  * Registers a walk-in. A refusal refreshes what it proves stale: 409 VISITOR_ALREADY_INSIDE
  * the Inside list and counts; 409 WALK_INS_DISABLED the company settings too, so the Walk-in
- * tab shows that walk-ins are turned off instead of keeping the form open.
+ * tab shows that walk-ins are turned off instead of keeping the form open; a refused allowed
+ * area (archived meanwhile) the places (F16-43).
  */
 export function useCreateWalkIn() {
   const queryClient = useQueryClient()
@@ -89,6 +91,7 @@ export function useCreateWalkIn() {
     onSuccess: (visit) => refreshAfterVisitChange(queryClient, visit),
     onError: (error) => {
       refreshAfterRefusal(queryClient, error)
+      refreshPlacesAfterRefusal(queryClient, error)
       if (isApiError(error) && error.code === 'WALK_INS_DISABLED') {
         void queryClient.invalidateQueries({ queryKey: queryKeys.companySettings })
       }

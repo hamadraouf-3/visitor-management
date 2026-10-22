@@ -1583,7 +1583,47 @@ stored as SHA-256 digests and shown once; refs, keys and event payloads are neve
 is connected (BLOCKED BY ENVIRONMENT). Real use requires the privacy owner's approval (purpose, lawful basis
 under Jordan's PDPL, notice, access, retention) and an evaluation-based confidence threshold
 ([production-readiness.md](production-readiness.md) §15 J); see
-[visitor-journey-design.md](visitor-journey-design.md) §6. A QR code carries only the pass link
+[visitor-journey-design.md](visitor-journey-design.md) §6.
+
+**Allowed areas and area alerts (Phase 16; the provider still off).** Each visit may carry **allowed areas**
+(floors and zones, `visit_access_areas`: place IDs only, kept with the visit, a removed area kept as removed),
+and a visitor seen by the journey's own confirmed location outside them raises a **tracking alert**
+(`tracking_alerts`: the visit, the first and the latest violating building, floor and zone, when, how many
+observations, who acknowledged or resolved it and the latest one-line staff note). Alerts are read by
+administrators, management and reception, and handled by administrators and reception; hosts who are only
+employees never read them (403), as for journeys. **An alert e-mail carries a visitor's location out of the
+application**: the visitor's name and company, the host, the building › floor › zone, the time and the
+visit's allowed floors. It goes **only** to (a) the addresses the company's administrator lists in the
+tracking settings (`alert_emails`, at most five; their choice decides who outside the application learns of
+it; the link opens the journey, which still needs a VIEW role and a session), and (b) the visit's host while
+the company keeps `alert_notify_host` on (the link opens the visit's page, never the journey). It never
+carries a pass link, a token, the provider's reference or a key; its subject (kept in the e-mail log) holds
+the visitor's name, as the host-arrival subject does. It is sent on an opening and an escalation only, within
+500 alert e-mails per company a day and 3 e-mailed openings or escalations per visit an hour (beyond either
+the alert still opens; nothing more is sent). **A host cannot cause one**: a host may change their visit's
+allowed areas (and so resolve its alert), but a host's change never opens or escalates an alert, nor
+e-mails anyone; only a confirmed observation, or an administrator's or a receptionist's change, does
+(B16-25). Otherwise a host toggling the areas would learn the visitor's exact zone on demand (the e-mail
+names it) and could spend the company's alert e-mails. Alert audit rows hold IDs and enums only, never the
+note. Alerts are
+deleted by `cli prune-journeys` once their last change is older than the company's retention. The privacy
+owner's approval for real use (above) must cover these e-mails and their recipients; see
+[visitor-journey-design.md](visitor-journey-design.md) §9 and
+[decisions/phase-16-backend.md](decisions/phase-16-backend.md).
+
+**The alerts in the interface (Phase 16; [decisions/phase-16-frontend.md](decisions/phase-16-frontend.md)).**
+The shell's alert watcher asks for `GET /tracking/alerts/summary` every 15 s with `X-Background-Refresh: 1`,
+so it never extends a session; the live map, the alerts page, a journey and a visitor's panel send every poll
+after their first load the same way (F16-37), so a screen left open still reaches the idle timeout
+([§4.1](#41-session-model)). Opening a visitor's panel on the live map loads the visit's journey and is audited
+as `JOURNEY_VIEWED`, as opening the journey is. Alert toasts and the optional notifications of the operating
+system show a visitor's name and floor › zone. The notifications are off by default and chosen per viewer; on a
+shared device the system may keep them in its notification centre: the page closes those it showed when the
+watcher goes (signing out, the session's end, another person, tracking withdrawn: F16-39), not when the browser
+itself is closed. The tab's title gains "(n) ", a count only. Local storage holds two booleans per user ID
+(`vms.trackingAlerts.{sound|notifications}.{userId}`), nothing else about the alerts.
+
+A QR code carries only the pass link
 (`{QR_BASE_URL}/pass?c=<slug>#<token>`: the company's public slug and the token), never personal data. The e-mails load nothing remote, so opening one
 tells no third party that it was read. Request models refuse unknown fields, so a client cannot store extra
 data. Free text exists only in the fields listed above (purpose, reasons, notes, company address).
@@ -1596,6 +1636,7 @@ data. Free text exists only in the fields listed above (purpose, reasons, notes,
 | Staff accounts, departments | Deactivated, never deleted |
 | Sessions | Revoked or expired rows remain until `python -m app.cli prune-sessions` deletes those that ended more than N days ago (default 30, minimum 1; runs as the schema owner) |
 | Visitor journeys (Phase 15) | Journey events are append-only (no UPDATE for the runtime role, a trigger refuses it for anyone). `python -m app.cli prune-journeys` (schema owner) deletes events observed, and ended associations that ended, more than the company's `journey_retention_days` ago (default 30, 1–90). Rejected events (sightings of an association the provider never activated among them) are never stored |
+| Tracking alerts and allowed areas (Phase 16) | `prune-journeys` first deletes the alerts last changed more than the company's retention ago (an association stays while an alert refers to it). A visit's allowed areas are part of the visit and stay with it (removed areas kept as removed: the runtime role cannot delete). Alert e-mails stay in the e-mail log like every other |
 | Reset tokens | Remain (hash, times, requesting IP); no prune command |
 | E-mail log | Remains |
 | Audit trail | Append-only; neither the runtime role nor the owner can update or delete rows while the trigger is enabled ([§8.4](#84-immutability)); no prune command |

@@ -28,7 +28,7 @@ const ADMIN: Me = {
   },
   company: { id: '00000000-0000-4000-8000-0000000000c1', name: 'Mawdoo3', name_ar: 'موضوع', slug: 'mawdoo3', timezone: 'Asia/Amman', default_language: 'ar', brand: UNBRANDED, address: null, address_ar: null, tracking_allowed: false },
 }
-const DEPARTMENTS: Department[] = [{ id: '00000000-0000-4000-8000-0000000000d1', name: 'IT', name_ar: null, is_active: true, created_at: iso(NOW), updated_at: iso(NOW) }]
+const DEPARTMENTS: Department[] = [{ id: '00000000-0000-4000-8000-0000000000d1', name: 'IT', name_ar: null, is_active: true, created_at: iso(NOW), updated_at: iso(NOW), floor: null }]
 
 const WORDS = {
   en: { add: 'Add user', generate: 'Generate', password: 'Temporary password', toggle: 'Show password' },

@@ -62,10 +62,11 @@ function visit(index: number): Visit {
     updated_at: iso(start - 86_400_000),
     invitation: { status: 'SENT', to_email: 'visitor@example.com', attempts: 1, last_attempt_at: iso(start), sent_at: iso(start), error: null, calendar_failed: false },
     last_notice: null,
+    access_areas: { floors: [], zones: [] },
     calendar_sequence: 0,
     visitor_calendar_sent: false,
     pass: { status: 'REVOKED', issued_at: iso(start - 86_400_000), revoke_reason: 'VISIT_COMPLETED' },
-    permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: false, can_check_out: false },
+    permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: false, can_check_out: false, can_edit_access_areas: false },
   }
 }
 

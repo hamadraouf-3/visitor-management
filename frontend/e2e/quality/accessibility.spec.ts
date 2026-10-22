@@ -57,7 +57,10 @@ const PAGES = {
   // Phase 14: one of the host's e-mails of a visit (no button field, the department among the variables).
   adminEmailTemplateHost: { name: 'admin: e-mail texts editor (host)', path: () => '/admin/email-templates/HOST_VISIT_SCHEDULED', ready: (page) => page.locator('[data-preview-subject]') },
   // Phase 15: the Visitor Journey (the inside visitor is tracked by the simulator) and visitor tracking's administration.
-  journey: { name: 'visitor journey', path: () => '/journey', ready: (page) => page.locator('[data-location-path]').first() },
+  // Phase 16: the live map is /journey's first view; the day's list its second; the tracking alerts (none open here).
+  journey: { name: 'visitor journey: the live map', path: () => '/journey', ready: (page) => page.locator('[data-floor-band]').first() },
+  journeyList: { name: 'visitor journey: the list', path: () => '/journey?view=list', ready: (page) => page.locator('[data-location-path]').first() },
+  journeyAlerts: { name: 'tracking alerts', path: () => '/journey/alerts', ready: (page) => page.locator('[data-alert-card]').first().or(page.getByRole('heading', { name: 'No active alerts' })) },
   journeyVisit: { name: 'a visitor’s journey', path: (data) => `/journey/${data.trackedVisitId}`, ready: (page) => page.locator('[data-journey-timeline]') },
   adminTracking: { name: 'admin: visitor tracking', path: () => '/admin/tracking', ready: (page) => page.getByRole('list', { name: 'Provider keys' }).or(page.getByText('No keys')) },
   adminTrackingLocations: { name: 'admin: tracking locations', path: () => '/admin/tracking?tab=locations', ready: (page) => page.getByRole('list', { name: 'Floors of Mawdoo3 HQ' }) },
@@ -106,6 +109,8 @@ const ROLE_PAGES: { label: string; account: AccountKey; pages: PageCheck[] }[] =
       PAGES.adminTrackingLocations,
       PAGES.adminTrackingCameras,
       PAGES.journey,
+      PAGES.journeyList,
+      PAGES.journeyAlerts,
       PAGES.journeyVisit,
       PAGES.reception,
       PAGES.receptionExpected,
@@ -126,9 +131,9 @@ const ROLE_PAGES: { label: string; account: AccountKey; pages: PageCheck[] }[] =
   {
     label: 'reception',
     account: 'reception',
-    pages: [PAGES.reception, PAGES.receptionExpected, PAGES.receptionInside, PAGES.receptionWalkIn, PAGES.visitors, PAGES.visitor, PAGES.visit, PAGES.history, PAGES.inside, PAGES.journey, PAGES.journeyVisit, PAGES.changePassword],
+    pages: [PAGES.reception, PAGES.receptionExpected, PAGES.receptionInside, PAGES.receptionWalkIn, PAGES.visitors, PAGES.visitor, PAGES.visit, PAGES.history, PAGES.inside, PAGES.journey, PAGES.journeyList, PAGES.journeyAlerts, PAGES.journeyVisit, PAGES.changePassword],
   },
-  { label: 'management', account: 'management', pages: [PAGES.reports, PAGES.history, PAGES.inside, PAGES.journey, PAGES.journeyVisit, PAGES.visitors, PAGES.visitor, PAGES.visit, PAGES.changePassword] },
+  { label: 'management', account: 'management', pages: [PAGES.reports, PAGES.history, PAGES.inside, PAGES.journey, PAGES.journeyList, PAGES.journeyAlerts, PAGES.journeyVisit, PAGES.visitors, PAGES.visitor, PAGES.visit, PAGES.changePassword] },
 ]
 
 async function checkPage(page: Page, check: PageCheck) {

@@ -52,6 +52,7 @@ def test_response_datetimes_are_utc_with_z() -> None:
         is_active=True,
         created_at=datetime(2026, 10, 5, 12, 0, tzinfo=timezone(timedelta(hours=3))),
         updated_at=datetime(2026, 10, 5, 9, 0, tzinfo=UTC),
+        floor=None,
     )
     dumped = department.model_dump(mode="json")
     assert dumped["created_at"] == "2026-10-05T09:00:00Z"
@@ -75,7 +76,13 @@ def test_response_instants_render_as_utc_on_the_wire(instant: datetime, rendered
     (no serialiser function per instant). The wire format is what it was: UTC with `Z`, microseconds
     when there are any, in `model_dump_json` (what the API sends) as in `model_dump(mode="json")`."""
     department = Department(
-        id=uuid.uuid4(), name="IT", name_ar=None, is_active=True, created_at=instant, updated_at=instant
+        id=uuid.uuid4(),
+        name="IT",
+        name_ar=None,
+        is_active=True,
+        created_at=instant,
+        updated_at=instant,
+        floor=None,
     )
     assert department.created_at.tzinfo is UTC and department.created_at == instant
     assert json.loads(department.model_dump_json())["created_at"] == rendered

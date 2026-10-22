@@ -272,6 +272,19 @@ The registry (buildings, floors, zones, cameras), the per-visit tracking associa
 check-out, a revoke or its expiry ends it), the authenticated ingestion endpoint and the journey views exist;
 with the provider `disabled` every journey shows the Disabled state and the registry stays editable.
 
+**Allowed areas and area alerts (Phase 16).** Each zone is COMMON, STANDARD or RESTRICTED; each visit has
+**allowed areas** (floors and extra zones), set when it is created (the request's, else its department's
+floor) and changed by reception, an administrator or its host. When the journey's own confirmed location is
+outside them (or in a restricted zone), a **tracking alert** opens: shown to administrators, management and
+reception, acknowledged and resolved by reception and administrators, resolved by itself when the visitor
+returns, at check-out or when the areas change, and **e-mailed** (on its opening and escalation only) to the
+addresses the company chooses and to the visit's host; in the application, staff who read alerts are told of a
+new one by a count in the navigation, a toast and a short sound (and, if they turn it on, the browser's
+notification). A **live map** shows everyone inside on their building's floors and zones, and a journey shows
+the visitor's **path**. Everything still comes only from a
+connected provider: with none, there are no locations and no alerts
+([docs/visitor-journey-design.md](docs/visitor-journey-design.md) §9).
+
 ### 1.7 Not included
 
 These are documented as future work in the contract and are not implemented: CSV export (D-24),
@@ -695,8 +708,8 @@ cd backend
 | `create-platform-admin --email … [--full-name …] [--password-stdin] [--reset]` | creates the platform owner's account (Phase 11). Without `--password-stdin` it generates a temporary password (32 characters) and prints it **once**; with it, the password is one line of stdin. The password must be changed at the first sign-in (`/platform/login`) and expires in 72 hours. `--reset` gives an existing account a new temporary password and ends its sessions; it changes nothing else, so `--full-name` is refused with it. A **generated** password signs in even while failed sign-ins from elsewhere keep the account locked (it has a failure budget of its own), which makes `--reset` without `--password-stdin` the way to recover a locked account ([security.md](docs/security.md) §3.7). | allowed |
 | `mark-no-shows` | marks expired `SCHEDULED` visits `NO_SHOW` in every company. Optional: every visit read and write does this for its own company. | allowed |
 | `prune-sessions [--older-than-days 30]` | deletes sessions (users' and the platform owner's) that ended more than N days ago; needs `MIGRATION_DATABASE_URL` (owner role) | allowed |
-| `prune-journeys` | deletes visitor journey events and ended tracking associations older than each company's `journey_retention_days` (default 30; Phase 15); needs `MIGRATION_DATABASE_URL` (owner role) | allowed |
-| `simulate-journey --visit … [--steps 3] [--interval-seconds 120] [--match CONFIRMED\|UNCERTAIN] [--confidence …]` | sends synthetic observations for a visit's simulator tracking association through the ingestion service, marked Simulated (`TRACKING_PROVIDER=simulator`; development and E2E) | refused |
+| `prune-journeys` | deletes tracking alerts (Phase 16), visitor journey events and ended tracking associations older than each company's `journey_retention_days` (default 30; Phase 15); needs `MIGRATION_DATABASE_URL` (owner role) | allowed |
+| `simulate-journey --visit … [--steps 3] [--cameras CAM1,CAM2,…] [--interval-seconds 120] [--match CONFIRMED\|UNCERTAIN] [--confidence …]` | sends synthetic observations for a visit's simulator tracking association through the ingestion service, marked Simulated (`TRACKING_PROVIDER=simulator`; development and E2E); `--cameras` (Phase 16) walks those provider camera IDs in order, one observation each, the last one now, and the command e-mails the area alerts it raises | refused |
 | `e2e-time-travel --visit-id … --minutes …` | moves a visit and its passes into the past (E2E tests) | refused |
 | `send-test-email --to … [--language ar\|en]` | sends one short bilingual message with a sample QR code and the logo through the configured provider (Arabic first by default; `--language en` puts English first) and prints the result or the classified error (never a credential). Needs no database and writes no audit row. | allowed |
 

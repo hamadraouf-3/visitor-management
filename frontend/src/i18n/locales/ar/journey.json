@@ -127,5 +127,156 @@
         "LOST": "فُقد الأثر"
       }
     }
+  },
+  "zoneAccess": {
+    "COMMON": "عامة",
+    "STANDARD": "عادية",
+    "RESTRICTED": "مقيّدة"
+  },
+  "outsideAllowed": "خارج المسموح",
+  "areas": {
+    "title": "المناطق المسموحة",
+    "notSet": "غير محددة",
+    "floors": "الطوابق",
+    "extraZones": "مناطق إضافية",
+    "searchZones": "ابحث عن منطقة",
+    "noZone": "لا توجد منطقة مطابقة",
+    "remove": "إزالة {{name}}",
+    "edit": "تعديل",
+    "editTitle": "المناطق المسموحة لـ \u2068{{name}}\u2069",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "saved": "حُفظت المناطق المسموحة",
+    "archived": "مؤرشفة",
+    "tooMany": "اختر {{max}} على الأكثر.",
+    "loading": "جارٍ تحميل الأماكن",
+    "loadError": "تعذّر تحميل الأماكن",
+    "editNamed": "تعديل المناطق المسموحة",
+    "notEditable": "انتهت هذه الزيارة؛ لم يعد بالإمكان تغيير مناطقها المسموحة."
+  },
+  "view": {
+    "label": "طريقة العرض",
+    "map": "الخريطة الحية",
+    "list": "القائمة"
+  },
+  "live": {
+    "updated": "حُدّثت {{time}}",
+    "building": "المبنى",
+    "visitors_zero": "لا زوار",
+    "visitors_one": "زائر واحد",
+    "visitors_two": "زائران",
+    "visitors_few": "{{formatted}} زوار",
+    "visitors_many": "{{formatted}} زائرًا",
+    "visitors_other": "{{formatted}} زائر",
+    "noLocation": "بدون موقع",
+    "notTracked": "غير متتبَّع",
+    "truncated": "أول {{count}} فقط",
+    "floorsOf": "طوابق {{name}}",
+    "alert": "تنبيه",
+    "loading": "جارٍ تحميل الخريطة الحية",
+    "loadError": "تعذّر تحميل الخريطة الحية",
+    "empty": {
+      "noLocations": "لا توجد أماكن بعد",
+      "setUp": "إعداد الأماكن",
+      "nobody": "لا أحد في الداخل"
+    }
+  },
+  "panel": {
+    "fullJourney": "الرحلة الكاملة",
+    "loading": "جارٍ تحميل الرحلة",
+    "loadError": "تعذّر تحميل الرحلة"
+  },
+  "path": {
+    "title": "المسار",
+    "empty": "لا يوجد موقع مؤكد بعد",
+    "observations_zero": "لا رصد",
+    "observations_one": "رصد واحد",
+    "observations_two": "رصدان",
+    "observations_few": "{{count}} عمليات رصد",
+    "observations_many": "{{count}} عملية رصد",
+    "observations_other": "{{count}} عملية رصد"
+  },
+  "alerts": {
+    "title": "تنبيهات التتبّع",
+    "type": {
+      "UNAUTHORIZED_AREA": "منطقة غير مسموحة",
+      "RESTRICTED_AREA": "منطقة مقيّدة"
+    },
+    "status": {
+      "OPEN": "مفتوح",
+      "ACKNOWLEDGED": "اطُّلع عليه",
+      "RESOLVED": "مُغلق"
+    },
+    "resolution": {
+      "RETURNED": "عاد إلى منطقة مسموحة",
+      "AREAS_CHANGED": "تغيّرت المناطق المسموحة",
+      "CHECKED_OUT": "خرج الزائر",
+      "MANUAL": "أغلقه الموظف"
+    },
+    "tabs": {
+      "label": "التنبيهات",
+      "active": "النشطة",
+      "day": "حسب اليوم"
+    },
+    "count_zero": "لا تنبيهات",
+    "count_one": "تنبيه واحد",
+    "count_two": "تنبيهان",
+    "count_few": "{{formatted}} تنبيهات",
+    "count_many": "{{formatted}} تنبيهًا",
+    "count_other": "{{formatted}} تنبيه",
+    "found_zero": "لم يُعثر على تنبيهات.",
+    "found_one": "عُثر على تنبيه واحد.",
+    "found_two": "عُثر على تنبيهين.",
+    "found_few": "عُثر على {{count}} تنبيهات.",
+    "found_many": "عُثر على {{count}} تنبيهًا.",
+    "found_other": "عُثر على {{count}} تنبيه.",
+    "date": "التاريخ",
+    "fields": {
+      "host": "المضيف",
+      "where": "المكان",
+      "since": "منذ",
+      "lastSeen": "آخر رصد",
+      "observations": "مرات الرصد",
+      "allowedFloors": "الطوابق المسموحة",
+      "note": "ملاحظة",
+      "acknowledged": "الاطلاع",
+      "resolved": "الإغلاق"
+    },
+    "whereTo": "إلى",
+    "byWhom": "\u2068{{name}}\u2069، {{when}}",
+    "automatically": "تلقائيًا، {{when}}",
+    "acknowledge": "تأكيد الاطلاع",
+    "resolve": "إغلاق",
+    "acknowledgeTitle": "تأكيد الاطلاع على تنبيه \u2068{{name}}\u2069؟",
+    "resolveTitle": "إغلاق تنبيه \u2068{{name}}\u2069؟",
+    "note": "ملاحظة",
+    "acknowledgedToast": "تم تأكيد الاطلاع على التنبيه",
+    "resolvedToast": "أُغلق التنبيه",
+    "keep": "إلغاء",
+    "openJourney": "فتح الرحلة",
+    "empty": {
+      "active": "لا توجد تنبيهات نشطة",
+      "day": "لا توجد تنبيهات في هذا اليوم"
+    },
+    "loading": "جارٍ تحميل التنبيهات",
+    "loadError": "تعذّر تحميل التنبيهات",
+    "noAccess": "لا تملك صلاحية الوصول إلى تنبيهات التتبّع",
+    "pagesLabel": "صفحات التنبيهات",
+    "visitAlerts": "التنبيهات",
+    "noVisitAlerts": "لا توجد تنبيهات",
+    "toast": "تنبيه: \u2068{{name}}\u2069 في \u2068{{place}}\u2069",
+    "view": "عرض",
+    "settings": "إعدادات التنبيه",
+    "sound": "صوت التنبيه",
+    "notifications": "إشعارات المتصفح",
+    "notificationsBlocked": "محظورة في المتصفح",
+    "notificationsUnsupported": "غير مدعومة",
+    "active_zero": "لا تنبيهات نشطة",
+    "active_one": "تنبيه نشط واحد",
+    "active_two": "تنبيهان نشطان",
+    "active_few": "{{count}} تنبيهات نشطة",
+    "active_many": "{{count}} تنبيهًا نشطًا",
+    "active_other": "{{count}} تنبيه نشط",
+    "back": "العودة إلى تنبيهات التتبّع"
   }
 }

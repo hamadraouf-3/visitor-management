@@ -20,6 +20,18 @@ parent (B15-3).
   table rather than columns of `companies` (B15-2). A company without a row has the defaults.
 * `tracking_health`, `tracking_health_counts`: the last contact and accepted event, and counts of
   rejections and provider failures by reason over a 24-hour ring of hourly slots (B15-11).
+
+Revision 0019 (Phase 16, docs/decisions/phase-16-backend.md) adds, without changing anything 0018 holds:
+
+* `zones.access` (COMMON, STANDARD, RESTRICTED; B16-1), `departments.floor_id` (the default allowed floor
+  of the department's visits, B16-3) and the companies' alert settings (B16-13);
+* `visit_access_areas`: each visit's allowed floors and extra zones, one row per area, removed rows kept
+  with `removed_at` (the runtime role cannot delete, B16-2);
+* `tracking_alerts`: a visitor seen outside the visit's allowed areas, at most one active (OPEN or
+  ACKNOWLEDGED) per visit (a partial unique index, B16-6).
+
+Revision 0020 adds `tracking_alerts.escalated_at` (nullable): when an alert escalated, so the summary
+names an escalation among the newest (B16-26).
 """
 
 import uuid
@@ -41,14 +53,19 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import (
     JourneyEventType,
     ObservationMatch,
+    TrackingAlertResolution,
+    TrackingAlertStatus,
+    TrackingAlertType,
     TrackingAssociationStatus,
     TrackingEndReason,
+    ZoneAccess,
     sql_in_list,
 )
 
@@ -78,6 +95,12 @@ RETENTION_DAYS_DEFAULT = 30
 RETENTION_DAYS_MAX = 90
 HEALTH_SLOTS = 24  # hourly slots of `tracking_health_counts`: the last 24 hours (B15-11)
 OPEN_STATUSES_SQL = "status IN ('PENDING', 'ACTIVE')"
+# Phase 16: the addresses a company's area alerts go to besides the host (B16-13), and an alert's note.
+ALERT_EMAILS_MAX = 5
+ALERT_EMAIL_MAX_LENGTH = 320
+ALERT_NOTE_MAX_LENGTH = 300
+ACTIVE_ALERT_STATUSES_SQL = "status IN ('OPEN', 'ACKNOWLEDGED')"
+LIVE_AREA_SQL = "removed_at IS NULL"
 
 
 def _same_company(
@@ -144,6 +167,7 @@ class Zone(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("company_id", "floor_id", "id"),
         _same_company(["company_id", "floor_id"], "floors", ["company_id", "id"], "fk_zones_floor"),
         *_name_checks(),
+        CheckConstraint(f"access IN ({sql_in_list(ZoneAccess)})", name="access_valid"),
     )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
@@ -154,6 +178,10 @@ class Zone(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name_ar: Mapped[str | None] = mapped_column(String(LOCATION_NAME_MAX_LENGTH))
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    # Who may be in it (revision 0019, B16-1); a zone created before Phase 16 is STANDARD.
+    access: Mapped[str] = mapped_column(
+        String(10), nullable=False, default=ZoneAccess.STANDARD.value, server_default=text("'STANDARD'")
     )
 
 
@@ -435,6 +463,7 @@ class CompanyTrackingSettings(TimestampMixin, Base):
             f"stale_after_minutes BETWEEN 1 AND {STALE_AFTER_MINUTES_MAX}", name="stale_after_minutes_range"
         ),
         CheckConstraint(f"retention_days BETWEEN 1 AND {RETENTION_DAYS_MAX}", name="retention_days_range"),
+        CheckConstraint(f"cardinality(alert_emails) <= {ALERT_EMAILS_MAX}", name="alert_emails_count"),
     )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
@@ -459,6 +488,17 @@ class CompanyTrackingSettings(TimestampMixin, Base):
         nullable=False,
         default=RETENTION_DAYS_DEFAULT,
         server_default=text(str(RETENTION_DAYS_DEFAULT)),
+    )
+    # Area alerts (revision 0019, B16-13): evaluated at all; e-mailed to the visit's host; e-mailed to these
+    # addresses (lower case, distinct, at most ALERT_EMAILS_MAX: the service normalises them).
+    area_alerts_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    alert_notify_host: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    alert_emails: Mapped[list[str]] = mapped_column(
+        ARRAY(String(ALERT_EMAIL_MAX_LENGTH)), nullable=False, default=list, server_default=text("'{}'")
     )
 
 
@@ -493,3 +533,180 @@ class TrackingHealthCount(Base):
     slot: Mapped[int] = mapped_column(SmallInteger)
     hour_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+# ---- allowed areas and area alerts (revision 0019, Phase 16) ---------------------------------------
+
+
+class VisitAccessArea(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    """One allowed area of a visit: a floor, or an extra zone (any access level, on any floor), never both
+    (B16-2). A visit with no live row has its areas "not set": only RESTRICTED zones alert for it. The
+    runtime role cannot delete, so an area taken away is kept with `removed_at`; a live area of a visit
+    is unique (partial unique indexes)."""
+
+    __tablename__ = "visit_access_areas"
+    __table_args__ = (
+        _same_company(
+            ["company_id", "visit_id"], "visits", ["company_id", "id"], "fk_visit_access_areas_visit"
+        ),
+        _same_company(
+            ["company_id", "floor_id"], "floors", ["company_id", "id"], "fk_visit_access_areas_floor"
+        ),
+        _same_company(["company_id", "zone_id"], "zones", ["company_id", "id"], "fk_visit_access_areas_zone"),
+        CheckConstraint("(floor_id IS NULL) <> (zone_id IS NULL)", name="one_area"),
+        CheckConstraint("removed_at IS NULL OR removed_at >= created_at", name="removed_after_added"),
+    )
+
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False
+    )
+    visit_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    floor_id: Mapped[uuid.UUID | None] = mapped_column()
+    zone_id: Mapped[uuid.UUID | None] = mapped_column()
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+Index(
+    "uq_visit_access_areas_live_floor",
+    VisitAccessArea.visit_id,
+    VisitAccessArea.floor_id,
+    unique=True,
+    postgresql_where=text(LIVE_AREA_SQL),
+)
+Index(
+    "uq_visit_access_areas_live_zone",
+    VisitAccessArea.visit_id,
+    VisitAccessArea.zone_id,
+    unique=True,
+    postgresql_where=text(LIVE_AREA_SQL),
+)
+# The live areas of a page of visits (every `Visit` answer carries them).
+Index(
+    "ix_visit_access_areas_live_visit",
+    VisitAccessArea.company_id,
+    VisitAccessArea.visit_id,
+    postgresql_where=text(LIVE_AREA_SQL),
+)
+
+
+class TrackingAlert(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A visitor seen, by the journey's own confirmed location, where the visit's allowed areas do not
+    allow (B16-5 to B16-12). At most one active (OPEN or ACKNOWLEDGED) alert per visit. The first and the
+    latest violating location are kept as resolved when they were seen (like the events, B15-8); its
+    visit is its association's (a composite key). The association's deletion by retention takes its
+    alerts with it (ON DELETE CASCADE, B16-17); `cli prune-journeys` deletes alerts by their own age
+    first."""
+
+    __tablename__ = "tracking_alerts"
+    __table_args__ = (
+        UniqueConstraint("company_id", "id"),
+        ForeignKeyConstraint(
+            ["company_id", "association_id", "visit_id"],
+            [
+                "tracking_associations.company_id",
+                "tracking_associations.id",
+                "tracking_associations.visit_id",
+            ],
+            name="fk_tracking_alerts_association",
+            ondelete="CASCADE",
+        ),
+        _same_company(
+            ["company_id", "first_building_id", "first_floor_id"],
+            "floors",
+            ["company_id", "building_id", "id"],
+            "fk_tracking_alerts_first_floor",
+        ),
+        _same_company(
+            ["company_id", "first_floor_id", "first_zone_id"],
+            "zones",
+            ["company_id", "floor_id", "id"],
+            "fk_tracking_alerts_first_zone",
+        ),
+        _same_company(
+            ["company_id", "last_building_id", "last_floor_id"],
+            "floors",
+            ["company_id", "building_id", "id"],
+            "fk_tracking_alerts_last_floor",
+        ),
+        _same_company(
+            ["company_id", "last_floor_id", "last_zone_id"],
+            "zones",
+            ["company_id", "floor_id", "id"],
+            "fk_tracking_alerts_last_zone",
+        ),
+        _same_company(
+            ["company_id", "acknowledged_by_id"],
+            "users",
+            ["company_id", "id"],
+            "fk_tracking_alerts_acknowledger",
+        ),
+        _same_company(
+            ["company_id", "resolved_by_id"], "users", ["company_id", "id"], "fk_tracking_alerts_resolver"
+        ),
+        CheckConstraint(f"type IN ({sql_in_list(TrackingAlertType)})", name="type_valid"),
+        CheckConstraint(f"status IN ({sql_in_list(TrackingAlertStatus)})", name="status_valid"),
+        CheckConstraint(
+            f"resolution IS NULL OR resolution IN ({sql_in_list(TrackingAlertResolution)})",
+            name="resolution_valid",
+        ),
+        CheckConstraint("(status = 'RESOLVED') = (resolved_at IS NOT NULL)", name="resolved_status"),
+        CheckConstraint("(resolved_at IS NULL) = (resolution IS NULL)", name="resolution_set"),
+        CheckConstraint("resolved_at IS NOT NULL OR resolved_by_id IS NULL", name="resolver_when_resolved"),
+        CheckConstraint("status <> 'ACKNOWLEDGED' OR acknowledged_at IS NOT NULL", name="acknowledged_set"),
+        CheckConstraint("status <> 'OPEN' OR acknowledged_at IS NULL", name="open_unacknowledged"),
+        CheckConstraint(
+            "acknowledged_at IS NOT NULL OR acknowledged_by_id IS NULL", name="acknowledger_when_acknowledged"
+        ),
+        CheckConstraint("observations >= 1", name="observations_positive"),
+        CheckConstraint("last_seen_at >= opened_at", name="seen_after_opened"),
+        CheckConstraint("note IS NULL OR btrim(note) <> ''", name="note_not_blank"),
+    )
+
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False
+    )
+    visit_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    association_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    type: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(12), nullable=False, default=TrackingAlertStatus.OPEN.value, server_default=text("'OPEN'")
+    )
+    # Raised from the simulator's association: marked Simulated everywhere (B16-12).
+    simulated: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # Where it opened and the latest violating place, as resolved then.
+    first_building_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    first_floor_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    first_zone_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    last_building_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    last_floor_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    last_zone_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    # `observed_at` of the first and of the latest violating observation.
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    observations: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default=text("1"))
+    # The server's time of its escalation (UNAUTHORIZED_AREA -> RESTRICTED_AREA, B16-8); NULL for an alert
+    # that never escalated. The summary names the newest of this or `opened_at` first (revision 0020, B16-26).
+    escalated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    acknowledged_by_id: Mapped[uuid.UUID | None] = mapped_column()
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_by_id: Mapped[uuid.UUID | None] = mapped_column()  # NULL with `resolved_at`: the system
+    resolution: Mapped[str | None] = mapped_column(String(16))
+    note: Mapped[str | None] = mapped_column(String(ALERT_NOTE_MAX_LENGTH))  # the latest staff note
+
+
+# At most one active alert per visit: the database's half of the engine's rule (B16-6).
+Index(
+    "uq_tracking_alerts_active_visit",
+    TrackingAlert.visit_id,
+    unique=True,
+    postgresql_where=text(ACTIVE_ALERT_STATUSES_SQL),
+)
+# The summary and the active list (company, status: the summary sorts the company's few OPEN alerts, at
+# most one per checked-in visit, B16-26); a day's list (company, opened_at); a visit's alerts.
+Index("ix_tracking_alerts_company_status", TrackingAlert.company_id, TrackingAlert.status)
+Index("ix_tracking_alerts_company_opened", TrackingAlert.company_id, TrackingAlert.opened_at)
+Index("ix_tracking_alerts_visit", TrackingAlert.company_id, TrackingAlert.visit_id, TrackingAlert.opened_at)
+# The association's foreign key (its deletion by retention) and the retention prune (`cli prune-journeys`).
+Index("ix_tracking_alerts_association", TrackingAlert.association_id)
+Index("ix_tracking_alerts_company_updated", TrackingAlert.company_id, TrackingAlert.updated_at)

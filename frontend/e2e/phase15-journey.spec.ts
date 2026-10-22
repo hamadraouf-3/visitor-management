@@ -27,9 +27,9 @@ const iso = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOSt
 const TOWER = { id: uuid('b1', 1), name: 'North Tower', name_ar: 'البرج الشمالي' }
 const FLOOR_G = { id: uuid('f1', 0), name: 'Ground floor', name_ar: 'الطابق الأرضي', level: 0 }
 const FLOOR_3 = { id: uuid('f1', 3), name: 'Floor 3', name_ar: 'الطابق الثالث', level: 3 }
-const RECEPTION = { id: uuid('a1', 1), name: 'Reception', name_ar: 'الاستقبال' }
-const LOBBY = { id: uuid('a1', 2), name: 'Lift lobby', name_ar: 'ردهة المصاعد' }
-const MEETING = { id: uuid('a1', 3), name: 'Meeting rooms', name_ar: 'غرف الاجتماعات' }
+const RECEPTION = { id: uuid('a1', 1), name: 'Reception', name_ar: 'الاستقبال', access: 'COMMON' as const }
+const LOBBY = { id: uuid('a1', 2), name: 'Lift lobby', name_ar: 'ردهة المصاعد', access: 'STANDARD' as const }
+const MEETING = { id: uuid('a1', 3), name: 'Meeting rooms', name_ar: 'غرف الاجتماعات', access: 'STANDARD' as const }
 
 const visitSummary = (index: number, name: string, company: string | null, status: 'CHECKED_IN' | 'CHECKED_OUT' = 'CHECKED_IN') => ({
   id: uuid('aa', index),
@@ -44,15 +44,15 @@ const visitSummary = (index: number, name: string, company: string | null, statu
 })
 
 const ITEMS: JourneyListItem[] = [
-  { visit: visitSummary(1, 'Maya Odeh', 'Cedar Advisory'), state: 'ACTIVE', simulated: true, last_location: { building: TOWER, floor: FLOOR_3, zone: MEETING }, last_observed_at: iso(-4), freshness_seconds: 240 },
-  { visit: visitSummary(2, 'هند العبدالله', null), state: 'UNCERTAIN', simulated: true, last_location: null, last_observed_at: null, freshness_seconds: null },
-  { visit: visitSummary(3, 'Khalid Mansour', 'Blue Falcon Trading and Logistics Services'), state: 'STALE', simulated: true, last_location: { building: TOWER, floor: FLOOR_G, zone: LOBBY }, last_observed_at: iso(-40), freshness_seconds: 2400 },
-  { visit: visitSummary(4, 'Marco Rossi', 'Express Courier'), state: 'PENDING', simulated: true, last_location: null, last_observed_at: null, freshness_seconds: null },
-  { visit: visitSummary(5, 'Grace Lee', null, 'CHECKED_OUT'), state: 'ENDED', simulated: true, last_location: { building: TOWER, floor: FLOOR_G, zone: RECEPTION }, last_observed_at: iso(-9), freshness_seconds: 540 },
-  { visit: visitSummary(6, 'Sara Khoury', 'Northwind'), state: 'NOT_ENROLLED', simulated: false, last_location: null, last_observed_at: null, freshness_seconds: null },
+  { visit: visitSummary(1, 'Maya Odeh', 'Cedar Advisory'), state: 'ACTIVE', simulated: true, last_location: { building: TOWER, floor: FLOOR_3, zone: MEETING }, last_observed_at: iso(-4), freshness_seconds: 240, alert: null },
+  { visit: visitSummary(2, 'هند العبدالله', null), state: 'UNCERTAIN', simulated: true, last_location: null, last_observed_at: null, freshness_seconds: null, alert: null },
+  { visit: visitSummary(3, 'Khalid Mansour', 'Blue Falcon Trading and Logistics Services'), state: 'STALE', simulated: true, last_location: { building: TOWER, floor: FLOOR_G, zone: LOBBY }, last_observed_at: iso(-40), freshness_seconds: 2400, alert: null },
+  { visit: visitSummary(4, 'Marco Rossi', 'Express Courier'), state: 'PENDING', simulated: true, last_location: null, last_observed_at: null, freshness_seconds: null, alert: null },
+  { visit: visitSummary(5, 'Grace Lee', null, 'CHECKED_OUT'), state: 'ENDED', simulated: true, last_location: { building: TOWER, floor: FLOOR_G, zone: RECEPTION }, last_observed_at: iso(-9), freshness_seconds: 540, alert: null },
+  { visit: visitSummary(6, 'Sara Khoury', 'Northwind'), state: 'NOT_ENROLLED', simulated: false, last_location: null, last_observed_at: null, freshness_seconds: null, alert: null },
 ]
 
-const camera = (id: number, name: string, providerId: string, zone: typeof RECEPTION, floor: typeof FLOOR_G, enrollment: boolean, active = true): TrackingCamera => ({
+const camera = (id: number, name: string, providerId: string, zone: typeof RECEPTION | typeof MEETING, floor: typeof FLOOR_G, enrollment: boolean, active = true): TrackingCamera => ({
   id: uuid('cc', id),
   provider_camera_id: providerId,
   name,
@@ -81,6 +81,7 @@ const event = (index: number, minutes: number, rest: Partial<VisitJourney['timel
   confidence: 0.9,
   confirmed: true,
   model_version: 'simulator',
+  allowed: true,
   ...rest,
 })
 
@@ -103,9 +104,9 @@ const JOURNEY: VisitJourney = {
   last_observed_at: iso(-4),
   freshness_seconds: 240,
   timeline: [
-    event(1, -50, { type: 'ENROLLED', camera: { id: CAMERAS[0]!.id, name: CAMERAS[0]!.name }, location: null, match: null, confidence: null, confirmed: false }),
+    event(1, -50, { type: 'ENROLLED', camera: { id: CAMERAS[0]!.id, name: CAMERAS[0]!.name }, location: null, match: null, confidence: null, confirmed: false, allowed: null }),
     event(2, -42, { location: { building: TOWER, floor: FLOOR_G, zone: LOBBY }, camera: { id: CAMERAS[1]!.id, name: CAMERAS[1]!.name } }),
-    event(3, -30, { match: 'UNCERTAIN', confidence: 0.41, confirmed: false }),
+    event(3, -30, { match: 'UNCERTAIN', confidence: 0.41, confirmed: false, allowed: null }),
     event(4, -12, { confidence: 0.93 }),
     event(5, -4, {}),
   ],
@@ -113,6 +114,14 @@ const JOURNEY: VisitJourney = {
   can_enroll: false,
   enroll_blocker: 'ALREADY_ENROLLED',
   can_revoke: true,
+  // Phase 16 (its own spec, phase16-alerts.spec.ts, looks at these): no areas set, no alert, the path.
+  access_areas: { floors: [], zones: [] },
+  can_edit_access_areas: true,
+  alerts: [],
+  path: [
+    { location: { building: TOWER, floor: FLOOR_G, zone: LOBBY }, from: iso(-42), to: iso(-42), observations: 1, allowed: true },
+    { location: { building: TOWER, floor: FLOOR_3, zone: MEETING }, from: iso(-12), to: iso(-4), observations: 2, allowed: true },
+  ],
 }
 
 const STATUS: TrackingStatus = { provider: 'simulator', simulated: true, available: true, allowed: true, enabled: true, last_contact_at: iso(-1), healthy: true }
@@ -124,6 +133,9 @@ const SETTINGS: TrackingSettings = {
   stale_after_minutes: 15,
   retention_days: 30,
   health: { last_contact_at: iso(-1), last_accepted_event_at: iso(-4), rejected_last_24h: [{ reason: 'UNKNOWN_CAMERA', count: 3 }, { reason: 'TOO_OLD', count: 1 }], provider_errors_last_24h: [] },
+  area_alerts_enabled: true,
+  alert_notify_host: true,
+  alert_emails: ['security@cedar.example'],
 }
 const KEYS: TrackingKey[] = [
   { id: uuid('kk', 1), label: 'Shaheen pilot', prefix: 'vtk_Ab3d', created_at: iso(-3000), created_by: { id: uuid('00', 1), full_name: 'Lina Haddad' }, last_used_at: iso(-1), revoked_at: null },
@@ -158,6 +170,8 @@ async function mocked(page: Page, language: Language, scheme: 'light' | 'dark', 
       if (apiPath === '/auth/me' && !platform) return answer(route, meOf(COMPANY, language, {}, roles, true))
       if (apiPath === '/tracking/status') return answer(route, STATUS)
       if (apiPath === '/journeys') return answer(route, { items: ITEMS, page: 1, page_size: 25, total: ITEMS.length })
+      // Phase 16: the shell's alerts watcher (none open here).
+      if (apiPath === '/tracking/alerts/summary') return answer(route, { open: 0, active: 0, latest: [] })
       if (apiPath === `/visits/${JOURNEY.visit.id}/journey`) return answer(route, JOURNEY)
       if (apiPath === '/tracking/settings') return answer(route, SETTINGS)
       if (apiPath === '/tracking/keys') return answer(route, KEYS)
@@ -214,7 +228,8 @@ for (const language of ['en', 'ar'] as const) {
       const words = WORDS[language]
       const tag = `${testInfo.project.name}-${language}-${scheme}`
       await mocked(page, language, scheme)
-      await page.goto('/journey')
+      // The list, the page's second view since Phase 16 (the live map is the first: phase16-alerts.spec.ts).
+      await page.goto('/journey?view=list')
       await expect(page.getByRole('heading', { level: 1, name: words.journey })).toBeVisible({ timeout: 30_000 })
       await expect(page.getByText(ITEMS[2]!.visit.visitor.full_name)).toBeVisible()
       await expect(page.getByRole('columnheader', { name: words.inferred })).toBeAttached()
@@ -273,7 +288,7 @@ test('a manager reads the journey without an action, and a phone shows cards', a
   await expect(page.getByRole('heading', { name: 'Inferred location' })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByRole('button', { name: 'Stop tracking' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Start tracking' })).toHaveCount(0)
-  await page.goto('/journey')
+  await page.goto('/journey?view=list')
   const table = page.getByRole('table', { name: 'Visitor Journey' })
   await expect(table).toBeVisible()
   // Cards below 1024 px (the header row is for assistive technology only), a table from there.

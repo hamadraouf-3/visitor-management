@@ -4,7 +4,7 @@ import { routes } from '../../../test/appRoutes'
 import { errorResponse, jsonResponse, mockApi, type RecordedRequest, type RouteHandler } from '../../../test/api'
 import { renderRoutes } from '../../../test/render'
 import type { LocationTree, TrackingCamera, TrackingKey, TrackingSettings } from '../../../types/api'
-import { FLOOR_3, LOBBY, makeCamera, makeTrackedMe, makeTrackingSettings, TOWER } from '../../journey/testRoutes'
+import { alertSummaryRoute, FLOOR_3, LOBBY, makeCamera, makeTrackedMe, makeTrackingSettings, TOWER } from '../../journey/testRoutes'
 
 const KEY: TrackingKey = {
   id: 'k1000000-0000-4000-8000-000000000001',
@@ -58,6 +58,8 @@ function setup({ settings = makeTrackingSettings(), keys = [KEY], tree = TREE, c
     'GET /tracking/keys': () => jsonResponse(keys),
     'GET /locations': () => jsonResponse(tree),
     'GET /tracking/cameras': () => jsonResponse(cameras),
+    // The shell's alert watcher (Phase 16) polls the summary on every page of a tracked company's staff.
+    ...alertSummaryRoute(),
     ...extra,
   })
   return { ...api, ...renderRoutes(routes, { initialEntries: [path] }) }
@@ -405,5 +407,167 @@ describe('Visitor tracking (administration): cameras', () => {
     expect(screen.getByRole('button', { name: 'Add camera' })).toHaveAttribute('aria-disabled', 'true')
     await user.click(screen.getByRole('button', { name: 'Open locations' }))
     await waitFor(() => expect(router.state.location.search).toBe('?tab=locations'))
+  })
+})
+
+/** The area alerts' card (Phase 16). */
+async function alertsCard(): Promise<HTMLElement> {
+  return (await screen.findByRole('heading', { name: 'Tracking alerts' })).closest('section')!
+}
+
+describe('Visitor tracking (administration): area alerts (Phase 16)', () => {
+  it('turns the area alerts and the host’s e-mail off and on at once', async () => {
+    const { requests, user } = setup()
+    const card = await alertsCard()
+    const areaAlerts = within(card).getByRole('switch', { name: 'Area alerts' })
+    const notifyHost = within(card).getByRole('switch', { name: 'Email the host' })
+    expect(areaAlerts).toHaveAttribute('aria-checked', 'true')
+    expect(notifyHost).toHaveAttribute('aria-checked', 'true')
+
+    await user.click(areaAlerts)
+    await waitFor(() => expect(areaAlerts).toHaveAttribute('aria-checked', 'false'))
+    await user.click(notifyHost)
+    await waitFor(() => expect(notifyHost).toHaveAttribute('aria-checked', 'false'))
+    await user.click(areaAlerts)
+    await waitFor(() => expect(areaAlerts).toHaveAttribute('aria-checked', 'true'))
+    expect(sent(requests, 'PATCH', '/tracking/settings')).toEqual([{ area_alerts_enabled: false }, { alert_notify_host: false }, { area_alerts_enabled: true }])
+    expect((await screen.findAllByText('Tracking settings saved')).length).toBeGreaterThan(0)
+  })
+
+  it('says when a switch could not be saved, and leaves it as it was', async () => {
+    const { user } = setup({ extra: { 'PATCH /tracking/settings': () => errorResponse(503, 'SERVICE_BUSY', 'The service is busy.') } })
+    const areaAlerts = within(await alertsCard()).getByRole('switch', { name: 'Area alerts' })
+    await user.click(areaAlerts)
+    const toast = await screen.findByText('The setting could not be saved')
+    expect(toast.parentElement).toHaveTextContent('busy')
+    expect(areaAlerts).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('adds and removes alert e-mails, each checked as it is added, and saves the list that changed', async () => {
+    const { requests, user } = setup({ settings: makeTrackingSettings({ alert_emails: ['ops@example.com'] }) })
+    const card = await alertsCard()
+    const list = within(card).getByRole('list', { name: 'Alert emails' })
+    expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['ops@example.comRemove ops@example.com'])
+    const field = within(card).getByRole('textbox', { name: 'Email address' })
+    const add = within(card).getByRole('button', { name: 'Add' })
+    const save = within(card).getByRole('button', { name: 'Save changes to alert emails' })
+    expect(save).toHaveAttribute('aria-disabled', 'true')
+
+    await user.click(add)
+    expect(field).toHaveAccessibleDescription('Enter an email address.')
+    await user.type(field, 'OPS@example.com{Enter}')
+    expect(field).toHaveAccessibleDescription('This address is already listed.')
+    await user.clear(field)
+    await user.type(field, 'Desk@Example.com')
+    await user.click(add)
+    expect(field).toHaveValue('')
+    expect(field).not.toHaveAccessibleDescription()
+    expect(within(card).getAllByRole('listitem').map((item) => item.querySelector('[dir="ltr"]')?.textContent)).toEqual(['ops@example.com', 'desk@example.com'])
+    expect(within(card).getByRole('status')).toHaveTextContent('You have unsaved changes.')
+
+    // The focus goes on to the next address's remove button.
+    await user.click(within(card).getByRole('button', { name: 'Remove ops@example.com' }))
+    await waitFor(() => expect(within(card).getByRole('button', { name: 'Remove desk@example.com' })).toHaveFocus())
+    expect(sent(requests, 'PATCH', '/tracking/settings')).toEqual([])
+
+    await user.click(save)
+    await waitFor(() => expect(sent(requests, 'PATCH', '/tracking/settings')).toEqual([{ alert_emails: ['desk@example.com'] }]))
+    await waitFor(() => expect(within(card).getByRole('status')).toHaveTextContent('All changes are saved.'))
+    expect(within(card).getAllByRole('listitem')).toHaveLength(1)
+  })
+
+  it('discards the list being edited', async () => {
+    const { requests, user } = setup({ settings: makeTrackingSettings({ alert_emails: ['ops@example.com'] }) })
+    const card = await alertsCard()
+    await user.click(within(card).getByRole('button', { name: 'Remove ops@example.com' }))
+    // The last one gone: the focus goes to the address field.
+    await waitFor(() => expect(within(card).getByRole('textbox', { name: 'Email address' })).toHaveFocus())
+    expect(within(card).getByText('None')).toBeInTheDocument()
+    await user.click(within(card).getByRole('button', { name: 'Discard changes to alert emails' }))
+    expect(within(card).getByRole('list', { name: 'Alert emails' })).toHaveTextContent('ops@example.com')
+    expect(sent(requests, 'PATCH', '/tracking/settings')).toEqual([])
+  })
+
+  it('takes five addresses at most, and says so beside a disabled Add', async () => {
+    setup({ settings: makeTrackingSettings({ alert_emails: ['a@example.com', 'b@example.com', 'c@example.com', 'd@example.com', 'e@example.com'] }) })
+    const card = await alertsCard()
+    const add = within(card).getByRole('button', { name: 'Add' })
+    expect(add).toHaveAttribute('aria-disabled', 'true')
+    expect(add).toHaveAccessibleDescription('At most 5 addresses')
+    expect(within(card).getByRole('textbox', { name: 'Email address' })).toBeDisabled()
+  })
+
+  it('gives the focus to Add when the fifth address is added with Enter, which disables the field (F16-46)', async () => {
+    const { user } = setup({ settings: makeTrackingSettings({ alert_emails: ['a@example.com', 'b@example.com', 'c@example.com', 'd@example.com'] }) })
+    const card = await alertsCard()
+    const field = within(card).getByRole('textbox', { name: 'Email address' })
+    await user.type(field, 'e@example.com{Enter}')
+    await waitFor(() => expect(field).toBeDisabled())
+    const add = within(card).getByRole('button', { name: 'Add' })
+    await waitFor(() => expect(add).toHaveFocus())
+    expect(add).toHaveAccessibleDescription('At most 5 addresses')
+  })
+
+  it('shows the server’s refusal of an address at the address field', async () => {
+    const { user } = setup({
+      settings: makeTrackingSettings({ alert_emails: [] }),
+      extra: {
+        'PATCH /tracking/settings': () =>
+          errorResponse(422, 'VALIDATION_ERROR', 'Please correct the highlighted fields.', {
+            fields: { 'alert_emails.0': 'Enter a valid email address.' },
+            field_codes: { 'alert_emails.0': { code: 'invalid_email', params: {} } },
+          }),
+      },
+    })
+    const card = await alertsCard()
+    const field = within(card).getByRole('textbox', { name: 'Email address' })
+    await user.type(field, 'ops@example.test{Enter}')
+    await user.click(within(card).getByRole('button', { name: 'Save changes to alert emails' }))
+    await waitFor(() => expect(field).toHaveAccessibleDescription(/valid email address/))
+    expect(within(card).queryByRole('alert')).toBeNull()
+  })
+})
+
+describe('Visitor tracking (administration): a zone’s access level (Phase 16)', () => {
+  it('shows each zone’s access level, and gives a new zone one, standard unless chosen', async () => {
+    const { requests, user } = setup({
+      path: '/admin/tracking?tab=locations',
+      extra: { 'POST /locations/zones': (request) => jsonResponse({ id: 'z9', ...(request.body as object), is_active: true, created_at: '', updated_at: '' }, 201) },
+    })
+    const zones = await screen.findByRole('list', { name: 'Zones of Floor 3' })
+    expect(within(zones).getByRole('listitem').querySelector('[data-zone-access]')).toHaveTextContent('Standard')
+    // A floor's level in words beside its name, never a bare number that reads as a count (the owner, F16-32).
+    expect(document.querySelector(`[data-floor-level="${FLOOR_3.level}"]`)).toHaveTextContent(`Level ${FLOOR_3.level}`)
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Floor 3' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add zone' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add a zone to Floor 3' })
+    const access = within(dialog).getByRole('combobox', { name: 'Access' })
+    expect(access).toHaveValue('STANDARD')
+    expect(within(access).getAllByRole('option').map((option) => option.textContent)).toEqual(['Standard', 'Common', 'Restricted'])
+    await user.type(within(dialog).getByRole('textbox', { name: /^Name/ }), 'Server room')
+    await user.selectOptions(access, 'Restricted')
+    await user.click(within(dialog).getByRole('button', { name: 'Add' }))
+    await waitFor(() => expect(sent(requests, 'POST', '/locations/zones')).toEqual([{ floor_id: FLOOR_3.id, name: 'Server room', name_ar: null, access: 'RESTRICTED' }]))
+  })
+
+  it('changes a zone’s access level, and asks none of a floor', async () => {
+    const { requests, user } = setup({
+      path: '/admin/tracking?tab=locations',
+      extra: { [`PATCH /locations/zones/${LOBBY.id}`]: (request) => jsonResponse({ ...LOBBY, floor_id: FLOOR_3.id, ...(request.body as object), is_active: true, created_at: '', updated_at: '' }) },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Actions for Lobby' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit zone Lobby' })
+    const access = within(dialog).getByRole('combobox', { name: 'Access' })
+    expect(access).toHaveValue('STANDARD')
+    await user.selectOptions(access, 'Common')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(sent(requests, 'PATCH', `/locations/zones/${LOBBY.id}`)).toEqual([{ name: 'Lobby', name_ar: 'الردهة', access: 'COMMON' }]))
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Floor 3' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    const floor = await screen.findByRole('dialog', { name: 'Edit floor Floor 3' })
+    expect(within(floor).queryByRole('combobox', { name: 'Access' })).toBeNull()
   })
 })

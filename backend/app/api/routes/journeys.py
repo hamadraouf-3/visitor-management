@@ -1,6 +1,7 @@
 """Visitor journeys (Phase 15, docs/api.md §17): the day's list, a visit's journey, and the tracking
-actions. Administrators, management and receptionists read; administrators and receptionists enroll and
-revoke. A host who is only an employee gets 403 (B15-13)."""
+actions; the live view of everyone inside (Phase 16, B16-11). Administrators, management and
+receptionists read; administrators and receptionists enroll and revoke. A host who is only an employee
+gets 403 (B15-13)."""
 
 from typing import Annotated
 from uuid import UUID
@@ -9,7 +10,14 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import ContextDep, JourneyServiceDep, TrackVisitsAuth, ViewJourneysAuth
 from app.schemas.common import Paginated
-from app.schemas.journeys import JourneyListItem, JourneyListQuery, TrackingEnrollRequest, VisitJourney
+from app.schemas.journeys import (
+    JourneyListItem,
+    JourneyListQuery,
+    LiveJourneyQuery,
+    LiveJourneys,
+    TrackingEnrollRequest,
+    VisitJourney,
+)
 
 router = APIRouter(tags=["journeys"])
 
@@ -27,6 +35,19 @@ def list_journeys(
     return Paginated[JourneyListItem](
         items=page.items, page=page.page, page_size=page.page_size, total=page.total
     )
+
+
+@router.get("/journeys/live", response_model=LiveJourneys)
+def live_journeys(
+    auth: ViewJourneysAuth,
+    service: JourneyServiceDep,
+    query: Annotated[LiveJourneyQuery, Query()],
+    context: ContextDep,
+) -> LiveJourneys:
+    """Every visit of the company checked in now (at most 1000, newest check-in first), with its journey
+    state, confirmed location, active alert and allowed areas. `building_id` keeps the visitors located in
+    that building and those without a location. Audited like the list (JOURNEY_LIST_VIEWED)."""
+    return service.live(auth, query, context)
 
 
 @router.get("/visits/{visit_id}/journey", response_model=VisitJourney)

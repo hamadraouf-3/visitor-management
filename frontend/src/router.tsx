@@ -12,7 +12,7 @@ import { passFeature } from './features/pass/routes'
 import { platformFeature } from './features/platform/routes'
 import { receptionFeature } from './features/reception/routes'
 import { reportsFeature } from './features/reports/routes'
-import type { FeatureModule, NavEntry } from './features/types'
+import type { FeatureModule, NavEntry, ShellExtension } from './features/types'
 import { visitorsFeature } from './features/visitors/routes'
 import { visitsFeature } from './features/visits/routes'
 import { AppLayout } from './layouts/AppLayout'
@@ -39,6 +39,9 @@ export const navigation: readonly NavEntry[] = features
   .flatMap((feature) => feature.nav ?? [])
   .toSorted((a, b) => a.order - b.order)
 
+/** What the features run in the company shell (Phase 16). */
+export const shellExtensions: readonly ShellExtension[] = features.flatMap((feature) => feature.shell ?? [])
+
 export const routes: RouteObject[] = [
   {
     path: '/',
@@ -51,7 +54,7 @@ export const routes: RouteObject[] = [
         Component: RequireAuth,
         children: [
           {
-            element: <AppLayout navigation={navigation} />,
+            element: <AppLayout navigation={navigation} extensions={shellExtensions} />,
             children: [
               {
                 // Errors inside a page render within the layout, so navigation stays usable.

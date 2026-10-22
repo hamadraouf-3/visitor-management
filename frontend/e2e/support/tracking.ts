@@ -116,3 +116,12 @@ export interface SimulateOptions {
 export function simulateJourney(visitId: string, { steps = 2, match = 'CONFIRMED', confidence = SIMULATED_CONFIDENCE }: SimulateOptions = {}): Promise<string> {
   return backendCli(['simulate-journey', '--visit', visitId, '--steps', String(steps), '--interval-seconds', '1', '--match', match, '--confidence', String(confidence)])
 }
+
+/**
+ * Phase 16: `simulate-journey --cameras`, one confirmed observation at each of the given provider camera IDs, in
+ * order, the last one now. Cameras on two floors within 60 s of each other would make the journey uncertain (no
+ * place, so no alert): a spec walks one floor a run, or the cameras of one floor.
+ */
+export function simulateAt(visitId: string, providerCameraIds: readonly string[]): Promise<string> {
+  return backendCli(['simulate-journey', '--visit', visitId, '--cameras', providerCameraIds.join(','), '--interval-seconds', '1', '--confidence', String(SIMULATED_CONFIDENCE)])
+}

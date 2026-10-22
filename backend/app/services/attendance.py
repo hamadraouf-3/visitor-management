@@ -29,7 +29,11 @@ check-in or walk-in still succeeds without the e-mail, and the audit row says wh
 Check-out: QR (any pass of this visit, as §6 row 4), MANUAL, or CORRECTED (an earlier time between the
 check-in and now, with a note). The pass is revoked (VISIT_COMPLETED). The visit's tracking association,
 if one is open, ends in the same transaction (CHECKED_OUT, Phase 15, B15-14); the tracking provider is
-asked to forget it after the commit.
+asked to forget it after the commit. The visit's active area alert is resolved in the same transaction,
+after the association (CHECKED_OUT, the checking-out user; Phase 16, B16-8).
+
+Walk-ins get allowed areas like invitations (Phase 16, B16-3): the request's `access_areas`, or else the
+floor of the visit's department while it is active.
 
 Bulk (POST /reception/check-out-stale): every visit still checked in from before company-local today
 whose scheduled end has passed is checked out with method BULK and the reason as its note, at its
@@ -107,6 +111,7 @@ from app.schemas.visits import (
 from app.schemas.visits import Visit as VisitOut
 from app.security.sessions import AuthContext
 from app.services import audit, visit_rules
+from app.services.access_areas import AccessAreaService, ids_of
 from app.services.audit import AuditAction, AuditEntity
 from app.services.email_quota import QuotaUnit
 from app.services.environment import ServiceEnvironment
@@ -115,6 +120,7 @@ from app.services.passes import PassService, invalid_pass
 from app.services.results import Mutation
 from app.services.scan import ScanOutcome, ScanSubject, count_scan, evaluate_scan, scan_error
 from app.services.scoping import FieldErrors, require_found
+from app.services.tracking_alerts import TrackingAlerts
 from app.services.tracking_lifecycle import TrackingLifecycle
 from app.services.visit_lifecycle import begin_visit_change
 from app.services.visit_references import active_host, can_host, visit_department
@@ -272,8 +278,11 @@ class AttendanceService:
         self.emails = env.email_service(db)
         self.quota = env.email_quota()
         self.resolver = VisitorResolver(db)
-        # The Visitor Journey (Phase 15): a check-out ends the visit's tracking association.
+        # The Visitor Journey (Phase 15): a check-out ends the visit's tracking association, and (Phase 16)
+        # resolves its area alert.
         self.tracking = TrackingLifecycle(db, env.tracking)
+        self.alerts = TrackingAlerts(db, env.tracking)
+        self.areas = AccessAreaService(db)
 
     # ---- check-in -------------------------------------------------------------------------------
 
@@ -544,6 +553,8 @@ class AttendanceService:
             visit, reason=PassRevokeReason.VISIT_COMPLETED, actor_id=auth.user_id, context=context, now=now
         )
         self.tracking.end_for_check_out(visit, actor_id=auth.user_id, context=context, now=now)
+        # After the association (lock order, B16-7).
+        self.alerts.resolve_for_check_out(visit, actor_id=auth.user_id, now=now, context=context)
         self._audit(
             auth,
             AuditAction.VISIT_CHECKED_OUT,
@@ -579,6 +590,11 @@ class AttendanceService:
         for field, message in walk_in_end_problems(data.expected_end, now=now).items():
             errors.add(field, message)
         choice = self.resolver.choose(auth, data, errors)
+        requested_areas = (
+            self.areas.resolve(auth.company_id, data.access_areas, errors, prefix="access_areas.")
+            if data.access_areas is not None
+            else None
+        )
         errors.raise_if_any()
         if host is None:  # excluded by `raise_if_any`; narrows the type
             raise NotFound()
@@ -634,6 +650,13 @@ class AttendanceService:
             raise _walk_in_refused(
                 VisitorAlreadyInside(), entity_type=AuditEntity.VISITOR, entity_id=resolved.visitor.id
             ) from None
+        # The request's areas, else the department's floor (B16-3).
+        areas = (
+            requested_areas
+            if requested_areas is not None
+            else self.areas.department_default(auth.company_id, department)
+        )
+        self.areas.write(visit, areas, now=now)
 
         self._audit(
             auth,
@@ -646,6 +669,7 @@ class AttendanceService:
                 "department_id": visit.department_id,
                 "visitor_reused": resolved.reused,
                 "reason": data.reason,
+                **{f"access_{name}": ids for name, ids in ids_of(areas).items()},
             },
         )
         with self.quota.unit() as quota:

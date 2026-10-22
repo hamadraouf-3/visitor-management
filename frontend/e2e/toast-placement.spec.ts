@@ -67,10 +67,11 @@ function visit(id: string, name: string, overrides: Partial<Visit> = {}): Visit 
     updated_at: iso(NOW - 86_400_000),
     invitation: { status: 'SENT', to_email: 'visitor@example.com', attempts: 1, last_attempt_at: iso(NOW - 86_400_000), sent_at: iso(NOW - 86_400_000), error: null, calendar_failed: false },
     last_notice: null,
+    access_areas: { floors: [], zones: [] },
     calendar_sequence: 0,
     visitor_calendar_sent: false,
     pass: { status: 'ACTIVE', issued_at: iso(NOW - 86_400_000), revoke_reason: null },
-    permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: true, can_check_out: false },
+    permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: true, can_check_out: false, can_edit_access_areas: false },
     ...overrides,
   }
 }
@@ -80,7 +81,7 @@ const insideVisit = (id: string, name: string) =>
     status: 'CHECKED_IN',
     check_in_at: iso(NOW - 40 * MIN),
     check_in_method: 'QR',
-    permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: false, can_check_out: true },
+    permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: false, can_check_out: true, can_edit_access_areas: false },
   })
 
 const INSIDE = [insideVisit('00000000-0000-4000-8000-000000000011', 'Élodie Martin'), insideVisit('00000000-0000-4000-8000-000000000012', 'Karim Nasser')]
@@ -99,7 +100,7 @@ const HOST: Host = {
   phone: '+962 79 000 0077',
   department: { id: '00000000-0000-4000-8000-0000000000d1', name: 'Legal', name_ar: null },
 }
-const DEPARTMENTS: Department[] = [{ id: '00000000-0000-4000-8000-0000000000d1', name: 'Legal', name_ar: null, is_active: true, created_at: iso(NOW - 86_400_000), updated_at: iso(NOW - 86_400_000) }]
+const DEPARTMENTS: Department[] = [{ id: '00000000-0000-4000-8000-0000000000d1', name: 'Legal', name_ar: null, is_active: true, created_at: iso(NOW - 86_400_000), updated_at: iso(NOW - 86_400_000), floor: null }]
 const SETTINGS: CompanySettings = {
   id: ME.company.id,
   name: ME.company.name,
@@ -120,7 +121,7 @@ const WALK_IN = visit('00000000-0000-4000-8000-000000000031', 'Tariq Mansour', {
   walk_in_reason: 'DELIVERY',
   check_in_at: iso(NOW),
   check_in_method: 'WALK_IN',
-  permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: false, can_check_out: true },
+  permissions: { can_edit: false, can_cancel: false, can_resend: false, can_check_in: false, can_check_out: true, can_edit_access_areas: false },
 })
 
 async function mockApi(page: Page, language: 'ar' | 'en' | null = null) {

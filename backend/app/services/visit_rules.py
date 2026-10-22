@@ -221,6 +221,21 @@ def reads_all_visits(roles: Collection[Role]) -> bool:
     return has_capability(roles, Capability.READ_ALL_VISITS)
 
 
+def may_edit_access_areas(caller: Caller, *, host_id: UUID) -> bool:
+    """Who changes a visit's allowed areas (Phase 16, B16-2): an administrator or a receptionist
+    (TRACK_VISITS), or the visit's host (EMPLOYEE) for their own visit. Management alone reads them."""
+    if has_capability(caller.roles, Capability.TRACK_VISITS):
+        return True
+    return Role.EMPLOYEE in caller.roles and caller.user_id == host_id
+
+
+def can_edit_access_areas(caller: Caller, *, status: str, host_id: UUID) -> bool:
+    """`may_edit_access_areas`, while the visit is SCHEDULED or CHECKED_IN."""
+    return status in (VisitStatus.SCHEDULED, VisitStatus.CHECKED_IN) and may_edit_access_areas(
+        caller, host_id=host_id
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class VisitPermissionFlags:
     can_edit: bool
@@ -228,6 +243,7 @@ class VisitPermissionFlags:
     can_resend: bool
     can_check_in: bool
     can_check_out: bool
+    can_edit_access_areas: bool
 
 
 def visit_permissions(
@@ -257,4 +273,5 @@ def visit_permissions(
         can_resend=manageable and visitor_has_email,
         can_check_in=reception and host_active and (inside_window or override_possible),
         can_check_out=reception and status == VisitStatus.CHECKED_IN,
+        can_edit_access_areas=can_edit_access_areas(caller, status=status, host_id=host_id),
     )

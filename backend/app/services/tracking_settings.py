@@ -4,6 +4,9 @@
   `enabled` only while allowed; switching it off ends every open association of the company (REVOKED).
   `min_confidence` has no default: null confirms nothing until an evaluation on site footage sets it
   (B15-12). A company without a settings row has the defaults; the first change writes the row.
+  Area alerts (Phase 16, B16-13): `area_alerts_enabled` (alerts evaluated at all), `alert_notify_host`
+  (the visit's host is e-mailed) and `alert_emails` (at most 5 addresses, lower case, each once), all
+  audited as TRACKING_SETTINGS_UPDATED with the changed field names only (never an address).
 * **Status**: what the Visitor Journey page's banner needs, for every role that sees journeys.
 * **Keys**: at most two unrevoked per company (a partial unique index over a slot, B15-10); the key is
   answered once, at its creation, and stored as its SHA-256 digest.
@@ -30,6 +33,7 @@ from app.core.field_errors import FieldCode, FieldProblem
 from app.core.request_context import RequestContext
 from app.db.errors import unique_violation_constraint
 from app.models import CompanyTrackingSettings, TrackingCamera, TrackingKey
+from app.models.enums import ZoneAccess
 from app.models.tracking import RETENTION_DAYS_DEFAULT, STALE_AFTER_MINUTES_DEFAULT
 from app.repositories.locking import RowLock
 from app.repositories.tracking import (
@@ -42,7 +46,7 @@ from app.repositories.tracking import (
 )
 from app.repositories.users import UserRepository
 from app.schemas.common import UserRef
-from app.schemas.locations import FloorRef, JourneyLocation, LocationRef
+from app.schemas.locations import FloorRef, JourneyLocation, LocationRef, ZoneRef
 from app.schemas.tracking import (
     TrackingCamera as TrackingCameraOut,
 )
@@ -83,6 +87,17 @@ PROVIDER_CAMERA_CONSTRAINT = "uq_tracking_cameras_company_id_provider_camera_id"
 PROVIDER_CAMERA_TAKEN = "A camera with this provider camera ID already exists."
 LIVE_SLOT_CONSTRAINT = "uq_tracking_keys_live_slot"
 LOCATION_ARCHIVED = FieldProblem(FieldCode.LOCATION_ARCHIVED, "This location is archived.")
+# What PATCH /tracking/settings may change (`allowed` is the platform owner's). Every change but `enabled`
+# is audited TRACKING_SETTINGS_UPDATED with the changed field names (B15-19, B16-13).
+SETTINGS_FIELDS = (
+    "enabled",
+    "min_confidence",
+    "stale_after_minutes",
+    "retention_days",
+    "area_alerts_enabled",
+    "alert_notify_host",
+    "alert_emails",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +107,10 @@ class EffectiveSettings:
     min_confidence: float | None = None
     stale_after_minutes: int = STALE_AFTER_MINUTES_DEFAULT
     retention_days: int = RETENTION_DAYS_DEFAULT
+    # Area alerts (Phase 16, B16-13).
+    area_alerts_enabled: bool = True
+    alert_notify_host: bool = True
+    alert_emails: tuple[str, ...] = ()
 
 
 def effective_settings(row: CompanyTrackingSettings | None) -> EffectiveSettings:
@@ -104,6 +123,9 @@ def effective_settings(row: CompanyTrackingSettings | None) -> EffectiveSettings
         min_confidence=row.min_confidence,
         stale_after_minutes=row.stale_after_minutes,
         retention_days=row.retention_days,
+        area_alerts_enabled=row.area_alerts_enabled,
+        alert_notify_host=row.alert_notify_host,
+        alert_emails=tuple(row.alert_emails),
     )
 
 
@@ -130,7 +152,12 @@ def journey_location(place: PlacedZone) -> JourneyLocation:
         floor=FloorRef(
             id=place.floor.id, name=place.floor.name, name_ar=place.floor.name_ar, level=place.floor.level
         ),
-        zone=LocationRef(id=place.zone.id, name=place.zone.name, name_ar=place.zone.name_ar),
+        zone=ZoneRef(
+            id=place.zone.id,
+            name=place.zone.name,
+            name_ar=place.zone.name_ar,
+            access=ZoneAccess(place.zone.access),
+        ),
     )
 
 
@@ -180,9 +207,12 @@ class TrackingSettingsService:
                 "NOT_ALLOWED", "The platform owner has not allowed tracking for this company."
             )
         changes: dict[str, object] = {}
-        for name in ("enabled", "min_confidence", "stale_after_minutes", "retention_days"):
-            if name in supplied and getattr(data, name) != getattr(current, name):
-                changes[name] = getattr(data, name)
+        for name in SETTINGS_FIELDS:
+            value = getattr(data, name)
+            if name == "alert_emails" and value is not None:
+                value = tuple(value)
+            if name in supplied and value != getattr(current, name):
+                changes[name] = list(value) if name == "alert_emails" else value
         if not changes:
             return self._view(auth.company_id, current)
         row = self.settings.lock(auth.company_id, now=now)
@@ -235,6 +265,9 @@ class TrackingSettingsService:
             min_confidence=settings.min_confidence,
             stale_after_minutes=settings.stale_after_minutes,
             retention_days=settings.retention_days,
+            area_alerts_enabled=settings.area_alerts_enabled,
+            alert_notify_host=settings.alert_notify_host,
+            alert_emails=list(settings.alert_emails),
             health=TrackingHealth(
                 last_contact_at=health.last_contact_at if health is not None else None,
                 last_accepted_event_at=health.last_accepted_event_at if health is not None else None,

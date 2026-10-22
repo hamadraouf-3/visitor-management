@@ -57,6 +57,10 @@ class EmailKind(StrEnum):
     # The short e-mail that follows a visitor's invitation and carries the visit as an event of the
     # visitor's calendar, without the pass (revision 0016, B14-10). Its words are the invitation's.
     VISITOR_CALENDAR = "VISITOR_CALENDAR"
+    # A visitor seen outside the visit's allowed areas (revision 0019, Phase 16, B16-14): to the host and
+    # the company's alert addresses, on an alert's opening and escalation. Product texts, not editable,
+    # like the security e-mails (B11-21).
+    TRACKING_ALERT = "TRACKING_ALERT"
 
 
 # The kinds whose texts a company's administrator may edit (revision 0013, B11-20; the host's three since
@@ -157,3 +161,34 @@ class ObservationMatch(StrEnum):
 
     CONFIRMED = "CONFIRMED"
     UNCERTAIN = "UNCERTAIN"
+
+
+# ---- allowed areas and area alerts (revision 0019, Phase 16, docs/visitor-journey-design.md §9) --------
+
+
+class ZoneAccess(StrEnum):
+    """Who may be in a zone (B16-1): COMMON every visitor (reception, lobby, lifts: never an alert);
+    STANDARD a visitor whose allowed areas name its floor or the zone; RESTRICTED only a visitor whose
+    allowed zones name it (a server room, a board room)."""
+
+    COMMON = "COMMON"
+    STANDARD = "STANDARD"
+    RESTRICTED = "RESTRICTED"
+
+
+class TrackingAlertType(StrEnum):
+    UNAUTHORIZED_AREA = "UNAUTHORIZED_AREA"  # a STANDARD zone outside the visit's (set) areas
+    RESTRICTED_AREA = "RESTRICTED_AREA"  # a RESTRICTED zone the visit's zones do not name
+
+
+class TrackingAlertStatus(StrEnum):
+    OPEN = "OPEN"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    RESOLVED = "RESOLVED"
+
+
+class TrackingAlertResolution(StrEnum):
+    RETURNED = "RETURNED"  # the journey's confirmed location is allowed again
+    AREAS_CHANGED = "AREAS_CHANGED"  # the visit's allowed areas now allow it
+    CHECKED_OUT = "CHECKED_OUT"  # the visitor left
+    MANUAL = "MANUAL"  # a receptionist or an administrator

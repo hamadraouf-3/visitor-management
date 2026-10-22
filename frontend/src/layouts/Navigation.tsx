@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next'
-import { NavLink } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import type { NavEntry, NavSection } from '../features/types'
 import { paths } from '../paths'
 import { cn } from '../utils/cn'
+import { currentEntry } from './currentEntry'
 
 type SectionHeadingKey = 'nav.sections.insights' | 'nav.sections.admin'
 
@@ -19,6 +20,7 @@ type NavItemKey =
   | 'nav.items.visitors'
   | 'nav.items.inside'
   | 'nav.items.journey'
+  | 'nav.items.trackingAlerts'
   | 'nav.items.history'
   | 'nav.items.reports'
   | 'nav.items.adminDashboard'
@@ -42,6 +44,7 @@ const NAV_LABEL_KEYS: Readonly<Record<string, NavItemKey>> = {
   [paths.visitors]: 'nav.items.visitors',
   [paths.inside]: 'nav.items.inside',
   [paths.journey]: 'nav.items.journey',
+  [paths.journeyAlerts]: 'nav.items.trackingAlerts',
   [paths.history]: 'nav.items.history',
   [paths.reports]: 'nav.items.reports',
   [paths.adminDashboard]: 'nav.items.adminDashboard',
@@ -71,6 +74,8 @@ interface NavigationProps {
  */
 export function Navigation({ entries, onNavigate }: NavigationProps) {
   const { t } = useTranslation()
+  const { pathname } = useLocation()
+  const current = currentEntry(entries, pathname)
   const sorted = entries.toSorted((a, b) => a.order - b.order)
   const groups = SECTIONS.map((section) => ({ ...section, entries: sorted.filter((entry) => entry.section === section.id) })).filter(
     (group) => group.entries.length > 0,
@@ -84,28 +89,29 @@ export function Navigation({ entries, onNavigate }: NavigationProps) {
           <ul className="flex flex-col gap-0.5">
             {group.entries.map((entry) => {
               const Icon = entry.icon
+              const Badge = entry.badge
               const labelKey = NAV_LABEL_KEYS[entry.to]
+              const isActive = entry === current
               return (
                 <li key={entry.to}>
-                  <NavLink
+                  <Link
                     to={entry.to}
-                    end={entry.end}
                     onClick={onNavigate}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex min-h-11 items-center gap-3 rounded-item px-3 py-2 text-[0.90625rem] transition-colors',
-                        isActive
-                          ? // The pill against the shell 4.70:1 (white on teal), 4.90:1 (turquoise on the deep
-                            // shell), at least 4.5:1 on a company's (its ink on its surface); its label 6.33:1 /
-                            // 7.31:1; the focus ring is drawn on the shell around it, in the shell's ink.
-                            'bg-accent font-semibold text-on-accent shadow-raise'
-                          : 'font-medium text-fg-secondary hover:bg-surface-muted hover:text-fg',
-                      )
-                    }
+                    aria-current={isActive ? 'page' : undefined}
+                    className={cn(
+                      'flex min-h-11 items-center gap-3 rounded-item px-3 py-2 text-[0.90625rem] transition-colors',
+                      isActive
+                        ? // The pill against the shell 4.70:1 (white on teal), 4.90:1 (turquoise on the deep
+                          // shell), at least 4.5:1 on a company's (its ink on its surface); its label 6.33:1 /
+                          // 7.31:1; the focus ring is drawn on the shell around it, in the shell's ink.
+                          'bg-accent font-semibold text-on-accent shadow-raise'
+                        : 'font-medium text-fg-secondary hover:bg-surface-muted hover:text-fg',
+                    )}
                   >
                     <Icon aria-hidden="true" className="size-5 shrink-0" />
-                    {labelKey ? t(labelKey) : entry.label}
-                  </NavLink>
+                    <span className="min-w-0">{labelKey ? t(labelKey) : entry.label}</span>
+                    {Badge && <Badge />}
+                  </Link>
                 </li>
               )
             })}

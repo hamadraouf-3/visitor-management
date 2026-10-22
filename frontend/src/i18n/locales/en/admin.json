@@ -80,7 +80,12 @@
       "TRACKING_CAMERA_UPDATED": "Camera updated",
       "LOCATION_CREATED": "Place added",
       "LOCATION_UPDATED": "Place updated",
-      "JOURNEY_LIST_VIEWED": "Journey list viewed"
+      "JOURNEY_LIST_VIEWED": "Journey list viewed",
+      "TRACKING_ALERT_OPENED": "Tracking alert opened",
+      "TRACKING_ALERT_ESCALATED": "Tracking alert escalated",
+      "TRACKING_ALERT_ACKNOWLEDGED": "Tracking alert acknowledged",
+      "TRACKING_ALERT_RESOLVED": "Tracking alert resolved",
+      "VISIT_ACCESS_AREAS_CHANGED": "Visit’s allowed areas changed"
     },
     "entities": {
       "visit": "Visit",
@@ -258,7 +263,26 @@
       "provider_camera_id": "Provider camera ID",
       "zone_id": "Zone",
       "is_enrollment_point": "Reception camera",
-      "level": "Level"
+      "level": "Level",
+      "UNAUTHORIZED_AREA": "Unauthorized area",
+      "RESTRICTED_AREA": "Restricted area",
+      "OPEN": "Open",
+      "ACKNOWLEDGED": "Acknowledged",
+      "RESOLVED": "Resolved",
+      "RETURNED": "Returned to an allowed area",
+      "AREAS_CHANGED": "Allowed areas changed",
+      "COMMON": "Common",
+      "STANDARD": "Standard",
+      "RESTRICTED": "Restricted",
+      "access": "Access",
+      "floor_id": "Floor",
+      "area_alerts_enabled": "Area alerts",
+      "alert_notify_host": "Email the host",
+      "alert_emails": "Alert emails",
+      "tracking_alert_emails_per_company_day": "Tracking alert emails per company per day",
+      "tracking_alert_notices_per_visit": "Tracking alert emails per visit per hour",
+      "OBSERVATION": "An observation",
+      "LIVE": "Live map"
     },
     "metadataKeys": {
       "outcome": "Outcome",
@@ -328,7 +352,22 @@
       "ended_tracking": "Visitors no longer tracked",
       "was_enabled": "Tracking was on",
       "day": "Day",
-      "located": "With a location"
+      "located": "With a location",
+      "alert_id": "Alert",
+      "type": "Type",
+      "resolution": "Resolution",
+      "simulated": "Simulated",
+      "view": "View",
+      "noted": "With a note",
+      "notified": "Emails sent",
+      "building_id": "Building",
+      "floor_id": "Floor",
+      "zone_id": "Zone",
+      "from_type": "Previous type",
+      "added_floor_ids": "Floors added",
+      "removed_floor_ids": "Floors removed",
+      "added_zone_ids": "Zones added",
+      "removed_zone_ids": "Zones removed"
     },
     "systemActor": "System or anonymous",
     "failure": "Failure or denial:",
@@ -531,7 +570,8 @@
     "columns": {
       "name": "Name",
       "updated": "Last changed",
-      "actions": "Actions"
+      "actions": "Actions",
+      "floor": "Floor"
     },
     "inactive": "Inactive",
     "deactivateNamed": "Deactivate {{name}}",
@@ -556,7 +596,12 @@
     "activeTotal_one": "{{count}} active department",
     "activeTotal_other": "{{count}} active departments",
     "inactiveTotal_one": "{{count}} inactive",
-    "inactiveTotal_other": "{{count}} inactive"
+    "inactiveTotal_other": "{{count}} inactive",
+    "floorOf": "Floor of {{name}}",
+    "noFloor": "No floor",
+    "floorArchived": "{{name}} (archived)",
+    "floorSaved": "Floor of {{name}} saved",
+    "floorFailed": "The floor of {{name}} could not be saved"
   },
   "settings": {
     "validation": {
@@ -861,7 +906,8 @@
         "duplicate": "This name is already used here.",
         "level": "Enter a whole number from {{min}} to {{max}}.",
         "levelTaken": "This building already has a floor at this level."
-      }
+      },
+      "access": "Access"
     },
     "cameras": {
       "title": "Cameras",
@@ -904,6 +950,25 @@
         "nameRequired": "Enter a name.",
         "zoneRequired": "Choose a zone."
       }
+    },
+    "alerts": {
+      "title": "Tracking alerts",
+      "areaAlerts": "Area alerts",
+      "notifyHost": "Email the host",
+      "emails": "Alert emails",
+      "newEmail": "Email address",
+      "add": "Add",
+      "remove": "Remove {{email}}",
+      "none": "None",
+      "full": "At most {{max}} addresses",
+      "saveFailed": "The setting could not be saved",
+      "validation": {
+        "emailRequired": "Enter an email address.",
+        "emailListed": "This address is already listed.",
+        "emailsFull": "Enter at most {{max}} addresses."
+      },
+      "saveNamed": "Save changes to alert emails",
+      "discardNamed": "Discard changes to alert emails"
     }
   }
 }

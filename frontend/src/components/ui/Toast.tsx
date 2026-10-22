@@ -3,8 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
+import { buttonClassName } from './buttonStyles'
 import { KEEP_INTERACTIVE_ATTRIBUTE } from './modal'
-import { ToastContext, type ToastApi, type ToastOptions, type ToastTone } from './toastContext'
+import { ToastContext, type ToastAction, type ToastApi, type ToastOptions, type ToastTone } from './toastContext'
 import { toneIconClasses } from './tones'
 
 const DEFAULT_DURATION_MS = 6000
@@ -15,6 +16,7 @@ interface ToastItem {
   title: string
   description?: string
   durationMs: number | null
+  action?: ToastAction
 }
 
 const icons: Record<ToastTone, LucideIcon> = {
@@ -66,7 +68,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       if (generation !== currentGeneration.current) return id
       const tone = options.tone ?? 'info'
       const durationMs = options.durationMs !== undefined ? options.durationMs : tone === 'danger' ? null : DEFAULT_DURATION_MS
-      setToasts((current) => [...current, { id, tone, title: options.title, description: options.description, durationMs }])
+      setToasts((current) => [...current, { id, tone, title: options.title, description: options.description, durationMs, action: options.action }])
       return id
     }
     return { show, dismiss, reset }
@@ -128,6 +130,20 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: str
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-semibold text-fg">{toast.title}</p>
         {toast.description && <p className="mt-0.5 text-fg-muted">{toast.description}</p>}
+        {toast.action && (
+          <button
+            type="button"
+            data-toast-action=""
+            onClick={() => {
+              toast.action?.onAction()
+              onDismiss(toast.id)
+            }}
+            // The kit's small secondary button: 36 px, 44 px on touch screens.
+            className={buttonClassName({ variant: 'secondary', size: 'sm', className: 'mt-2.5' })}
+          >
+            {toast.action.label}
+          </button>
+        )}
       </div>
       <button
         type="button"

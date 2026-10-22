@@ -232,10 +232,13 @@ def test_the_brand_image_upload_is_the_one_request_with_a_limit_of_its_own() -> 
     assert (BRAND_IMAGE_UPLOAD_METHOD, BRAND_IMAGE_UPLOAD_MAX_BYTES) == ("PUT", 512 * 1024)
     template = "/api/v1/platform/companies/{company_id}/brand/assets/{kind}"
     puts = _routes("PUT")
-    # The only PUT of the API that reads a body, and the pattern matches what its route matches. The
+    # The only PUT of the API with a limit of its own, and the pattern matches what its route matches. The
     # provider's ingestion path answers every method but POST with 404 or 405 before reading anything
-    # (Phase 15, B15-38).
-    assert sorted(puts) == sorted([template, "/api/v1/tracking/events"])
+    # (Phase 15, B15-38); a visit's allowed areas (Phase 16, B16-2) are a small JSON body, under the
+    # API's default limit like every other.
+    assert sorted(puts) == sorted(
+        [template, "/api/v1/tracking/events", "/api/v1/visits/{visit_id}/access-areas"]
+    )
     company = uuid.uuid4()
     for kind in ("logo", "logo_dark", "icon", "anything"):
         path = f"/api/v1/platform/companies/{company}/brand/assets/{kind}"

@@ -3,6 +3,8 @@ import { makeCamera, makeTrackingSettings } from '../../journey/testRoutes'
 import type { BuildingNode } from '../../journey/types'
 import {
   activeZoneGroups,
+  ALERT_EMAIL_PATHS,
+  alertEmailsDirty,
   cameraValues,
   confidenceText,
   parseLevel,
@@ -10,11 +12,14 @@ import {
   parseWhole,
   thresholdsDirty,
   thresholdValues,
+  toAlertEmailsUpdate,
   toThresholdUpdate,
+  validateAlertEmail,
   validateCamera,
   validateKeyLabel,
   validatePlace,
   validateThresholds,
+  withAlertEmail,
 } from './trackingForms'
 
 describe('the thresholds', () => {
@@ -66,10 +71,10 @@ describe('a place', () => {
   const buildings = [{ id: 'b1', name: 'North Tower' }, { id: 'b2', name: 'Annex' }]
 
   it('needs a name, unique among its siblings in any case, of at most 120 characters', () => {
-    expect(validatePlace('building', { name: ' ', nameAr: '', level: '' }, { names: buildings })).toEqual({ name: 'Enter a name.' })
-    expect(validatePlace('building', { name: 'north tower', nameAr: '', level: '' }, { names: buildings })).toEqual({ name: 'This name is already used here.' })
-    expect(validatePlace('building', { name: 'North Tower', nameAr: 'البرج', level: '' }, { names: buildings }, 'b1')).toEqual({})
-    expect(validatePlace('zone', { name: 'x'.repeat(121), nameAr: 'ع'.repeat(121), level: '' }, { names: [] })).toEqual({
+    expect(validatePlace('building', { name: ' ', nameAr: '', level: '', access: 'STANDARD' }, { names: buildings })).toEqual({ name: 'Enter a name.' })
+    expect(validatePlace('building', { name: 'north tower', nameAr: '', level: '', access: 'STANDARD' }, { names: buildings })).toEqual({ name: 'This name is already used here.' })
+    expect(validatePlace('building', { name: 'North Tower', nameAr: 'البرج', level: '', access: 'STANDARD' }, { names: buildings }, 'b1')).toEqual({})
+    expect(validatePlace('zone', { name: 'x'.repeat(121), nameAr: 'ع'.repeat(121), level: '', access: 'STANDARD' }, { names: [] })).toEqual({
       name: 'Enter at most 120 characters.',
       nameAr: 'Enter at most 120 characters.',
     })
@@ -77,15 +82,15 @@ describe('a place', () => {
 
   it('needs a floor’s level, a whole number from −20 to 200, unique in its building', () => {
     const floors = { names: [{ id: 'f1', name: 'Ground' }], levels: [{ id: 'f1', level: 0 }] }
-    expect(validatePlace('floor', { name: 'Ground', nameAr: '', level: '0' }, floors)).toEqual({ level: 'This building already has a floor at this level.' })
-    expect(validatePlace('floor', { name: 'Basement', nameAr: '', level: '−2' }, floors)).toEqual({})
-    expect(validatePlace('floor', { name: 'Roof', nameAr: '', level: '201' }, floors)).toEqual({ level: 'Enter a whole number from -20 to 200.' })
+    expect(validatePlace('floor', { name: 'Ground', nameAr: '', level: '0', access: 'STANDARD' }, floors)).toEqual({ level: 'This building already has a floor at this level.' })
+    expect(validatePlace('floor', { name: 'Basement', nameAr: '', level: '−2', access: 'STANDARD' }, floors)).toEqual({})
+    expect(validatePlace('floor', { name: 'Roof', nameAr: '', level: '201', access: 'STANDARD' }, floors)).toEqual({ level: 'Enter a whole number from -20 to 200.' })
     expect(parseLevel('-٣')).toBe(-3)
     expect(parseLevel('2.5')).toBeNull()
   })
 })
 
-const zone = (id: string, isActive = true) => ({ id, floor_id: 'f', name: id, name_ar: null, is_active: isActive, created_at: '', updated_at: '' })
+const zone = (id: string, isActive = true) => ({ id, floor_id: 'f', name: id, name_ar: null, access: 'STANDARD' as const, is_active: isActive, created_at: '', updated_at: '' })
 const floor = (id: string, zones: ReturnType<typeof zone>[], isActive = true) => ({ id, building_id: 'b', name: id, name_ar: null, level: 1, is_active: isActive, created_at: '', updated_at: '', zones })
 
 describe('a camera', () => {
@@ -113,5 +118,33 @@ describe('a key’s label', () => {
     expect(validateKeyLabel('a\nb')).toBe('Write the label on one line.')
     expect(validateKeyLabel('x'.repeat(101))).toBe('Enter at most 100 characters.')
     expect(validateKeyLabel('Shaheen pilot')).toBeUndefined()
+  })
+})
+
+describe('the alert e-mails (Phase 16)', () => {
+  const listed = ['ops@example.com', 'security@example.com']
+
+  it('takes a valid address not listed yet, five at most, lower case as the server keeps it', () => {
+    expect(validateAlertEmail(' ', listed)).toBe('Enter an email address.')
+    expect(validateAlertEmail('ops at example', listed)).toBe('Enter a valid email address, like name@company.com.')
+    expect(validateAlertEmail(' Ops@Example.COM ', listed)).toBe('This address is already listed.')
+    expect(validateAlertEmail('desk@example.com', ['a@x.io', 'b@x.io', 'c@x.io', 'd@x.io', 'e@x.io'])).toBe('Enter at most 5 addresses.')
+    expect(validateAlertEmail(`${'a'.repeat(250)}@x.io`, listed)).toBe('Enter at most 254 characters.')
+    expect(validateAlertEmail('Desk@Example.com', listed)).toBeUndefined()
+    expect(withAlertEmail(listed, ' Desk@Example.com ')).toEqual([...listed, 'desk@example.com'])
+  })
+
+  it('sends the list only when it changed, in its order', () => {
+    const settings = makeTrackingSettings({ alert_emails: listed })
+    expect(alertEmailsDirty(settings, null)).toBe(false)
+    expect(toAlertEmailsUpdate(settings, null)).toBeNull()
+    expect(toAlertEmailsUpdate(settings, [...listed])).toBeNull()
+    expect(alertEmailsDirty(settings, listed.toReversed())).toBe(true)
+    expect(toAlertEmailsUpdate(settings, ['ops@example.com'])).toEqual({ alert_emails: ['ops@example.com'] })
+    expect(toAlertEmailsUpdate(settings, [])).toEqual({ alert_emails: [] })
+  })
+
+  it('finds the server’s refusal on the list or on one of its places', () => {
+    expect(ALERT_EMAIL_PATHS).toEqual(['alert_emails', 'alert_emails.0', 'alert_emails.1', 'alert_emails.2', 'alert_emails.3', 'alert_emails.4'])
   })
 })

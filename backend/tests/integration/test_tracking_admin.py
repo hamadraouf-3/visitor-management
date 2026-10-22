@@ -60,8 +60,10 @@ def test_administrators_build_the_tree_and_every_journey_role_reads_it(
         [only] = tree.json()["buildings"]
         assert [floor["level"] for floor in only["floors"]] == [-1, 0, 2]  # by level
         assert only["floors"][1]["zones"][0]["name"] == "Lobby"
+    # Phase 16 (B16-19): a host who is only an employee reads the tree too, for an invitation's allowed
+    # areas (the active locations only: tests/integration/test_access_areas.py).
     employee = signed_in(make_client, world.a.employee)
-    assert employee.get("/locations").status_code == 403
+    assert employee.get("/locations").status_code == 200
     for user in (world.a.manager, world.a.receptionist):
         api = signed_in(make_client, user)
         assert api.post("/locations/buildings", json={"name": "Annex"}).status_code == 403
@@ -236,6 +238,10 @@ def test_settings_have_the_defaults_and_enabling_needs_the_platform_owner(
             "rejected_last_24h": [],
             "provider_errors_last_24h": [],
         },
+        # Phase 16 (B16-13): the area alerts' defaults.
+        "area_alerts_enabled": True,
+        "alert_notify_host": True,
+        "alert_emails": [],
     }
     assert db.get(CompanyTrackingSettings, world.a.company.id) is None  # a read writes nothing
     refused = admin.patch("/tracking/settings", json={"enabled": True})

@@ -5,6 +5,7 @@ import { errorResponse, jsonResponse, makeMe, mockApi, type RecordedRequest, typ
 import { FINANCE, LEGAL, makeHost, makeSearchItem, makeVisit, makeVisitor, page, VISIT_ID, VISITOR_ID } from '../test/fixtures'
 import { findAlert, renderRoutes } from '../test/render'
 import type { Me, Visit, VisitCreate, VisitCreateResult } from '../types/api'
+import { FLOOR_3, FLOOR_4, GROUND, makeLocationTree, makeTower, makeTrackedMe, SERVER_ROOM, TOWER } from '../features/journey/testRoutes'
 
 
 // 09:10 on Mon 5 Oct 2026 in Amman (the company timezone); the test browser runs in UTC.
@@ -978,5 +979,128 @@ describe('Invite visitor: the host’s calendar', () => {
     await successShown()
     expect(screen.getByRole('link', { name: 'View visit' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add to my calendar' })).toBeNull()
+  })
+})
+
+const areas = () => screen.getByRole('group', { name: 'Allowed areas (optional)' })
+const floor = (name: string) => within(areas()).getByRole('checkbox', { name })
+
+describe('Invite visitor: the allowed areas (Phase 16)', () => {
+  /** Finance (the host's own department) works on floor 3, Legal on floor 4. */
+  const financeOn3 = { ...FINANCE, floor: { ...FLOOR_3, building: TOWER, is_active: true } }
+  const legalOn4 = { ...LEGAL, floor: { ...FLOOR_4, building: TOWER, is_active: true } }
+  const tracked = makeTrackedMe(['EMPLOYEE'])
+
+  function setupTracked({ create, locations = () => jsonResponse(makeLocationTree()), as = tracked }: { create?: RouteHandler; locations?: RouteHandler; as?: Me } = {}) {
+    return setup({
+      as,
+      create,
+      extra: { 'GET /departments': () => jsonResponse([financeOn3, legalOn4]), 'GET /locations': locations },
+    })
+  }
+
+
+  beforeEach(() => {
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('is not offered while the company’s tracking is not allowed, and nothing is asked for or sent', async () => {
+    const { user, requests } = setup({ extra: { 'GET /departments': () => jsonResponse([financeOn3, legalOn4]) } })
+    await submitInvite(user)
+    await successShown()
+    expect(screen.queryByRole('group', { name: /Allowed areas/ })).toBeNull()
+    expect(requests.some((request) => request.path === '/locations')).toBe(false)
+    expect(createBody(requests)).not.toHaveProperty('access_areas')
+  })
+
+  it('is not offered while the company has no floor', async () => {
+    const { user, requests } = setupTracked({ locations: () => jsonResponse(makeLocationTree([])) })
+    await openForm()
+    await waitFor(() => expect(requests.some((request) => request.path === '/locations')).toBe(true))
+    fillNewVisitor()
+    await user.click(screen.getByRole('button', { name: 'Send invitation' }))
+    await successShown()
+    expect(createBody(requests)).not.toHaveProperty('access_areas')
+  })
+
+  it('starts from the department’s floor, follows a new department, and sends what it shows', async () => {
+    const { user, requests } = setupTracked()
+    await openForm()
+    await waitFor(() => expect(floor('Floor 3')).toBeChecked())
+    expect(floor('Floor 4')).not.toBeChecked()
+    expect(floor('Ground floor')).not.toBeChecked()
+
+    await user.selectOptions(field.department(), 'Legal')
+    expect(floor('Floor 4')).toBeChecked()
+    expect(floor('Floor 3')).not.toBeChecked()
+
+    fillNewVisitor()
+    await user.click(screen.getByRole('button', { name: 'Send invitation' }))
+    await successShown()
+    expect(createBody(requests)).toMatchObject({ department_id: LEGAL.id, access_areas: { floor_ids: [FLOOR_4.id], zone_ids: [] } })
+  })
+
+  it('keeps the host’s own choice when the department changes afterwards, extra zones included', async () => {
+    const { user, requests } = setupTracked()
+    await openForm()
+    await waitFor(() => expect(floor('Floor 3')).toBeChecked())
+    await user.click(floor('Ground floor'))
+
+    const zones = within(areas()).getByRole('combobox', { name: 'Extra zones' })
+    await user.type(zones, 'server')
+    await user.click(await popupOption(/Server room/))
+    const chosen = within(areas()).getByRole('list', { name: 'Extra zones' })
+    expect(chosen).toHaveTextContent('Floor 4,Server roomRestricted')
+    expect(zones).toHaveValue('')
+
+    await user.selectOptions(field.department(), 'Legal')
+    expect(floor('Floor 3')).toBeChecked()
+    expect(floor('Ground floor')).toBeChecked()
+    expect(floor('Floor 4')).not.toBeChecked()
+
+    fillNewVisitor()
+    await user.click(screen.getByRole('button', { name: 'Send invitation' }))
+    await successShown()
+    expect(createBody(requests).access_areas).toEqual({ floor_ids: [FLOOR_3.id, GROUND.id], zone_ids: [SERVER_ROOM.id] })
+  })
+
+  it('removes an extra zone with its own button', async () => {
+    const { user } = setupTracked()
+    await openForm()
+    const zones = await within(await waitFor(areas)).findByRole('combobox', { name: 'Extra zones' })
+    await user.type(zones, 'server')
+    await user.click(await popupOption(/Server room/))
+    await user.click(within(areas()).getByRole('button', { name: 'Remove Floor 4 › Server room' }))
+    expect(within(areas()).queryByRole('list', { name: 'Extra zones' })).toBeNull()
+  })
+
+  it('shows the server’s refusal of an area at the field, and asks for the places again: the archived floor is no longer offered (F16-43)', async () => {
+    let floor3Active = true
+    const { user, requests } = setupTracked({
+      locations: () => {
+        const tower = makeTower()
+        tower.floors[1]!.is_active = floor3Active
+        return jsonResponse(makeLocationTree([tower]))
+      },
+      create: () => {
+        floor3Active = false
+        return errorResponse(422, 'VALIDATION_ERROR', 'Please correct the highlighted fields.', {
+          fields: { 'access_areas.floor_ids': 'This place is archived.' },
+          field_codes: { 'access_areas.floor_ids': { code: 'location_archived', params: {} } },
+        })
+      },
+    })
+    await openForm()
+    await waitFor(() => expect(floor('Floor 3')).toBeChecked())
+    fillNewVisitor()
+    const places = requests.filter((request) => request.path === '/locations').length
+    await user.click(screen.getByRole('button', { name: 'Send invitation' }))
+    await waitFor(() => expect(areas()).toHaveAccessibleDescription(/archived/))
+    expect(floor('Ground floor')).toHaveFocus()
+    await waitFor(() => expect(requests.filter((request) => request.path === '/locations').length).toBeGreaterThan(places))
+    await waitFor(() => expect(within(areas()).queryByRole('checkbox', { name: 'Floor 3' })).toBeNull())
   })
 })

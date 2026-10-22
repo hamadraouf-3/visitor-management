@@ -3,6 +3,7 @@ import { getEmployeeDashboard } from '../../api/dashboard'
 import { isApiError } from '../../api/client'
 import { queryKeys } from '../../api/queryKeys'
 import { cancelVisit, createVisit, issueVisitPass, listVisits, resendInvitation, updateVisit } from '../../api/visits'
+import { refreshPlacesAfterRefusal } from '../accessAreas/areaRefusal'
 import type { Visit, VisitCancelRequest, VisitCreate, VisitListParams, VisitPassResult, VisitResendResult, VisitUpdate } from '../../types/api'
 
 export function useEmployeeDashboard() {
@@ -64,7 +65,7 @@ function refreshStaleVisit(queryClient: QueryClient, visitId: string, error: unk
 /**
  * Creates a visit (and invitation). The result carries the one-time `pass_url`; `gcTime: 0`
  * drops it from the mutation cache as soon as no component shows it (§6: never retrievable
- * later).
+ * later). A refusal of an allowed area (archived meanwhile) reloads the places (F16-43).
  */
 export function useCreateVisit() {
   const queryClient = useQueryClient()
@@ -72,6 +73,7 @@ export function useCreateVisit() {
     mutationFn: (body: VisitCreate) => createVisit(body),
     gcTime: 0,
     onSuccess: (result) => refreshAfterVisitChange(queryClient, result.visit),
+    onError: (error) => refreshPlacesAfterRefusal(queryClient, error),
   })
 }
 

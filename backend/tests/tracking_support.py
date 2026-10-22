@@ -1,5 +1,6 @@
 """Helpers of the Visitor Journey's tests (Phase 15): the simulator wired into the shared application, a
-provider that records (or fails) its calls, a company's registry, settings and keys."""
+provider that records (or fails) its calls, a company's registry, settings and keys. Phase 16: a registry
+with zones of every access level (`area_registry`), and a sighting batch (`sees`)."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -24,6 +25,7 @@ from app.models import (
     TrackingKey,
     User,
     Zone,
+    ZoneAccess,
 )
 from app.services.environment import ServiceEnvironment
 from app.services.tracking_ingestion import ingest_simulated
@@ -238,3 +240,94 @@ def association_of(db: Session, visit_id: str) -> TrackingAssociation:
     ).first()
     assert association is not None
     return association
+
+
+# ---- Phase 16: allowed areas and alerts --------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class AreaRegistry:
+    """A building with a ground floor (a COMMON lobby and the reception camera), a second floor (a
+    STANDARD zone) and a fourth floor (a STANDARD office and a RESTRICTED server room), one camera each."""
+
+    building: Building
+    ground: Floor
+    second: Floor
+    fourth: Floor
+    lobby: Zone  # COMMON
+    meeting: Zone  # STANDARD, second floor
+    office: Zone  # STANDARD, fourth floor
+    server: Zone  # RESTRICTED, fourth floor
+    reception_camera: TrackingCamera  # an enrollment point in the lobby
+    lobby_camera: TrackingCamera
+    second_camera: TrackingCamera
+    office_camera: TrackingCamera
+    server_camera: TrackingCamera
+
+
+def area_registry(db: Session, company: Company, *, prefix: str = "") -> AreaRegistry:
+    now = app_time.now()
+    common: dict[str, Any] = {"company_id": company.id, "created_at": now, "updated_at": now}
+    building = Building(name=f"{prefix}Tower", name_ar="البرج", **common)
+    db.add(building)
+    db.flush()
+    ground = Floor(building_id=building.id, name="Ground", name_ar="الأرضي", level=0, **common)
+    second = Floor(building_id=building.id, name="Second", name_ar="الثاني", level=2, **common)
+    fourth = Floor(building_id=building.id, name="Fourth", name_ar="الرابع", level=4, **common)
+    db.add_all([ground, second, fourth])
+    db.flush()
+    lobby = Zone(floor_id=ground.id, name="Lobby", access=ZoneAccess.COMMON.value, **common)
+    meeting = Zone(floor_id=second.id, name="Meeting rooms", access=ZoneAccess.STANDARD.value, **common)
+    office = Zone(floor_id=fourth.id, name="Open office", name_ar="المكاتب", **common)
+    server = Zone(floor_id=fourth.id, name="Server room", access=ZoneAccess.RESTRICTED.value, **common)
+    db.add_all([lobby, meeting, office, server])
+    db.flush()
+
+    def camera(provider_id: str, name: str, zone: Zone, *, point: bool = False) -> TrackingCamera:
+        return TrackingCamera(
+            provider_camera_id=f"{prefix}{provider_id}",
+            name=name,
+            zone_id=zone.id,
+            is_enrollment_point=point,
+            **common,
+        )
+
+    cameras = (
+        camera("cam-reception", "Reception", lobby, point=True),
+        camera("cam-lobby", "Lobby", lobby),
+        camera("cam-2f", "Second floor", meeting),
+        camera("cam-4f", "Fourth floor", office),
+        camera("cam-4f-server", "Server room", server),
+    )
+    db.add_all(cameras)
+    db.commit()
+    return AreaRegistry(building, ground, second, fourth, lobby, meeting, office, server, *cameras)
+
+
+def sees(
+    client: TestClient,
+    key: str,
+    ref: str,
+    camera: TrackingCamera,
+    at: datetime,
+    *,
+    event_id: str,
+    match: str = "CONFIRMED",
+    confidence: float | None = 0.93,
+) -> list[tuple[str, str | None]]:
+    """One batch: a heartbeat and one observation; the outcomes of both."""
+    response = post_events(
+        client,
+        key,
+        [
+            heartbeat(at, f"hb-{event_id}"),
+            observed(ref, camera, at, event_id=event_id, match=match, confidence=confidence),
+        ],
+    )
+    assert response.status_code == 200, response.text
+    return [(item["result"], item["reason"]) for item in response.json()["results"]]
+
+
+def areas(*, floors: tuple[Floor, ...] = (), zones: tuple[Zone, ...] = ()) -> dict[str, list[str]]:
+    """A `VisitAccessAreasInput` body."""
+    return {"floor_ids": [str(floor.id) for floor in floors], "zone_ids": [str(zone.id) for zone in zones]}

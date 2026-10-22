@@ -2,6 +2,7 @@ import { hasRole } from '../../auth/roles'
 import { i18n } from '../../i18n'
 import { lazyTexts } from '../../i18n/lazyTexts'
 import type { DepartmentRef, Host, Me, VisitCreate, Visitor } from '../../types/api'
+import { toAreasInput, type AreaSelection } from '../accessAreas/accessAreas'
 import { addMinutesUtc, nextHalfHourUtc, type DateInput } from '../../utils/datetime'
 import { maxLengthMessage, type FormErrors } from '../../utils/forms'
 import { isBlankText } from '../../utils/text'
@@ -29,9 +30,14 @@ export interface InviteFormValues extends VisitorContactValues {
   end: string | null
   purpose: string
   sendInvitation: boolean
+  /**
+   * Phase 16: the allowed areas as the person chose them; null while they have not touched the field, which
+   * then shows (and sends) the chosen department's floor, and follows a change of department.
+   */
+  accessAreas: AreaSelection | null
 }
 
-export type InviteField = 'existingVisitor' | keyof VisitorContactValues | 'host' | 'department' | 'start' | 'end' | 'purpose'
+export type InviteField = 'existingVisitor' | keyof VisitorContactValues | 'host' | 'department' | 'start' | 'end' | 'purpose' | 'areas'
 
 /** How the visitor gets their pass: the invitation email, or the host shares the one-time pass link. */
 export type PassDelivery = 'email' | 'share'
@@ -87,6 +93,7 @@ export function initialInviteValues(me: Me, now: DateInput = Date.now(), visitor
     end: addMinutesUtc(start, DEFAULT_DURATION_MINUTES),
     purpose: '',
     sendInvitation: true,
+    accessAreas: null,
   }
 }
 
@@ -166,9 +173,10 @@ export function validateInvite(values: InviteFormValues, now: number): FormError
  *
  * The host's own department is left out: the server then applies it as the default (B24-23),
  * or none if it was deactivated meanwhile, instead of refusing the visit for a department
- * the user never chose.
+ * the user never chose. `areas`: the allowed areas the form shows (Phase 16), sent only when the
+ * field is shown; null leaves them to the server (the department's floor).
  */
-export function toVisitCreate(values: InviteFormValues): VisitCreate {
+export function toVisitCreate(values: InviteFormValues, areas: AreaSelection | null = null): VisitCreate {
   if (!values.host || !values.start || !values.end) throw new Error('toVisitCreate needs a validated form')
   const departmentId = values.departmentId !== values.host.department?.id ? values.departmentId : ''
   return {
@@ -179,5 +187,7 @@ export function toVisitCreate(values: InviteFormValues): VisitCreate {
     scheduled_start: values.start,
     scheduled_end: values.end,
     send_invitation: values.sendInvitation,
+    // Phase 16: only while the field is shown, as it shows them (the department's floor until changed).
+    ...(areas ? { access_areas: toAreasInput(areas) } : {}),
   }
 }

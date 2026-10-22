@@ -34,6 +34,7 @@ export function departmentFilterValue(
       is_active: false,
       created_at: '',
       updated_at: '',
+      floor: null,
     }
   )
 }

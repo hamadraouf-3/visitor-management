@@ -30,7 +30,8 @@
       "adminEmailTemplates": "Email texts",
       "adminTracking": "Visitor tracking",
       "platformCompanies": "Companies",
-      "platformAudit": "Audit log"
+      "platformAudit": "Audit log",
+      "trackingAlerts": "Tracking alerts"
     }
   },
   "account": {

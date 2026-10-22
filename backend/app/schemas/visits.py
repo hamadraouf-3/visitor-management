@@ -34,6 +34,7 @@ from app.schemas.common import (
     VisitStatus,
     comma_separated,
 )
+from app.schemas.locations import VisitAccessAreas, VisitAccessAreasInput
 
 # ---- responses ----------------------------------------------------------------------------------
 
@@ -97,6 +98,9 @@ class VisitPermissions(ResponseModel):
     can_resend: bool
     can_check_in: bool
     can_check_out: bool
+    # Phase 16 (B16-2): SCHEDULED or CHECKED_IN, and the caller is an administrator or a receptionist, or
+    # the visit's host.
+    can_edit_access_areas: bool
 
 
 class Visit(ResponseModel):
@@ -142,6 +146,8 @@ class Visit(ResponseModel):
     # "pass" is a Python keyword: exposed under that name through the alias.
     pass_: VisitPass = Field(alias="pass", serialization_alias="pass")
     permissions: VisitPermissions
+    # Where the visitor may be (Phase 16, B16-2): empty lists, "not set".
+    access_areas: VisitAccessAreas
 
     # Spelled out (not merged from ResponseModel.model_config) so the Pydantic mypy plugin sees that the
     # constructor takes `pass_`.
@@ -239,6 +245,8 @@ class VisitCreate(VisitorSourceRequest):
     scheduled_start: RequestDatetime
     scheduled_end: RequestDatetime
     send_invitation: bool
+    # Phase 16 (B16-3): omitted or null, the visit's department's floor when it has an active one.
+    access_areas: VisitAccessAreasInput | None = None
 
 
 class VisitUpdate(RequestModel):
@@ -309,6 +317,8 @@ class WalkInCreate(VisitorSourceRequest):
     expected_end: RequestDatetime
     reason: WalkInReason
     reason_note: OptionalReason300 = Field(default=None, validate_default=True)
+    # Phase 16 (B16-3): as for an invitation.
+    access_areas: VisitAccessAreasInput | None = None
 
     @field_validator("reason_note")
     @classmethod

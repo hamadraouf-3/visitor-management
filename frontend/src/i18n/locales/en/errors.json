@@ -43,6 +43,7 @@
     "TRACKING_NOT_AVAILABLE": "Tracking is not available now.",
     "TRACKING_KEY_LIMIT": "Two keys are already in use. Revoke one first.",
     "LOCATION_IN_USE": "It still has active floors, zones or cameras. Archive those first.",
+    "ALERT_RESOLVED": "This alert is already resolved.",
     "NETWORK_ERROR": "We could not reach the server. Check your connection and try again.",
     "UNEXPECTED_RESPONSE": "Something went wrong. Please try again."
   },

@@ -128,9 +128,11 @@ def test_runtime_role_privileges_match_contract(connection: Connection) -> None:
     # No DELETE anywhere (revision 0006): the application deletes nothing (D-12).
     assert set(grants.values()) == {"INSERT,SELECT,UPDATE"}
     # The nine tables of revisions 0001-0012, platform_admins, platform_sessions and
-    # email_template_overrides (revision 0013), company_brand_assets (revision 0015), and the nine other
-    # tables of the visitor journey (revision 0018).
-    assert len(grants) == 22 and "company_brand_assets" in grants and "tracking_associations" in grants
+    # email_template_overrides (revision 0013), company_brand_assets (revision 0015), the nine other
+    # tables of the visitor journey (revision 0018), and visit_access_areas and tracking_alerts (revision
+    # 0019, Phase 16): SELECT, INSERT, UPDATE from the schema's default privileges.
+    assert len(grants) == 24 and "company_brand_assets" in grants and "tracking_associations" in grants
+    assert grants["visit_access_areas"] == grants["tracking_alerts"] == "INSERT,SELECT,UPDATE"
     insertable = connection.execute(
         text(
             "SELECT column_name FROM information_schema.column_privileges "

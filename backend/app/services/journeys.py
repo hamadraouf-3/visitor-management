@@ -1,16 +1,25 @@
 """Visitor journeys: the list of a day, a visit's journey, and the tracking actions (Phase 15,
-/api/v1/journeys, /api/v1/visits/{id}/journey, /api/v1/visits/{id}/tracking/enroll and /revoke).
+/api/v1/journeys, /api/v1/visits/{id}/journey, /api/v1/visits/{id}/tracking/enroll and /revoke), and the
+live view of everyone inside (Phase 16, /api/v1/journeys/live).
 
 * **Who.** Administrators, management and receptionists read journeys (VIEW_JOURNEYS); administrators
   and receptionists enroll and revoke (TRACK_VISITS). A host who is only an employee is refused: least
   privilege, a host has no need for a visitor's movements (B15-13).
 * **Reads end what has expired** (`TrackingLifecycle.expire_due`) before they compute anything, so an
   expiry never depends on a job; opening a visit's journey is audited (JOURNEY_VIEWED), at most once per
-  user and visit in `JOURNEY_VIEW_AUDIT_WINDOW` (B15-19), and a list that shows anyone's location is
-  audited (JOURNEY_LIST_VIEWED), at most once per user in `JOURNEY_LIST_AUDIT_WINDOW` (B15-31).
+  user and visit in `JOURNEY_VIEW_AUDIT_WINDOW` (B15-19), and a list (the day's, or the live view) that
+  shows anyone's location is audited (JOURNEY_LIST_VIEWED), at most once per user in
+  `JOURNEY_LIST_AUDIT_WINDOW` (B15-31, B16-11).
 * **What a journey shows** comes only from associations the provider activated (B15-28); a location only
   from a confirmed observation that no other confirmed observation within the conflict window contradicts
-  (B15-30).
+  (B15-30). The computation is `journey_current.current_journeys`, which the area alerts use too (B16-5).
+* **Phase 16 (B16-10).** A visit's journey also answers its allowed areas (and whether the caller may
+  change them), its latest alerts and its path: the confirmed observations with a location of its
+  timeline, oldest first, consecutive ones in the same zone collapsed into one stay. Each stay, and each
+  confirmed observation of the timeline (`allowed`), says whether the visit's current areas allow it.
+* **The live view** (B16-11): every CHECKED_IN visit of the company, newest check-in first, at most
+  `LIVE_VISITORS_LIMIT` (`truncated` beyond), with its state, location, freshness, active alert and
+  allowed areas; `building_id` keeps the visitors located in that building and those without a location.
 * **Enrollment** (B15-14) is allowed only when the provider is not `disabled`, the company has tracking
   allowed and enabled, the visit is CHECKED_IN (whatever its schedule says: a visitor inside is inside,
   B15-34), no PENDING/ACTIVE association exists, and the camera is an active enrollment point of the
@@ -24,9 +33,8 @@
 """
 
 import logging
-from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from collections.abc import Iterable, Mapping, Sequence
+from datetime import datetime
 from typing import cast
 from uuid import UUID
 
@@ -38,81 +46,80 @@ from app.core.errors import TrackingNotAvailable, ValidationFailed, VisitNotChec
 from app.core.request_context import RequestContext
 from app.core.text import escape_like
 from app.core.time import company_day_bounds, local_date
-from app.models import AuditLog, Company, TrackingAssociation, TrackingEndReason, Visit, VisitStatus
+from app.models import (
+    AuditLog,
+    Company,
+    TrackingAssociation,
+    TrackingEndReason,
+    Visit,
+    VisitorJourneyEvent,
+    VisitStatus,
+)
 from app.models.enums import JourneyEventType, ObservationMatch, TrackingAssociationStatus
 from app.repositories.companies import CompanyRepository
 from app.repositories.locking import RowLock
 from app.repositories.pagination import Page, paginate
 from app.repositories.tracking import (
     AssociationRepository,
-    AssociationSummary,
     CameraRepository,
     JourneyEventRepository,
     LocationRepository,
     PlacedZone,
     SightingRow,
+    TrackingAlertRepository,
     TrackingHealthRepository,
     TrackingSettingsRepository,
     present_during,
 )
 from app.repositories.visits import VisitRepository
-from app.schemas.common import DepartmentRef, UserRef
 from app.schemas.journeys import (
     JourneyEvent,
     JourneyListItem,
     JourneyListQuery,
-    JourneyVisitSummary,
+    JourneyStay,
+    LiveJourneyQuery,
+    LiveJourneys,
+    LiveVisitor,
     TrackingEnrollRequest,
     VisitJourney,
 )
 from app.schemas.journeys import TrackingAssociation as AssociationOut
-from app.schemas.locations import JourneyLocation
+from app.schemas.locations import JourneyLocation, VisitAccessAreas
 from app.schemas.tracking import CameraRef, TrackingProviderName
-from app.schemas.visits import VisitVisitor
 from app.security.permissions import Capability, has_capability
 from app.security.sessions import AuthContext
-from app.services import audit
+from app.services import audit, visit_rules
+from app.services.access_areas import AccessAreaService
 from app.services.audit import AuditAction, AuditEntity
-from app.services.scoping import REFERENCE_NOT_FOUND, require_found
+from app.services.journey_current import CurrentJourney, current_journeys, place_of, visit_summary
+from app.services.scoping import REFERENCE_NOT_FOUND, FieldErrors, require_found
+from app.services.tracking_alerts import TrackingAlerts
 from app.services.tracking_lifecycle import EndTrigger, TrackingLifecycle
 from app.services.tracking_provider import TrackingProvider
 from app.services.tracking_rules import (
-    CONFLICT_WINDOW,
     JOURNEY_LIST_AUDIT_WINDOW,
     JOURNEY_VIEW_AUDIT_WINDOW,
+    LIVE_VISITORS_LIMIT,
     TIMELINE_LIMIT,
-    AssociationFacts,
+    VISIT_ALERTS_LIMIT,
+    AccessAreas,
     EnrollBlocker,
-    JourneyState,
     ProviderOperation,
-    Sighting,
     freshness_seconds,
+    is_allowed,
     is_confirmed,
-    journey_state,
     new_ref,
     pending_expiry,
     provider_failure_reason,
 )
-from app.services.tracking_settings import EffectiveSettings, effective_settings, journey_location
+from app.services.tracking_settings import EffectiveSettings, effective_settings
 from app.services.visit_lifecycle import begin_visit_change
+from app.services.visit_rules import Caller
 
 logger = logging.getLogger("app.tracking")
 OPEN_VISIT_CONSTRAINT = "uq_tracking_associations_open_visit"
-
-
-@dataclass(frozen=True, slots=True)
-class _Computed:
-    state: JourneyState
-    association: TrackingAssociation | None  # the visit's latest
-    summary: AssociationSummary | None  # its sightings: only once the provider activated it (B15-28)
-
-    @property
-    def location(self) -> SightingRow | None:
-        """The observation the last location comes from: the latest confirmed one, unless a confirmed
-        observation within the conflict window names another floor (B15-30): then nothing is reliable."""
-        if self.summary is None or self.summary.conflict:
-            return None
-        return self.summary.latest_confirmed
+# `metadata.view` of a JOURNEY_LIST_VIEWED row written by the live view (B16-11).
+LIVE_VIEW = "LIVE"
 
 
 class JourneyService:
@@ -124,6 +131,8 @@ class JourneyService:
         self.events = JourneyEventRepository(db)
         self.cameras = CameraRepository(db)
         self.locations = LocationRepository(db)
+        self.areas = AccessAreaService(db)
+        self.alerts = TrackingAlerts(db, provider)
 
     # ---- reads ------------------------------------------------------------------------------------
 
@@ -145,19 +154,72 @@ class JourneyService:
         settings = effective_settings(TrackingSettingsRepository(self.db).get(company.id))
         if not query.state:
             page = paginate(self.db, statement, page=query.page, page_size=query.page_size)
-            items = self._list_items(company, page.items, settings, now=now)
-            self._audit_list(auth, items, day=day, context=context, now=now)
+            items = self._items(
+                company, page.items, self._current(company.id, page.items, settings, now), now
+            )
+            self._audit_located(auth, items, {"day": day.isoformat()}, context=context, now=now)
             return Page(items=items, page=page.page, page_size=page.page_size, total=page.total)
         # A state is computed, not stored: the day's visits are computed and then filtered.
         visits = list(self.db.scalars(statement))
-        computed = self._compute(company.id, visits, settings, now=now)
+        computed = self._current(company.id, visits, settings, now)
         wanted = set(query.state)
         matching = [visit for visit in visits if computed[visit.id].state in wanted]
         offset = (query.page - 1) * query.page_size
         chosen = matching[offset : offset + query.page_size]
-        items = self._items(company.id, chosen, computed, now=now)
-        self._audit_list(auth, items, day=day, context=context, now=now)
+        items = self._items(company, chosen, computed, now)
+        self._audit_located(auth, items, {"day": day.isoformat()}, context=context, now=now)
         return Page(items=items, page=query.page, page_size=query.page_size, total=len(matching))
+
+    def live(self, auth: AuthContext, query: LiveJourneyQuery, context: RequestContext) -> LiveJourneys:
+        """Everyone inside now (B16-11). A `building_id` that is not a building of the company is 422."""
+        company = require_found(CompanyRepository(self.db).get(auth.company_id))
+        if query.building_id is not None:
+            errors = FieldErrors()
+            errors.require(self.locations.building(company.id, query.building_id), "building_id")
+            errors.raise_if_any()
+        now = self._expire(company.id, context=context)
+        visits = list(
+            self.db.scalars(
+                select(Visit)
+                .where(Visit.company_id == company.id, Visit.status == VisitStatus.CHECKED_IN.value)
+                .order_by(Visit.check_in_at.desc(), Visit.id.desc())
+                .limit(LIVE_VISITORS_LIMIT + 1)
+            )
+        )
+        truncated = len(visits) > LIVE_VISITORS_LIMIT
+        visits = visits[:LIVE_VISITORS_LIMIT]
+        settings = effective_settings(TrackingSettingsRepository(self.db).get(company.id))
+        computed = self._current(company.id, visits, settings, now)
+        visit_ids = [visit.id for visit in visits]
+        places = self.locations.placed(company.id, _zones(computed.values()))
+        alerts = self.alerts.refs(company.id, visit_ids)
+        areas = self.areas.views(company.id, visit_ids)
+        visitors: list[LiveVisitor] = []
+        for visit in visits:
+            item = computed[visit.id]
+            confirmed = item.location
+            location = _location(confirmed, places)
+            if (
+                query.building_id is not None
+                and location is not None
+                and location.building.id != query.building_id
+            ):
+                continue
+            seen_at = confirmed.observed_at if confirmed is not None and location is not None else None
+            visitors.append(
+                LiveVisitor(
+                    visit=visit_summary(visit),
+                    state=item.state,
+                    simulated=item.simulated,
+                    last_location=location,
+                    last_observed_at=seen_at,
+                    freshness_seconds=freshness_seconds(seen_at, now=now),
+                    alert=alerts.get(visit.id),
+                    access_areas=areas[visit.id],
+                )
+            )
+        self._audit_located(auth, visitors, {"view": LIVE_VIEW}, context=context, now=now)
+        return LiveJourneys(generated_at=now, truncated=truncated, visitors=visitors)
 
     def visit_journey(self, auth: AuthContext, visit_id: UUID, context: RequestContext) -> VisitJourney:
         visit = require_found(self.visits.get(auth.company_id, visit_id))
@@ -318,18 +380,19 @@ class JourneyService:
             self.db.rollback()
             logger.warning("counting a tracking provider failure failed", extra={"error": type(exc).__name__})
 
-    def _audit_list(
+    def _audit_located(
         self,
         auth: AuthContext,
-        items: Sequence[JourneyListItem],
+        rows: Sequence[JourneyListItem | LiveVisitor],
+        metadata: Mapping[str, object],
         *,
-        day: date,
         context: RequestContext,
         now: datetime,
     ) -> None:
-        """JOURNEY_LIST_VIEWED when the answer shows anyone's location (B15-31), unless this user has one
-        younger than the window: the list reveals where people were, so reading it leaves a trace too."""
-        located = sum(1 for item in items if item.last_location is not None)
+        """JOURNEY_LIST_VIEWED when the answer shows anyone's location (B15-31; the live view too, B16-11),
+        unless this user has one younger than the window: a list reveals where people were, so reading it
+        leaves a trace too."""
+        located = sum(1 for row in rows if row.last_location is not None)
         if not located:
             return
         recent = self.db.scalar(
@@ -352,7 +415,7 @@ class JourneyService:
             actor_user_id=auth.user_id,
             entity_type=AuditEntity.COMPANY,
             entity_id=auth.company_id,
-            metadata={"day": day.isoformat(), "located": located},
+            metadata={**metadata, "located": located},
         )
         self.db.commit()
 
@@ -383,80 +446,37 @@ class JourneyService:
         )
         self.db.commit()
 
-    def _compute(
-        self, company_id: UUID, visits: Sequence[Visit], settings: EffectiveSettings, *, now: datetime
-    ) -> dict[UUID, _Computed]:
-        latest = self.associations.latest_for_visits(company_id, [visit.id for visit in visits])
-        summaries = self.associations.summaries(
-            company_id,
-            # An association the provider never activated bound nobody: nothing of it is shown (B15-28).
-            [association for association in latest.values() if association.activated_at is not None],
-            threshold=settings.min_confidence,
-            conflict_window=CONFLICT_WINDOW,
+    def _current(
+        self, company_id: UUID, visits: Sequence[Visit], settings: EffectiveSettings, now: datetime
+    ) -> dict[UUID, CurrentJourney]:
+        return current_journeys(
+            self.db, self.provider, company_id, [visit.id for visit in visits], settings, now=now
         )
-        health = TrackingHealthRepository(self.db).get(company_id)
-        last_contact = health.last_contact_at if health is not None else None
-        tracking_on = self.provider.enabled and settings.allowed and settings.enabled
-        stale_after = timedelta(minutes=settings.stale_after_minutes)
-        computed: dict[UUID, _Computed] = {}
-        for visit in visits:
-            association = latest.get(visit.id)
-            summary = summaries.get(association.id) if association is not None else None
-            state = journey_state(
-                tracking_on=tracking_on,
-                association=(
-                    AssociationFacts(
-                        TrackingAssociationStatus(association.status),
-                        association.expires_at,
-                        association.activated_at,
-                    )
-                    if association is not None
-                    else None
-                ),
-                last_contact_at=last_contact,
-                latest_sighting=_sighting(summary.latest_sighting) if summary is not None else None,
-                latest_confirmed_at=(
-                    summary.latest_confirmed.observed_at
-                    if summary is not None and summary.latest_confirmed is not None
-                    else None
-                ),
-                conflict=summary.conflict if summary is not None else False,
-                threshold=settings.min_confidence,
-                stale_after=stale_after,
-                now=now,
-            )
-            computed[visit.id] = _Computed(state=state, association=association, summary=summary)
-        return computed
-
-    def _list_items(
-        self, company: Company, visits: Sequence[Visit], settings: EffectiveSettings, *, now: datetime
-    ) -> list[JourneyListItem]:
-        computed = self._compute(company.id, visits, settings, now=now)
-        return self._items(company.id, visits, computed, now=now)
 
     def _items(
-        self, company_id: UUID, visits: Sequence[Visit], computed: dict[UUID, _Computed], *, now: datetime
+        self,
+        company: Company,
+        visits: Sequence[Visit],
+        computed: dict[UUID, CurrentJourney],
+        now: datetime,
     ) -> list[JourneyListItem]:
-        zone_ids = {
-            location.zone_id
-            for item in computed.values()
-            if (location := item.location) is not None and location.zone_id is not None
-        }
-        places = self.locations.placed(company_id, zone_ids)
+        places = self.locations.placed(company.id, _zones(computed[visit.id] for visit in visits))
+        alerts = self.alerts.refs(company.id, [visit.id for visit in visits])
         items: list[JourneyListItem] = []
         for visit in visits:
             item = computed[visit.id]
             confirmed = item.location
             items.append(
                 JourneyListItem(
-                    visit=_summary(visit),
+                    visit=visit_summary(visit),
                     state=item.state,
-                    simulated=item.association is not None and item.association.provider == "simulator",
+                    simulated=item.simulated,
                     last_location=_location(confirmed, places),
                     last_observed_at=confirmed.observed_at if confirmed is not None else None,
                     freshness_seconds=freshness_seconds(
                         confirmed.observed_at if confirmed is not None else None, now=now
                     ),
+                    alert=alerts.get(visit.id),
                 )
             )
         return items
@@ -464,7 +484,9 @@ class JourneyService:
     def _journey(self, auth: AuthContext, visit: Visit, *, now: datetime) -> VisitJourney:
         company_id = auth.company_id
         settings = effective_settings(TrackingSettingsRepository(self.db).get(company_id))
-        computed = self._compute(company_id, [visit], settings, now=now)[visit.id]
+        computed = current_journeys(self.db, self.provider, company_id, [visit.id], settings, now=now)[
+            visit.id
+        ]
         association = computed.association
         confirmed = computed.location
         timeline = self.events.timeline(company_id, visit.id, limit=TIMELINE_LIMIT)
@@ -481,8 +503,12 @@ class JourneyService:
             TrackingAssociationStatus.ACTIVE,
         )
         blocker = self._enroll_blocker(auth, visit, settings, open_association=open_association, now=now)
+        area_view = self.areas.view(company_id, visit.id)
+        areas = _rule_areas(area_view)
+        threshold = settings.min_confidence
+        alerts = TrackingAlertRepository(self.db).of_visit(company_id, visit.id, limit=VISIT_ALERTS_LIMIT)
         return VisitJourney(
-            visit=_summary(visit),
+            visit=visit_summary(visit),
             state=computed.state,
             association=_association(association, camera_names) if association is not None else None,
             last_location=_location(confirmed, places),
@@ -499,12 +525,13 @@ class JourneyService:
                         if event.camera_id is not None
                         else None
                     ),
-                    location=_place(event.zone_id, places),
+                    location=place_of(event.zone_id, places),
                     match=ObservationMatch(event.match) if event.match is not None else None,
                     confidence=event.confidence,
                     confirmed=event.type == JourneyEventType.OBSERVED
-                    and is_confirmed(event.match, event.confidence, settings.min_confidence),
+                    and is_confirmed(event.match, event.confidence, threshold),
                     model_version=event.model_version,
+                    allowed=_allowed(event, threshold, places, areas),
                 )
                 for event in timeline
             ],
@@ -512,6 +539,12 @@ class JourneyService:
             can_enroll=blocker is None,
             enroll_blocker=blocker,
             can_revoke=open_association and has_capability(auth.roles, Capability.TRACK_VISITS),
+            access_areas=area_view,
+            can_edit_access_areas=visit_rules.can_edit_access_areas(
+                Caller(user_id=auth.user_id, roles=auth.roles), status=visit.status, host_id=visit.host_id
+            ),
+            alerts=self.alerts.views(auth, alerts),
+            path=_path(timeline, threshold, places, areas),
         )
 
     def _enroll_blocker(
@@ -551,50 +584,71 @@ def _availability(provider: TrackingProvider, settings: EffectiveSettings) -> En
     return None
 
 
-def _sighting(row: SightingRow | None) -> Sighting | None:
-    if row is None:
-        return None
-    return Sighting(
-        event_id=row.id,
-        type=JourneyEventType(row.type),
-        observed_at=row.observed_at,
-        floor_id=row.floor_id,
-        match=row.match,
-        confidence=row.confidence,
-    )
+def _zones(journeys: Iterable[CurrentJourney]) -> set[UUID]:
+    """The zones of the journeys' last locations."""
+    return {
+        location.zone_id
+        for journey in journeys
+        if (location := journey.location) is not None and location.zone_id is not None
+    }
 
 
 def _location(confirmed: SightingRow | None, places: dict[UUID, PlacedZone]) -> JourneyLocation | None:
     """The last known location: only ever from a confirmed observation (B15-12)."""
-    return _place(confirmed.zone_id if confirmed is not None else None, places)
+    return place_of(confirmed.zone_id if confirmed is not None else None, places)
 
 
-def _place(zone_id: UUID | None, places: dict[UUID, PlacedZone]) -> JourneyLocation | None:
-    if zone_id is None or zone_id not in places:
-        return None
-    return journey_location(places[zone_id])
-
-
-def _summary(visit: Visit) -> JourneyVisitSummary:
-    return JourneyVisitSummary(
-        id=visit.id,
-        status=VisitStatus(visit.status),
-        visitor=VisitVisitor(
-            id=visit.visitor_id, full_name=visit.visitor_name, company_name=visit.visitor_company_name
-        ),
-        host=UserRef(id=visit.host_id, full_name=visit.host_name),
-        department=(
-            DepartmentRef(
-                id=visit.department_id, name=visit.department_name, name_ar=visit.department_name_ar
-            )
-            if visit.department_id is not None and visit.department_name is not None
-            else None
-        ),
-        scheduled_start=visit.scheduled_start,
-        scheduled_end=visit.scheduled_end,
-        check_in_at=visit.check_in_at,
-        check_out_at=visit.check_out_at,
+def _rule_areas(view: VisitAccessAreas) -> AccessAreas:
+    return AccessAreas(
+        floor_ids=frozenset(floor.id for floor in view.floors),
+        zone_ids=frozenset(zone.id for zone in view.zones),
     )
+
+
+def _allowed(
+    event: VisitorJourneyEvent, threshold: float | None, places: dict[UUID, PlacedZone], areas: AccessAreas
+) -> bool | None:
+    """For a confirmed observation with a location, whether `areas` allow it (B16-10); else None."""
+    if event.type != JourneyEventType.OBSERVED or not is_confirmed(event.match, event.confidence, threshold):
+        return None
+    place = places.get(event.zone_id) if event.zone_id is not None else None
+    if place is None:
+        return None
+    return is_allowed(access=place.zone.access, zone_id=place.zone.id, floor_id=place.floor.id, areas=areas)
+
+
+def _path(
+    timeline: Sequence[VisitorJourneyEvent],
+    threshold: float | None,
+    places: dict[UUID, PlacedZone],
+    areas: AccessAreas,
+) -> list[JourneyStay]:
+    """The confirmed observations with a location, oldest first, consecutive ones in the same zone
+    collapsed into one stay (B16-10). From the timeline's events (the latest TIMELINE_LIMIT)."""
+    stays: list[JourneyStay] = []
+    last_zone: UUID | None = None
+    for event in timeline:
+        allowed = _allowed(event, threshold, places, areas)
+        location = place_of(event.zone_id, places)
+        if allowed is None or location is None:
+            continue
+        if stays and event.zone_id == last_zone:
+            stay = stays[-1]
+            stays[-1] = stay.model_copy(
+                update={"to": event.observed_at, "observations": stay.observations + 1}
+            )
+            continue
+        stays.append(
+            JourneyStay(
+                location=location,
+                from_=event.observed_at,
+                to=event.observed_at,
+                observations=1,
+                allowed=allowed,
+            )
+        )
+        last_zone = event.zone_id
+    return stays
 
 
 def _association(association: TrackingAssociation, camera_names: dict[UUID, str]) -> AssociationOut:

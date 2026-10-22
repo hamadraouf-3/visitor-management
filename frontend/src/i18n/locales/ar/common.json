@@ -30,7 +30,8 @@
       "adminEmailTemplates": "نصوص الرسائل",
       "adminTracking": "تتبّع الزوار",
       "platformCompanies": "الشركات",
-      "platformAudit": "سجل التدقيق"
+      "platformAudit": "سجل التدقيق",
+      "trackingAlerts": "تنبيهات التتبّع"
     }
   },
   "account": {

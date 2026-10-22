@@ -6,7 +6,7 @@ import { errorResponse, jsonResponse, mockApi, type RecordedRequest, type RouteH
 import { page } from '../../test/fixtures'
 import { renderRoutes } from '../../test/render'
 import type { Role, VisitJourney } from '../../types/api'
-import { makeCamera, makeEvent, makeJourneyItem, makeTrackedMe, makeTrackingStatus, makeVisitJourney, MEETING, PLACE, VISIT_ID } from './testRoutes'
+import { alertSummaryRoute, FLOOR_4_PLACE, makeAlert, makeCamera, makeEvent, makeJourneyItem, makeLocationTree, makeStay, makeTrackedMe, makeTrackingStatus, makeVisitJourney, MEETING, PLACE, VISIT_ID } from './testRoutes'
 
 /** 12:00 in Amman; the last confirmed sighting was at 11:56 (four minutes before). */
 const NOW = new Date('2026-10-20T09:00:00Z')
@@ -23,10 +23,15 @@ function setupList({
   roles = ['RECEPTIONIST'] as Role[],
   journeys = () => jsonResponse(page([makeJourneyItem()])),
   status = () => jsonResponse(makeTrackingStatus()),
-  path = '/journey',
+  path = '/journey?view=list',
   language = null,
 }: { roles?: Role[]; journeys?: RouteHandler; status?: RouteHandler; path?: string; language?: 'ar' | null } = {}) {
-  const api = mockApi({ 'GET /auth/me': () => jsonResponse(makeTrackedMe(roles, { preferred_language: language })), 'GET /tracking/status': status, 'GET /journeys': journeys })
+  const api = mockApi({
+    'GET /auth/me': () => jsonResponse(makeTrackedMe(roles, { preferred_language: language })),
+    'GET /tracking/status': status,
+    'GET /journeys': journeys,
+    ...alertSummaryRoute(),
+  })
   return { ...api, ...renderRoutes(routes, { initialEntries: [path] }) }
 }
 
@@ -37,7 +42,14 @@ function setupDetail({
   extra = {},
   language = null,
 }: { roles?: Role[]; journey?: RouteHandler; status?: RouteHandler; extra?: Record<string, RouteHandler>; language?: 'ar' | null } = {}) {
-  const api = mockApi({ 'GET /auth/me': () => jsonResponse(makeTrackedMe(roles, { preferred_language: language })), 'GET /tracking/status': status, [`GET /visits/${VISIT_ID}/journey`]: journey, ...extra })
+  const api = mockApi({
+    'GET /auth/me': () => jsonResponse(makeTrackedMe(roles, { preferred_language: language })),
+    'GET /tracking/status': status,
+    [`GET /visits/${VISIT_ID}/journey`]: journey,
+    'GET /locations': () => jsonResponse(makeLocationTree()),
+    ...alertSummaryRoute(),
+    ...extra,
+  })
   return { ...api, ...renderRoutes(routes, { initialEntries: [`/journey/${VISIT_ID}`] }) }
 }
 
@@ -157,7 +169,8 @@ describe('Visitor Journey: the list', () => {
 
     fireEvent.change(screen.getByRole('combobox', { name: 'State' }), { target: { value: 'STALE' } })
     await waitFor(() => expect(lastQuery(requests)).toEqual({ page: '1', page_size: '25', state: 'STALE' }))
-    expect(router.state.location.search).toBe('?state=STALE')
+    // The view (Phase 16) stays: clearing or changing a filter keeps the list.
+    expect(router.state.location.search).toBe('?view=list&state=STALE')
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-10-19' } })
     await waitFor(() => expect(lastQuery(requests)).toEqual({ page: '1', page_size: '25', state: 'STALE', day: '2026-10-19' }))
@@ -170,20 +183,28 @@ describe('Visitor Journey: the list', () => {
     expect(router.state.location.search).not.toContain('Cedar')
   })
 
+  it('asks again only as a background refresh: the first load is the person’s own (F16-37)', async () => {
+    const { requests, queryClient } = setupList()
+    await screen.findByRole('table', { name: 'Visitor Journey' })
+    await act(() => queryClient.invalidateQueries({ queryKey: ['journeys'] }))
+    await waitFor(() => expect(journeyRequests(requests).length).toBeGreaterThanOrEqual(2))
+    expect(journeyRequests(requests).map((request) => request.headers.get('X-Background-Refresh'))).toEqual([null, ...journeyRequests(requests).slice(1).map(() => '1')])
+  })
+
   it('has an empty state for a day without visits', async () => {
     setupList({ journeys: () => jsonResponse(page([])) })
     expect(await screen.findByRole('heading', { name: 'No visits on this day' })).toBeInTheDocument()
   })
 
   it('has its own empty state for filters that match nothing, which clears them', async () => {
-    const { requests, router, user } = setupList({ path: '/journey?state=STALE', journeys: () => jsonResponse(page([])) })
+    const { requests, router, user } = setupList({ path: '/journey?view=list&state=STALE', journeys: () => jsonResponse(page([])) })
     expect(await screen.findByRole('heading', { name: 'No visits match these filters' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'No visits on this day' })).toBeNull()
     expect(lastQuery(requests)).toMatchObject({ state: 'STALE' })
 
     // The filter panel has one too; the empty state's is the last.
     await user.click(screen.getAllByRole('button', { name: 'Clear filters' }).at(-1)!)
-    await waitFor(() => expect(router.state.location.search).toBe(''))
+    await waitFor(() => expect(router.state.location.search).toBe('?view=list'))
     expect(await screen.findByRole('heading', { name: 'No visits on this day' })).toBeInTheDocument()
   })
 
@@ -515,5 +536,105 @@ describe('Visitor Journey: a visit', () => {
   it('says «لا يوجد رصد» for an empty timeline in Arabic', async () => {
     setupDetail({ language: 'ar', journey: () => jsonResponse(makeVisitJourney({ timeline: [], timeline_total: 0 })) })
     expect(await screen.findByText('لا يوجد رصد')).toBeInTheDocument()
+  })
+})
+
+describe('Visitor Journey: a visit’s allowed areas, path and alerts (Phase 16)', () => {
+  it('shows the allowed areas, the path with a stay outside them in red, and the timeline’s place outside marked', async () => {
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
+    setupDetail({
+      journey: () =>
+        jsonResponse(
+          makeVisitJourney({
+            path: [makeStay(), makeStay({ location: FLOOR_4_PLACE, from: '2026-10-20T08:50:00Z', to: '2026-10-20T08:56:00Z', observations: 2, allowed: false })],
+            timeline: [makeEvent({ id: 'e3', observed_at: '2026-10-20T08:56:00Z', location: FLOOR_4_PLACE, allowed: false })],
+            timeline_total: 1,
+          }),
+        ),
+    })
+    const areas = (await screen.findByRole('heading', { name: 'Allowed areas' })).closest('section') as HTMLElement
+    expect(areas.querySelector('[data-allowed-floor]')).toHaveTextContent('Floor 3')
+    expect(await within(areas).findByRole('button', { name: 'Edit allowed areas' })).toBeInTheDocument()
+
+    const path = (screen.getByRole('heading', { name: 'Path' }).closest('section') as HTMLElement).querySelectorAll('[data-journey-path] li')
+    expect([...path].map((stay) => stay.getAttribute('data-stay-allowed'))).toEqual(['true', 'false'])
+    expect(path[1]).toHaveTextContent('Outside allowed area')
+
+    const event = document.querySelector('[data-journey-timeline] li') as HTMLElement
+    expect(event).toHaveAttribute('data-event-allowed', 'false')
+    expect(event).toHaveTextContent('Outside allowed area')
+  })
+
+  it('lists the visit’s alerts, the active one first with its actions, the resolved one with how it ended', async () => {
+    vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
+    const resolved = makeAlert({ id: 'a-old', status: 'RESOLVED', resolution: 'RETURNED', resolved_at: '2026-10-20T08:20:00Z', can_act: false, opened_at: '2026-10-20T08:10:00Z' })
+    setupDetail({ journey: () => jsonResponse(makeVisitJourney({ alerts: [resolved, makeAlert()] })) })
+    const card = (await screen.findByRole('heading', { name: /^Alerts/ })).closest('section') as HTMLElement
+    const alerts = card.querySelectorAll('[data-alert-card]')
+    expect([...alerts].map((alert) => alert.getAttribute('data-alert-state'))).toEqual(['OPEN', 'RESOLVED'])
+    expect(within(alerts[0] as HTMLElement).getByRole('button', { name: 'Acknowledge' })).toBeInTheDocument()
+    expect(alerts[1]).toHaveTextContent('Returned to an allowed area')
+    expect(within(alerts[1] as HTMLElement).queryByRole('button')).toBeNull()
+    // On the visit's own journey: no visitor's name or way to the journey on the card, nor the allowed floors
+    // (the Allowed areas card says them).
+    expect(within(card).queryByRole('link', { name: 'Open journey' })).toBeNull()
+    expect(card).not.toHaveTextContent('Allowed floors')
+  })
+
+  it('resolves the visit’s active alert: its actions go, and the focus to the page’s heading (F16-34)', async () => {
+    let journey = makeVisitJourney({ alerts: [makeAlert({ status: 'ACKNOWLEDGED' })] })
+    const resolved = makeAlert({ status: 'RESOLVED', resolution: 'MANUAL', resolved_at: '2026-10-20T09:00:00Z', resolved_by: { id: 'u1', full_name: 'Lina Haddad' }, can_act: false })
+    const { user } = setupDetail({
+      journey: () => jsonResponse(journey),
+      extra: {
+        [`POST /tracking/alerts/${resolved.id}/resolve`]: () => {
+          journey = makeVisitJourney({ alerts: [resolved] })
+          return jsonResponse(resolved)
+        },
+      },
+    })
+    const card = (await screen.findByRole('heading', { name: /^Alerts/ })).closest('section') as HTMLElement
+    await user.click(await within(card).findByRole('button', { name: 'Resolve' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Resolve the alert for Maya Odeh?' })).getByRole('button', { name: 'Resolve' }))
+    await waitFor(() => expect(card.querySelector('[data-alert-state]')).toHaveAttribute('data-alert-state', 'RESOLVED'))
+    expect(within(card).queryByRole('button')).toBeNull()
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Maya Odeh' })).toHaveFocus())
+  })
+
+  it('keeps a refusal in its dialog while the journey’s refresh resolves the alert, then gives the focus to the heading (F16-33)', async () => {
+    let journey = makeVisitJourney({ alerts: [makeAlert()] })
+    const { queryClient, user } = setupDetail({
+      journey: () => jsonResponse(journey),
+      extra: {
+        [`POST /tracking/alerts/${makeAlert().id}/acknowledge`]: () => {
+          journey = makeVisitJourney({ alerts: [makeAlert({ status: 'RESOLVED', resolution: 'RETURNED', resolved_at: '2026-10-20T08:59:00Z', can_act: false })] })
+          return errorResponse(409, 'ALERT_RESOLVED', 'This alert is already resolved.')
+        },
+      },
+    })
+    const card = (await screen.findByRole('heading', { name: /^Alerts/ })).closest('section') as HTMLElement
+    await user.click(await within(card).findByRole('button', { name: 'Acknowledge' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Acknowledge the alert for Maya Odeh?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Acknowledge' }))
+    expect(await within(dialog).findByText('This alert is already resolved.')).toBeInTheDocument()
+
+    await act(() => queryClient.invalidateQueries({ queryKey: ['journeys'] }))
+    await waitFor(() => expect(within(card).queryByRole('button', { name: 'Acknowledge' })).toBeNull())
+    expect(within(dialog).getByText('This alert is already resolved.')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Maya Odeh' })).toHaveFocus())
+  })
+
+  it('offers no change of the areas or action on an alert to management', async () => {
+    setupDetail({ roles: ['MANAGEMENT'], journey: () => jsonResponse(makeVisitJourney({ can_edit_access_areas: false, alerts: [makeAlert({ can_act: false })] })) })
+    await screen.findByRole('heading', { name: 'Allowed areas' })
+    expect(screen.queryByRole('button', { name: 'Edit allowed areas' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Acknowledge' })).toBeNull()
+  })
+
+  it('has no alerts card for a visit that has had none', async () => {
+    setupDetail()
+    await screen.findByRole('heading', { name: 'Allowed areas' })
+    expect(screen.queryByRole('heading', { name: /^Alerts/ })).toBeNull()
   })
 })

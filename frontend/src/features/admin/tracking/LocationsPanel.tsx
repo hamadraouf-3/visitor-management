@@ -1,5 +1,5 @@
 import { Archive, ArchiveRestore, Building2, Ellipsis, Layers, MapPinned, Pencil, Plus } from 'lucide-react'
-import { useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert } from '../../../components/ui/Alert'
 import { ApiErrorMessage } from '../../../components/ui/ApiErrorMessage'
@@ -13,6 +13,7 @@ import { Field } from '../../../components/ui/Field'
 import { Input } from '../../../components/ui/Input'
 import { LoadErrorAlert } from '../../../components/ui/LoadErrorAlert'
 import { Menu, type MenuItem } from '../../../components/ui/Menu'
+import { Select } from '../../../components/ui/Select'
 import { PageSpinner } from '../../../components/ui/Spinner'
 import { useToast } from '../../../components/ui/toastContext'
 import { useFormErrors } from '../../../hooks/useFormErrors'
@@ -24,6 +25,8 @@ import { cn } from '../../../utils/cn'
 import { actionErrorMessage } from '../../../utils/forms'
 import { locationName, otherLocationName, type LocationNames } from '../../journey/locationNames'
 import type { BuildingNode, FloorNode } from '../../journey/types'
+import { ZoneAccessBadge } from '../../journey/ZoneAccessBadge'
+import { isZoneAccess, ZONE_ACCESS_LEVELS, ZONE_ACCESS_META } from '../../journey/zoneAccess'
 import {
   useCreateBuilding,
   useCreateFloor,
@@ -47,8 +50,11 @@ type PlaceTarget =
 
 type ArchiveTarget = { kind: PlaceKind; place: BuildingNode | FloorNode | ZoneNode }
 
-/** A place's name in the UI language, and its other language's name under it, muted (data the administrator manages). */
-function PlaceName({ place, className }: { place: LocationNames & { is_active: boolean }; className?: string }) {
+/**
+ * A place's name in the UI language, and its other language's name under it, muted (data the administrator
+ * manages). `marks`: chips beside the name (a zone's access level).
+ */
+function PlaceName({ place, className, marks }: { place: LocationNames & { is_active: boolean }; className?: string; marks?: ReactNode }) {
   const { t } = useTranslation('admin')
   const { language } = useLanguage()
   const other = otherLocationName(place, language)
@@ -56,6 +62,7 @@ function PlaceName({ place, className }: { place: LocationNames & { is_active: b
     <span className="flex min-w-0 flex-col">
       <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <span className={cn('font-semibold break-words', place.is_active ? 'text-fg' : 'text-fg-muted', className)}>{locationName(place, language)}</span>
+        {marks}
         {!place.is_active && <Badge tone="neutral">{t('tracking.locations.archived')}</Badge>}
       </span>
       {other && (
@@ -102,7 +109,7 @@ function siblingsOf(target: PlaceTarget, buildings: readonly BuildingNode[]): Pl
   }
 }
 
-/** Add or edit a place: its name, its Arabic name (typed right to left), and a floor's level. */
+/** Add or edit a place: its name, its Arabic name (typed right to left), a floor's level, and a zone's access level (Phase 16). */
 function PlaceDialog({ target, buildings, onClose }: { target: PlaceTarget; buildings: readonly BuildingNode[]; onClose: () => void }) {
   const { t } = useTranslation('admin')
   const { language } = useLanguage()
@@ -124,12 +131,13 @@ function PlaceDialog({ target, buildings, onClose }: { target: PlaceTarget; buil
     name: place?.name ?? '',
     nameAr: place?.name_ar ?? '',
     level: target.kind === 'floor' && target.place ? String(target.place.level) : '',
+    access: target.kind === 'zone' && target.place ? target.place.access : 'STANDARD',
   })
   // A 409 names the field whose value is taken (`details.field`: the name, or a floor's level).
   const conflictField = target.kind === 'floor' ? 'level' : 'name'
   const form = useFormErrors<PlaceField>(mutation.error, { fields: PLACE_FIELDS, codes: { CONFLICT: conflictField } })
   const formId = useStableId('place')
-  const set = (key: keyof PlaceValues, value: string) => setValues((current) => ({ ...current, [key]: value }))
+  const set = <K extends keyof PlaceValues>(key: K, value: PlaceValues[K]) => setValues((current) => ({ ...current, [key]: value }))
 
   const title = editing
     ? t(`tracking.locations.edit.${target.kind}`, { name: locationName(place, language) })
@@ -155,8 +163,8 @@ function PlaceDialog({ target, buildings, onClose }: { target: PlaceTarget; buil
       const level = parseLevel(values.level) ?? 0
       if (target.place) updateFloor.mutate({ id: target.place.id, body: { name, name_ar: nameAr, level } }, { onSuccess: done })
       else createFloor.mutate({ building_id: target.building.id, name, name_ar: nameAr, level }, { onSuccess: done })
-    } else if (target.place) updateZone.mutate({ id: target.place.id, body: { name, name_ar: nameAr } }, { onSuccess: done })
-    else createZone.mutate({ floor_id: target.floor.id, name, name_ar: nameAr }, { onSuccess: done })
+    } else if (target.place) updateZone.mutate({ id: target.place.id, body: { name, name_ar: nameAr, access: values.access } }, { onSuccess: done })
+    else createZone.mutate({ floor_id: target.floor.id, name, name_ar: nameAr, access: values.access }, { onSuccess: done })
   }
 
   return (
@@ -187,6 +195,17 @@ function PlaceDialog({ target, buildings, onClose }: { target: PlaceTarget; buil
         {target.kind === 'floor' && (
           <Field label={t('tracking.locations.level')} required {...form.field('level')}>
             <Input dir="ltr" inputMode="numeric" autoComplete="off" className="max-w-28" value={values.level} onChange={(event) => set('level', event.target.value)} />
+          </Field>
+        )}
+        {target.kind === 'zone' && (
+          <Field label={t('tracking.locations.access')} {...form.field('access')}>
+            <Select value={values.access} onChange={(event) => isZoneAccess(event.target.value) && set('access', event.target.value)} className="sm:max-w-60">
+              {ZONE_ACCESS_LEVELS.map((access) => (
+                <option key={access} value={access}>
+                  {ZONE_ACCESS_META[access].label}
+                </option>
+              ))}
+            </Select>
           </Field>
         )}
       </form>
@@ -264,7 +283,8 @@ function ZoneRow({ zone, floor, actions }: { zone: ZoneNode; floor: FloorNode; a
     <li data-place="zone" className="flex min-h-14 items-center gap-3 py-2 ps-4">
       <MapPinned aria-hidden="true" className={cn('size-4 shrink-0', zone.is_active ? 'text-fg-muted' : 'text-fg-muted opacity-60')} />
       <div className="min-w-0 flex-1 text-sm">
-        <PlaceName place={zone} />
+        {/* The editor names every zone's access level, the default one too (the map marks only common and restricted). */}
+        <PlaceName place={zone} marks={<ZoneAccessBadge access={zone.access} always />} />
       </div>
       <PlaceMenu
         quiet
@@ -291,12 +311,18 @@ function FloorSection({ floor, building, showArchived, actions }: { floor: Floor
   return (
     <li data-place="floor" className="py-3">
       <div className="flex items-center gap-3">
-        <span className="inline-flex min-w-11 shrink-0 items-center justify-center rounded-item bg-surface-sunken px-2 py-1 font-numeric text-sm font-semibold text-fg-secondary tabular-nums" title={t('tracking.locations.level')}>
-          <span className="sr-only">{t('tracking.locations.level')} </span>
-          <bdi dir="ltr">{floor.level}</bdi>
-        </span>
         <div className="min-w-0 flex-1">
-          <PlaceName place={floor} />
+          {/* The level in words beside the name, never a bare number in a tile, which read as a count (the owner's follow-up, F16-32). */}
+          <PlaceName
+            place={floor}
+            marks={
+              <span data-floor-level={floor.level} className="inline-flex max-w-full">
+                <Badge tone="neutral">
+                  {t('tracking.locations.level')} <bdi dir="ltr">{floor.level}</bdi>
+                </Badge>
+              </span>
+            }
+          />
         </div>
         <PlaceMenu
           quiet
